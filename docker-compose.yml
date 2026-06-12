@@ -30,7 +30,7 @@ services:
   backend:
     build:
       context: ./backend
-      dockerfile: Dockerfile.dev # Utilise la version optimisée pour le développement
+      dockerfile: Dockerfile # Utilise la version optimisée pour le développement
     container_name: campuslink-api
     restart: unless-stopped
     ports:
@@ -54,7 +54,7 @@ services:
   frontend:
     build:
       context: ./frontend
-      dockerfile: Dockerfile.dev
+      dockerfile: Dockerfile
     container_name: campuslink-web
     restart: unless-stopped
     ports:
