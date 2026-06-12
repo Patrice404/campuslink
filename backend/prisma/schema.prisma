@@ -1,0 +1,30 @@
+// ==========================================
+// CONFIGURATION DU CLIENT PRISMA
+// ==========================================
+
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x", "linux-musl"]
+}
+
+// ==========================================
+// CONNEXION À LA BASE DE DONNÉES
+// ==========================================
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ==========================================
+// MODÈLES DE DONNÉES (TABLES)
+// ==========================================
+
+// Notre toute première table : Les Utilisateurs (Étudiants/Staff)
+model User {
+  id        Int      @id @default(autoincrement())
+  email     String   @unique
+  name      String
+  role      String   @default("STUDENT") // Peut être STUDENT, ADMIN, ALUMNI
+  createdAt DateTime @default(now())
+}

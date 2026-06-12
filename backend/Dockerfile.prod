@@ -1,0 +1,51 @@
+# ==========================================
+# ÉTAPE 1 : BUILDER (Compilation TypeScript & Prisma)
+# ==========================================
+FROM node:20-alpine AS builder
+
+WORKDIR /app
+
+COPY package*.json ./
+# Copier le schéma Prisma pour pouvoir générer le client DB
+COPY prisma ./prisma/ 
+
+RUN npm ci
+
+COPY . .
+
+# Générer le client Prisma et compiler le TypeScript (génère un dossier /dist)
+RUN npx prisma generate
+RUN npm run build
+
+# ==========================================
+# ÉTAPE 2 : PRODUCTION (Exécution sécurisée)
+# ==========================================
+FROM node:20-alpine AS production
+
+# Variables d'environnement pour forcer Node en mode production
+ENV NODE_ENV=production
+
+WORKDIR /app
+
+COPY package*.json ./
+
+# Installer UNIQUEMENT les dépendances de production (ignore les devDependencies)
+RUN npm ci --only=production
+
+# Copier UNIQUEMENT le code compilé et les fichiers nécessaires depuis le builder
+COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/prisma ./prisma
+COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
+
+# ===============================
+# SÉCURITÉ : PRINCIPE DU MOINDRE PRIVILÈGE
+# ===============================
+# L'image officielle Node fournit un utilisateur "node" sans droits admin.
+# On change le propriétaire des fichiers puis on bascule sur cet utilisateur.
+RUN chown -R node:node /app
+USER node
+
+EXPOSE 3000
+
+# Lancer le serveur compilé
+CMD ["node", "dist/main.js"]

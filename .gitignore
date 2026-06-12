@@ -1,0 +1,34 @@
+# --- Node.js / Frontend / Backend ---
+node_modules/
+dist/
+dist-ssr/
+.output/
+.nuxt/
+.next/
+*.log
+.env
+.env.*
+!.env.example
+
+# --- IDE / Système ---
+.vscode/
+.idea/
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.swp
+
+# --- Bases de données / Logs ---
+*.sqlite
+*.sqlite-journal
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# --- Azure / Cloud (Optionnel) ---
+.azure/
+.terraform/

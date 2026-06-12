@@ -1,0 +1,38 @@
+import { createRouter, createWebHistory } from 'vue-router'
+import CampusSelectView from '../views/CampusSelectView.vue' // <-- Nouvelle page
+import LoginView from '../views/LoginView.vue'
+import HomeView from '../views/HomeView.vue'
+import ProjectsView from '../views/ProjectsView.vue'
+
+const router = createRouter({
+  history: createWebHistory(),
+  routes: [
+    // 1. La racine (/) devient la sélection du campus
+    {
+      path: '/',
+      name: 'campus-select',
+      component: CampusSelectView,
+      meta: { hideNavbar: true } 
+    },
+    // 2. La page de connexion
+    {
+      path: '/login',
+      name: 'login',
+      component: LoginView,
+      meta: { hideNavbar: true }
+    },
+    // 3. L'accueil du site (Une fois connecté)
+    {
+      path: '/accueil',
+      name: 'home',
+      component: HomeView
+    },
+    {
+      path: '/projets',
+      name: 'projects',
+      component: ProjectsView
+    }
+  ]
+})
+
+export default router

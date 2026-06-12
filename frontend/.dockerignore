@@ -1,0 +1,10 @@
+# .dockerignore (À placer dans /frontend et /backend)
+node_modules
+npm-debug.log
+.DS_Store
+.git
+.gitignore
+.env
+.env.*
+README.md
+dist

@@ -1,0 +1,73 @@
+# Définition d'un réseau privé pour nos conteneurs (Sécurité standard)
+networks:
+  campus_net:
+    driver: bridge
+
+services:
+  # ==========================================
+  # 1. BASE DE DONNÉES (PostgreSQL)
+  # ==========================================
+  database:
+    image: postgres:15-alpine
+    container_name: campuslink-db
+    restart: unless-stopped
+    env_file:
+      - .env  # Va lire les mots de passe dans le fichier .env
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
+    ports:
+      - "5432:5432" # Accessible depuis ton ordinateur (pour utiliser un outil comme DBeaver ou PgAdmin)
+    networks:
+      - campus_net
+    volumes:
+      - pg_data:/var/lib/postgresql/data # Persistance des données même si on coupe Docker
+
+  # ==========================================
+  # 2. BACKEND (Node.js + Prisma)
+  # ==========================================
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.dev # Utilise la version optimisée pour le développement
+    container_name: campuslink-api
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+      - "5555:5555" # Port pour le hot reloading de Prisma
+    env_file:
+      - .env
+    networks:
+      - campus_net
+    depends_on:
+      - database # Attendre que la DB soit prête avant de lancer l'API
+    volumes:
+      # LE HOT RELOADING : Synchronise ton code en direct
+      - ./backend:/app
+      # L'ASTUCE DEVOPS : Protège le dossier node_modules interne au conteneur
+      - /app/node_modules
+
+  # ==========================================
+  # 3. FRONTEND (Vue.js + Vite)
+  # ==========================================
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+    container_name: campuslink-web
+    restart: unless-stopped
+    ports:
+      - "5173:5173"
+    networks:
+      - campus_net
+    depends_on:
+      - backend # Attendre que l'API soit prête avant de lancer la vue
+    volumes:
+      # LE HOT RELOADING
+      - ./frontend:/app
+      - /app/node_modules
+
+# Déclaration du volume persistant pour la base de données
+volumes:
+  pg_data:
