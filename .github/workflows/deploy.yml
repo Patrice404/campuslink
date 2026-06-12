@@ -1,0 +1,31 @@
+name: Build and Push to ACR
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Login to Azure
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Login to ACR
+        run: az acr login --name acrCampuslink
+
+      - name: Build and push Backend Image
+        run: |
+          docker build -t acrcampuslink.azurecr.io/backend:latest ./backend
+          docker push acrcampuslink.azurecr.io/backend:latest
+
+      - name: Build and push Frontend Image
+        run: |
+          docker build -t acrcampuslink.azurecr.io/frontend:latest ./frontend
+          docker push acrcampuslink.azurecr.io/frontend:latest
