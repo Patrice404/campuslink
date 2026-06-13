@@ -1,0 +1,9 @@
+{
+  "name": "campuslink-monorepo",
+  "private": true,
+  "workspaces": [
+    "backend",
+    "frontend",
+    "shared"
+  ]
+}

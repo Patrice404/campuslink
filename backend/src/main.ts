@@ -1,28 +1,13 @@
-// backend/src/main.ts
 import express from 'express';
 import cors from 'cors';
-import { PrismaClient } from '@prisma/client';
+import userRoutes from './routes/users';
 
 const app = express();
-const prisma = new PrismaClient(); // Notre traducteur vers PostgreSQL
+app.use(cors()); // Autorise le frontend à appeler l'API
+app.use(express.json()); // Permet d'analyser le JSON envoyé par le client
 
-app.use(cors());
-app.use(express.json());
+// Tes routes
+app.use('/api', userRoutes);
 
-// 🛣️ CRÉATION DE LA ROUTE HELLO WORLD
-// Quand le frontend demande /api/users, on exécute ce code
-app.get('/api/users', async (req, res) => {
-  try {
-    // On demande à Prisma de chercher TOUS les utilisateurs
-    const users = await prisma.user.findMany();
-    // On les renvoie au format JSON
-    res.json(users);
-  } catch (error) {
-    res.status(500).json({ error: "Erreur serveur" });
-  }
-});
-
-// Lancement du serveur
-app.listen(3000, () => {
-  console.log('🚀 Serveur API CampusLink lancé sur le port 3000');
-});
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => console.log(`Serveur prêt sur le port ${PORT}`));
