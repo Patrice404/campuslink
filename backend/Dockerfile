@@ -25,4 +25,4 @@ COPY . .
 EXPOSE 3000
 
 # 7. Démarrage du serveur Node
-CMD ["npm", "run", "dev"]
+CMD ["sh", "-c", "npm install && npx prisma generate && npm run dev"]

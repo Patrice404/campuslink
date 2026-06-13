@@ -7,9 +7,7 @@ FROM node:20-alpine AS builder
 WORKDIR /app
 
 # 1. Copier uniquement les fichiers de dépendances d'abord (Optimisation du cache Docker)
-COPY package.json ./
-COPY frontend/package.json ./frontend/
-COPY shared ./shared/
+COPY package*.json ./
 
 # 2. Installation stricte (npm ci est plus fiable et sécurisé que npm install en CI/CD)
 RUN npm ci
