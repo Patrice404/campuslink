@@ -11,8 +11,8 @@ app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
 app.use('/api/auth', require('./routes/auth.routes'));
 app.use('/api/utilisateurs', require('./routes/utilisateur.routes'));
+app.use('/api/campus', require('./routes/campus.routes'));
 // Routes à réactiver une fois leurs controllers implémentés :
-// app.use('/api/campus', require('./routes/campus.routes'));
 // app.use('/api/annonces', require('./routes/annonce.routes'));
 // app.use('/api/commentaires', require('./routes/commentaire.routes'));
 // app.use('/api/candidatures', require('./routes/candidature.routes'));
