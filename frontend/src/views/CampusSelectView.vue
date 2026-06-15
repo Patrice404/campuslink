@@ -18,11 +18,11 @@ const fetchCampuses = async () => {
   errorMessage.value = ''
 
   try {
-    // Utilisation de la variable d'environnement (Port 3001 selon ton code backend)
+    // Utilisation de la variable d'environnement (Port 3000 selon ton code backend)
     const apiUrl = import.meta.env.VITE_API_URL
     
     const response = await fetch(`${apiUrl}/api/campus`)
-    
+    console.log("Réponse brute de l'API :", response)
     if (!response.ok) {
       throw new Error(`Erreur HTTP: ${response.status}`)
     }
