@@ -1,13 +1,15 @@
-const router = require('express').Router();
-const multer = require('multer');
-const path = require('path');
-const { lister, detail, mesAnnonces, creer, modifier, supprimer } = require('../controllers/annonce.controller');
-const { toggle } = require('../controllers/jaime.controller');
-const { auth } = require('../middlewares/auth.middleware');
+import { Router } from 'express';
+import multer from 'multer';
+import path from 'path';
+import { lister, detail, mesAnnonces, creer, modifier, supprimer } from '../controllers/annonce.controller';
+import { toggle } from '../controllers/jaime.controller';
+import { auth } from '../middlewares/auth.middleware';
+
+const router = Router();
 
 const storage = multer.diskStorage({
   destination: 'uploads/',
-  filename: (req, file, cb) => cb(null, `${Date.now()}${path.extname(file.originalname)}`),
+  filename: (_req, file, cb) => cb(null, `${Date.now()}${path.extname(file.originalname)}`),
 });
 const upload = multer({ storage, limits: { fileSize: 5 * 1024 * 1024 } });
 
@@ -20,4 +22,4 @@ router.put('/:id', auth, upload.single('image'), modifier);
 router.delete('/:id', auth, supprimer);
 router.post('/:id/jaime', auth, toggle);
 
-module.exports = router;
+export default router;
