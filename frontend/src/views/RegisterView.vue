@@ -1,10 +1,12 @@
-
 <script setup lang="ts">
 import { ref } from 'vue'
-import { RouterLink } from 'vue-router'
+import { useRouter, RouterLink } from 'vue-router'
 import BaseButton from '../components/BaseButton.vue'
 
-// Variables réactives
+const router = useRouter()
+
+// Variables réactives pour les champs
+const role = ref('ETUDIANT')
 const firstName = ref('')
 const lastName = ref('')
 const email = ref('')
@@ -14,17 +16,60 @@ const confirmPassword = ref('')
 const showPassword = ref(false)
 const showConfirmPassword = ref(false)
 
-const handleRegister = () => {
+// Gestion de l'état d'envoi et des erreurs
+const isLoading = ref(false)
+const errorMessage = ref('')
+
+const handleRegister = async () => {
+  // 1. Réinitialiser les erreurs
+  errorMessage.value = ''
+
+  // 2. Vérification locale des mots de passe
   if (password.value !== confirmPassword.value) {
-    console.error("Erreur : Les mots de passe ne correspondent pas.")
+    errorMessage.value = "Les mots de passe ne correspondent pas."
     return
   }
   
-  console.log("Tentative d'inscription avec :", {
-    firstName: firstName.value,
-    lastName: lastName.value,
-    email: email.value
-  })
+  isLoading.value = true
+
+  try {
+    // 3. Définir l'URL de l'API (basée sur ton backend qui tourne sur le port 3001)
+    const apiUrl = import.meta.env.VITE_API_URL
+
+    // 4. Envoi de la requête POST 
+    const response = await fetch(`${apiUrl}/api/auth/inscription`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        nom: lastName.value,
+        prenom: firstName.value,
+        email: email.value,
+        motDePasse: password.value,
+        role: role.value
+      })
+    })
+
+    const data = await response.json()
+
+    // 5. Gestion des erreurs renvoyées par le backend (ex: email déjà pris)
+    if (!response.ok) {
+      errorMessage.value = data.message || "Erreur lors de l'inscription."
+      return
+    }
+
+    console.log("Inscription réussie !", data)
+    
+    // 6. Succès : Redirection vers la page de connexion
+    router.push('/login')
+
+  } catch (error) {
+    console.error("Erreur réseau :", error)
+    errorMessage.value = "Impossible de joindre le serveur. Veuillez vérifier votre connexion."
+  } finally {
+    isLoading.value = false
+  }
 }
 </script>
 
@@ -60,6 +105,29 @@ const handleRegister = () => {
         </div>
 
         <form @submit.prevent="handleRegister" class="space-y-4">
+
+          <div class="bg-gray-100 p-1 rounded-lg flex gap-1 mb-2">
+            <button
+              type="button"
+              @click="role = 'ETUDIANT'"
+              :class="[
+                'flex-1 py-2.5 text-sm font-semibold rounded-md transition-all duration-200',
+                role === 'ETUDIANT' ? 'bg-white text-secondary shadow-sm ring-1 ring-gray-200' : 'text-gray-500 hover:text-gray-700'
+              ]"
+            >
+              Je suis Étudiant
+            </button>
+            <button
+              type="button"
+              @click="role = 'PROFESSEUR'"
+              :class="[
+                'flex-1 py-2.5 text-sm font-semibold rounded-md transition-all duration-200',
+                role === 'PROFESSEUR' ? 'bg-white text-secondary shadow-sm ring-1 ring-gray-200' : 'text-gray-500 hover:text-gray-700'
+              ]"
+            >
+              Je suis Professeur
+            </button>
+          </div>
 
           <div class="flex gap-4">
             <div class="flex-1">
@@ -199,8 +267,13 @@ const handleRegister = () => {
               Les mots de passe ne correspondent pas.
             </p>
           </div>
-          <BaseButton type="submit" variant="primary">
-            S'inscrire
+          <div v-if="errorMessage" class="p-3 mb-4 text-sm text-red-700 bg-red-50 rounded-lg border border-red-200">
+            {{ errorMessage }}
+          </div>
+
+          <BaseButton type="submit" variant="primary" :disabled="isLoading" :class="{ 'opacity-50 cursor-not-allowed': isLoading }">
+            <span v-if="isLoading">Création du compte...</span>
+            <span v-else>S'inscrire</span>
           </BaseButton>
         </form>
 
@@ -214,5 +287,3 @@ const handleRegister = () => {
 
   </div>
 </template>
-
-```
