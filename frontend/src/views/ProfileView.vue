@@ -8,12 +8,24 @@ const user = ref<any>(null);
 const loading = ref(true);
 const error = ref("");
 
+const isMyProfile = computed(() => !route.params.id);
+
 onMounted(async () => {
   try {
     const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:3000";
     const userId = route.params.id;
 
-    const response = await fetch(`${apiUrl}/api/users/${userId}/profile`);
+    const endpoint = userId
+      ? `${apiUrl}/api/users/${userId}/profile`
+      : `${apiUrl}/api/profil`;
+
+    const token = localStorage.getItem("token");
+
+    const response = await fetch(endpoint, {
+      headers: token
+        ? { Authorization: `Bearer ${token}` }
+        : {},
+    });
 
     if (!response.ok) {
       throw new Error("Impossible de charger le profil");
@@ -29,7 +41,7 @@ onMounted(async () => {
 
 const initials = computed(() => {
   if (!user.value) return "";
-  return user.value.prenom[0] + user.value.nom[0];
+  return `${user.value.prenom?.[0] || ""}${user.value.nom?.[0] || ""}`;
 });
 </script>
 
