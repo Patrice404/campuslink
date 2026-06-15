@@ -4,6 +4,7 @@ import LoginView from '../views/LoginView.vue'
 import HomeView from '../views/HomeView.vue'
 import ProjectsView from '../views/ProjectsView.vue'
 import UsersView from '../views/UsersView.vue'
+import ProfileView from '../views/ProfileView.vue'
 
 const router = createRouter({
   history: createWebHistory(),
@@ -42,7 +43,7 @@ const router = createRouter({
     {
       path: '/profil',
       name: 'profil',
-      component: () => import("../views/ProfileView.vue")
+      component: ProfileView
     }
   ]
 })
