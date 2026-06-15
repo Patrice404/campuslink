@@ -1,7 +1,7 @@
 Contextes 1 : Tu viens de récupérer le code de l'équipe (git pull)
 Le problème : Tes collègues ont peut-être modifié la structure de la base de données ou ajouté de nouveaux modèles dans le code. Ton Docker n'est pas au courant.
  # 1. Met à jour les fichiers de code dans Docker (évite l'erreur 'undefined')
-docker compose exec backend npx prisma generate
+    docker compose exec backend npx prisma generate
 
 # 2. Applique les nouvelles tables à ta base de données Docker
 docker compose exec backend npx prisma migrate dev
