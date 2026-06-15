@@ -9,10 +9,10 @@ const TYPES: AnnonceType[] = ['EXERCICE', 'BON_PLAN', 'TUTORAT', 'PROJET'];
 export async function lister(_req: Request, res: Response): Promise<void> {
   try {
     const [exercices, bonsPlans, tutorats, projets] = await Promise.all([
-      prisma.annonceExercice.findMany(),
-      prisma.annonceBonPlan.findMany(),
-      prisma.annonceTutorat.findMany(),
-      prisma.annonceProjet.findMany(),
+      prisma.annonceExercice.findMany({ include: { utilisateur: true } }), // <-- Ajout
+      prisma.annonceBonPlan.findMany({ include: { utilisateur: true } }),  // <-- Ajout
+      prisma.annonceTutorat.findMany({ include: { utilisateur: true } }),  // <-- Ajout
+      prisma.annonceProjet.findMany({ include: { utilisateur: true } }),   // <-- Ajout
     ]);
 
     const toutes = [...exercices, ...bonsPlans, ...tutorats, ...projets].sort(
@@ -172,3 +172,5 @@ export async function supprimer(req: Request, res: Response): Promise<void> {
     res.status(500).json({ message: 'Erreur serveur' });
   }
 }
+
+

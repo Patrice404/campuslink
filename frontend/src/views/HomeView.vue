@@ -64,7 +64,23 @@ onMounted(async () => {
     }
 
     // 4. On injecte les vraies données dans notre variable réactive
-    annonces.value = await response.json();
+    const rawData = await response.json();
+    annonces.value = rawData.map((annonce: any) => {
+      
+      // 1. Traduire les ENUMS Prisma pour que les couleurs de tes badges fonctionnent
+      let typeVisuel = annonce.type;
+      if (annonce.type === 'BON_PLAN') typeVisuel = 'AnnonceBonPlan';
+      if (annonce.type === 'TUTORAT') typeVisuel = 'AnnonceTutorat';
+      if (annonce.type === 'PROJET') typeVisuel = 'AnnonceProjet';
+      if (annonce.type === 'EXERCICE') typeVisuel = 'AnnonceExercice';
+
+      return {
+        ...annonce,
+        type: typeVisuel, // Remplace 'BON_PLAN' par 'AnnonceBonPlan'
+        // 2. Prisma utilise "utilisateur", mais AnnonceCard s'attend à "auteur"
+        auteur: annonce.utilisateur || { prenom: "Utilisateur", nom: "Inconnu", id: 0 }
+      };
+    });
 
   } catch (err) {
     console.error("Détail de l'erreur API :", err);
