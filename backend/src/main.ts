@@ -7,6 +7,7 @@ import authRoutes from './routes/auth.routes';
 import utilisateurRoutes from './routes/utilisateur.routes';
 import campusRoutes from './routes/campus.routes';
 import annonceRoutes from './routes/annonce.routes';
+import matiereRoutes from './routes/matiere.routes';
 
 dotenv.config();
 
@@ -38,12 +39,13 @@ app.use('/api/auth', authRoutes);
 app.use('/api/utilisateurs', utilisateurRoutes);
 app.use('/api/campus', campusRoutes);
 app.use('/api/annonces', annonceRoutes);
+app.use('/api/matieres', matiereRoutes);
+
 // Routes à brancher une fois leurs controllers implémentés :
 // app.use('/api/commentaires', commentaireRoutes);
 // app.use('/api/candidatures', candidatureRoutes);
 // app.use('/api/notifications', notificationRoutes);
 // app.use('/api/hashtags', hashtagRoutes);
-// app.use('/api/matieres', matiereRoutes);
 
 app.use((_req: Request, res: Response) => {
   res.status(404).json({ message: 'Route introuvable' });
