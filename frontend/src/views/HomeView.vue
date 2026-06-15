@@ -39,6 +39,44 @@ const filteredAnnonces = computed(() => {
   });
 });
 
+/*
+onMounted(async () => {
+  loading.value = true;
+  error.value = "";
+
+  try {
+    // 1. Récupération de l'URL de base et du token de connexion
+    const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:3000";
+    const token = localStorage.getItem("token");
+
+    // 2. Appel à l'API (On suppose que ta route est /api/annonces)
+    const response = await fetch(`${apiUrl}/api/annonces`, {
+      method: 'GET',
+      headers: {
+        // On envoie le token pour prouver que l'utilisateur est connecté
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        'Accept': 'application/json'
+      }
+    });
+
+    // 3. Gestion des erreurs HTTP (ex: 401 Non autorisé, 500 Erreur serveur)
+    if (!response.ok) {
+      throw new Error(`Erreur HTTP : ${response.status}`);
+    }
+
+    // 4. On injecte les vraies données dans notre variable réactive
+    annonces.value = await response.json();
+
+  } catch (err) {
+    console.error("Détail de l'erreur API :", err);
+    error.value = "Impossible de charger les annonces depuis le serveur.";
+  } finally {
+    loading.value = false;
+  }
+});
+ */
+
+// A supprimer plus tard
 onMounted(async () => {
   try {
     // Fausse simulation de chargement (A remplacer plus tard quand la bdd sera pret)
@@ -54,6 +92,7 @@ onMounted(async () => {
     loading.value = false;
   }
 });
+
 </script>
 
 <template>
