@@ -1,47 +1,44 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
 
-// On déclare l'événement pour ouvrir le menu mobile
+// On déclare l'événement que ce composant peut envoyer au parent (HomeView)
 defineEmits(['open-menu'])
 
-// --- Logique des Notifications ---
+// --- LOGIQUE DES NOTIFICATIONS ---
 
-// Variable réactive pour stocker le tableau de notifications reçues du backend
+// Variable réactive pour stocker le tableau de notifications
 const notifications = ref<any[]>([])
 
-// Variable pour ouvrir/fermer la cloche (menu déroulant)
+// Variable pour ouvrir/fermer le menu déroulant de la cloche
 const isDropdownOpen = ref(false)
 
-// Propriété calculée (Computed) pour savoir s'il y a au moins une notif non lue
+// Propriété calculée pour savoir s'il y a au moins une notification non lue
 const hasUnread = computed(() => {
   return notifications.value.some(n => !n.lue)
 })
 
-// Fonction qui va appeler l'API Express
+// Fonction pour récupérer les notifications depuis l'API Backend
 const fetchNotifications = async () => {
   try {
-    // On récupère le token d'authentification stocké lors du login (souvent dans le localStorage)
+    // Récupération du token d'authentification (généralement stocké au login)
     const token = localStorage.getItem('token') 
-    
-    // URL de ton backend (défini dans ton frontend/.env)
     const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000'
 
     const response = await fetch(`${apiUrl}/api/notifications`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
-        // On envoie le token pour que le middleware 'auth' du backend nous accepte
-        'Authorization': `Bearer ${token}` 
+        'Authorization': `Bearer ${token}` // Transmission du token au middleware 'auth'
       }
     })
 
     if (response.ok) {
       notifications.value = await response.json()
     } else {
-      console.error("Erreur API:", response.statusText)
+      console.error("Erreur lors de la récupération des notifications:", response.statusText)
     }
   } catch (error) {
-    console.error("Impossible de charger les notifications", error)
+    console.error("Impossible de charger les notifications :", error)
   }
 }
 
@@ -51,26 +48,27 @@ const markAsRead = async (id: string) => {
     const token = localStorage.getItem('token')
     const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000'
 
-    // Appel à ta route put('/:id/lue')
+    // Appel à la route PUT /api/notifications/:id/lue
     await fetch(`${apiUrl}/api/notifications/${id}/lue`, {
       method: 'PUT',
       headers: { 'Authorization': `Bearer ${token}` }
     })
 
-    // On met à jour graphiquement notre tableau local sans refaire d'appel API
+    // Mise à jour graphique locale instantanée sans recharger toute l'API
     const target = notifications.value.find(n => n.id === id)
     if (target) target.lue = true
 
   } catch (error) {
-    console.error(error)
+    console.error("Erreur lors du marquage comme lue :", error)
   }
 }
 
-// Dès que le composant est chargé à l'écran, on va chercher les données
+// Chargement automatique des données dès que la barre de navigation est affichée
 onMounted(() => {
   fetchNotifications()
 })
 
+// --- LOGIQUE DU NOUVEAU POST (D'ORIGINE) ---
 const createPost = () => {
   console.log("Ouvrir la modale de nouveau post")
 }
@@ -92,50 +90,52 @@ const createPost = () => {
       <h1 class="text-xl font-bold text-gray-800">Fil d'actualité</h1>
     </div>
 
-    <div class="flex items-center gap-3 md:gap-4 relative">
+    <div class="flex items-center gap-3 md:gap-4">
       
-      <button 
-        @click="isDropdownOpen = !isDropdownOpen"
-        class="relative p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-full transition-colors"
-      >
-        <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M14.857 17.082a23.848 23.848 0 0 0 5.454-1.31A8.967 8.967 0 0 1 18 9.75V9A6 6 0 0 0 6 9v.75a8.967 8.967 0 0 1-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 0 1-5.714 0m5.714 0a3 3 0 1 1-5.714 0" />
-        </svg>
+      <div class="relative">
         
-        <span v-if="hasUnread" class="absolute top-1.5 right-1.5 block w-2.5 h-2.5 bg-red-500 rounded-full ring-2 ring-white"></span>
-      </button>
-
-      <div v-if="isDropdownOpen" class="absolute right-0 top-12 w-80 bg-white rounded-xl shadow-lg border border-gray-100 py-2 z-50">
-        <h3 class="px-4 py-2 font-bold text-gray-700 border-b border-gray-100 text-sm">Notifications</h3>
-        
-        <div class="max-h-64 overflow-y-auto">
-          <p v-if="notifications.length === 0" class="text-xs text-gray-400 text-center py-6">Aucune notification pour le moment</p>
+        <button 
+          @click="isDropdownOpen = !isDropdownOpen"
+          class="relative p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-full transition-colors"
+        >
+          <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M14.857 17.082a23.848 23.848 0 0 0 5.454-1.31A8.967 8.967 0 0 1 18 9.75V9A6 6 0 0 0 6 9v.75a8.967 8.967 0 0 1-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 0 1-5.714 0m5.714 0a3 3 0 1 1-5.714 0" />
+          </svg>
           
-          <div 
-            v-for="notif in notifications" 
-            :key="notif.id" 
-            @click="markAsRead(notif.id)"
-            class="px-4 py-3 hover:bg-gray-50 transition-colors border-b border-gray-50 last:border-0 text-sm text-gray-600 cursor-pointer"
-            :class="{'bg-blue-50/60 font-semibold text-gray-900': !notif.lue}"
-          >
-            <p>{{ notif.contenu }}</p>
-            <span class="text-xs text-gray-400 block mt-1">
-              {{ new Date(notif.dateCreation).toLocaleDateString() }}
-            </span>
+          <span v-if="hasUnread" class="absolute top-1.5 right-1.5 block w-2.5 h-2.5 bg-red-500 rounded-full ring-2 ring-white"></span>
+        </button>
+
+        <div v-if="isDropdownOpen" class="absolute right-0 top-12 w-80 bg-white rounded-xl shadow-lg border border-gray-100 py-2 z-50">
+          <h3 class="px-4 py-2 font-bold text-gray-700 border-b border-gray-100 text-sm">Notifications</h3>
+          
+          <div class="max-h-64 overflow-y-auto">
+            <p v-if="notifications.length === 0" class="text-xs text-gray-400 text-center py-6">Aucune notification pour le moment</p>
+            
+            <div 
+              v-for="notif in notifications" 
+              :key="notif.id" 
+              @click="markAsRead(notif.id)"
+              class="px-4 py-3 hover:bg-gray-50 transition-colors border-b border-gray-50 last:border-0 text-sm text-gray-600 cursor-pointer"
+              :class="{'bg-blue-50/60 font-semibold text-gray-900': !notif.lue}"
+            >
+              <p>{{ notif.contenu }}</p>
+              <span class="text-xs text-gray-400 block mt-1">
+                {{ new Date(notif.dateCreation).toLocaleDateString() }}
+              </span>
+            </div>
           </div>
         </div>
-      </div>
 
-     <!-- Bouton Nouveau Post -->
-      <button 
+      </div> <button 
         @click="createPost"
-        class="flex items-center gap-2 bg-primary text-white px-3 md:px-4 py-2 rounded-lg font-medium hover:opacity-90 active:scale-95 transition-all shadow-sm text-sm md:text-base"
+        class="flex items-center gap-2 bg-blue-600 text-white px-3 md:px-4 py-2 rounded-lg font-medium hover:opacity-90 active:scale-95 transition-all shadow-sm text-sm md:text-base"
       >
         <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
           <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
         </svg>
         <span class="hidden md:inline">Nouveau Post</span>
       </button>
+
     </div>
   </header>
 </template>
