@@ -8,10 +8,192 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model User {
-  id        Int      @id @default(autoincrement())
-  email     String   @unique
-  name      String
-  role      String   @default("STUDENT")
-  createdAt DateTime @default(now())
+// --- ENUMS (Types Énumérés) ---
+
+enum Role {
+  ETUDIANT
+  PROFESSEUR
+}
+
+enum TypeAnnonce {
+  EXERCICE
+  BON_PLAN
+  TUTORAT
+  PROJET
+}
+
+enum StatutCandidature {
+  EN_ATTENTE
+  ACCEPTEE
+  REFUSEE
+}
+
+enum SousTypeBonPlan {
+  JOB_ETUDIANT
+  ALTERNANCE
+  COLOCATION
+  FETE
+  EVENEMENT
+  RESTAURANT
+  BOURSE
+  HACKATHON
+}
+
+// --- MODÈLES DE BASE ---
+
+model Campus {
+  id            BigInt        @id @default(autoincrement())
+  nom           String
+  ville         String
+  etablissement String
+  utilisateurs  Utilisateur[]
+}
+
+model Matiere {
+  id               BigInt            @id @default(autoincrement())
+  titre            String
+  annee            String
+  annoncesExercice AnnonceExercice[]
+  annoncesTutorat  AnnonceTutorat[]
+}
+
+model Utilisateur {
+  id               BigInt            @id @default(autoincrement())
+  nom              String
+  prenom           String
+  email            String            @unique
+  motDePasse       String
+  role             Role
+  dateInscription  DateTime          @default(now()) @db.Date
+  photoProfil      String?
+  id_campus        BigInt?
+  campus           Campus?           @relation(fields: [id_campus], references: [id])
+  notifications    Notification[]
+  commentaires     Commentaire[]
+  jaimes           Jaime[]
+  annoncesExercice AnnonceExercice[]
+  annoncesBonPlan  AnnonceBonPlan[]
+  annoncesTutorat  AnnonceTutorat[]
+  annoncesProjet   AnnonceProjet[]
+}
+
+model Notification {
+  id             BigInt      @id @default(autoincrement())
+  contenu        String
+  dateCreation   DateTime    @default(now())
+  lue            Boolean     @default(false)
+  id_utilisateur BigInt
+  utilisateur    Utilisateur @relation(fields: [id_utilisateur], references: [id], onDelete: Cascade)
+}
+
+// --- HÉRITAGE DES ANNONCES (Tables Concrètes) ---
+
+model AnnonceExercice {
+  id              BigInt        @id @default(autoincrement())
+  type            TypeAnnonce   @default(EXERCICE)
+  datePublication DateTime      @default(now())
+  nbJaime         Int           @default(0)
+  image           String?
+  lien            String?
+  annee           String
+  texte           String
+  id_utilisateur  BigInt
+  utilisateur     Utilisateur   @relation(fields: [id_utilisateur], references: [id], onDelete: Cascade)
+  id_matiere      BigInt
+  matiere         Matiere       @relation(fields: [id_matiere], references: [id], onDelete: Cascade)
+  commentaires    Commentaire[]
+  jaimes          Jaime[]
+}
+
+model AnnonceBonPlan {
+  id              BigInt          @id @default(autoincrement())
+  type            TypeAnnonce     @default(BON_PLAN)
+  datePublication DateTime        @default(now())
+  nbJaime         Int             @default(0)
+  image           String?
+  lien            String?
+  titre           String
+  texte           String
+  sousType        SousTypeBonPlan
+  id_utilisateur  BigInt
+  utilisateur     Utilisateur     @relation(fields: [id_utilisateur], references: [id], onDelete: Cascade)
+  commentaires    Commentaire[]
+  jaimes          Jaime[]
+}
+
+model AnnonceTutorat {
+  id                BigInt        @id @default(autoincrement())
+  type              TypeAnnonce   @default(TUTORAT)
+  datePublication   DateTime      @default(now())
+  nbJaime           Int           @default(0)
+  image             String?
+  lien              String?
+  nbCandidatsVoulus Int
+  annee             String
+  description       String
+  id_utilisateur    BigInt
+  utilisateur       Utilisateur   @relation(fields: [id_utilisateur], references: [id], onDelete: Cascade)
+  id_matiere        BigInt
+  matiere           Matiere       @relation(fields: [id_matiere], references: [id], onDelete: Cascade)
+  commentaires      Commentaire[]
+  jaimes            Jaime[]
+  candidatures      Candidature[]
+}
+
+model AnnonceProjet {
+  id              BigInt        @id @default(autoincrement())
+  type            TypeAnnonce   @default(PROJET)
+  datePublication DateTime      @default(now())
+  nbJaime         Int           @default(0)
+  image           String?
+  lien            String?
+  titre           String
+  texte           String
+  description     String
+  id_utilisateur  BigInt
+  utilisateur     Utilisateur   @relation(fields: [id_utilisateur], references: [id], onDelete: Cascade)
+  commentaires    Commentaire[]
+  jaimes          Jaime[]
+}
+
+// --- RELATIONS COMPLEXES ---
+
+model Commentaire {
+  id             BigInt           @id @default(autoincrement())
+  texte          String
+  dateCreation   DateTime         @default(now())
+  id_utilisateur BigInt
+  utilisateur    Utilisateur      @relation(fields: [id_utilisateur], references: [id], onDelete: Cascade)
+  id_exercice    BigInt?
+  exercice       AnnonceExercice? @relation(fields: [id_exercice], references: [id], onDelete: Cascade)
+  id_bonplan     BigInt?
+  bonplan        AnnonceBonPlan?  @relation(fields: [id_bonplan], references: [id], onDelete: Cascade)
+  id_tutorat     BigInt?
+  tutorat        AnnonceTutorat?  @relation(fields: [id_tutorat], references: [id], onDelete: Cascade)
+  id_projet      BigInt?
+  projet         AnnonceProjet?   @relation(fields: [id_projet], references: [id], onDelete: Cascade)
+}
+
+model Jaime {
+  id             BigInt           @id @default(autoincrement())
+  date           DateTime         @default(now()) @db.Date
+  id_utilisateur BigInt
+  utilisateur    Utilisateur      @relation(fields: [id_utilisateur], references: [id], onDelete: Cascade)
+  id_exercice    BigInt?
+  exercice       AnnonceExercice? @relation(fields: [id_exercice], references: [id], onDelete: Cascade)
+  id_bonplan     BigInt?
+  bonplan        AnnonceBonPlan?  @relation(fields: [id_bonplan], references: [id], onDelete: Cascade)
+  id_tutorat     BigInt?
+  tutorat        AnnonceTutorat?  @relation(fields: [id_tutorat], references: [id], onDelete: Cascade)
+  id_projet      BigInt?
+  projet         AnnonceProjet?   @relation(fields: [id_projet], references: [id], onDelete: Cascade)
+}
+
+model Candidature {
+  id                BigInt            @id @default(autoincrement())
+  statut            StatutCandidature @default(EN_ATTENTE)
+  datePostulation   DateTime          @db.Date
+  messageMotivation String
+  id_tutorat        BigInt
+  tutorat           AnnonceTutorat    @relation(fields: [id_tutorat], references: [id], onDelete: Cascade)
 }
