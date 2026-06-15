@@ -8,20 +8,39 @@ const user = ref<any>(null);
 const loading = ref(true);
 const error = ref("");
 
+const isMyProfile = computed(() => !route.params.id);
+
 onMounted(async () => {
   try {
     const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:3000";
     const userId = route.params.id;
 
-    const response = await fetch(`${apiUrl}/api/users/${userId}/profile`);
+    const endpoint = userId
+      ? `${apiUrl}/api/utilisateur/${userId}`
+      : `${apiUrl}/api/utilisateur/profil`;
+
+    const token = localStorage.getItem("token");
+    
+    // C'EST ICI QUE ÇA SE PASSE :
+    const response = await fetch(endpoint, {
+      method: 'GET',
+      cache: 'no-store', 
+      headers: token
+        ? { 
+            Authorization: `Bearer ${token}`,
+            'Accept': 'application/json' 
+          }
+        : {},
+    });
 
     if (!response.ok) {
-      throw new Error("Impossible de charger le profil");
+      throw new Error(`Erreur HTTP : ${response.status}`);
     }
 
     user.value = await response.json();
   } catch (err) {
-    error.value = "Erreur lors du chargement du profil.";
+        console.error("Détail de l'erreur :", err); // Ajoute ceci pour voir la vraie erreur
+        error.value = "Erreur lors du chargement du profil.";
   } finally {
     loading.value = false;
   }
@@ -29,7 +48,7 @@ onMounted(async () => {
 
 const initials = computed(() => {
   if (!user.value) return "";
-  return user.value.prenom[0] + user.value.nom[0];
+  return `${user.value.prenom?.[0] || ""}${user.value.nom?.[0] || ""}`;
 });
 </script>
 
