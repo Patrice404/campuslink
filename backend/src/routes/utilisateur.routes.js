@@ -1,7 +1,7 @@
 const router = require('express').Router();
 const multer = require('multer');
 const path = require('path');
-const { getProfil, updateProfil, getProfilPublic } = require('../controllers/utilisateur.controller');
+const { getProfil, updateProfil,  getProfilPublic } = require('../controllers/utilisateur.controller');
 const { auth } = require('../middlewares/auth.middleware');
 
 const storage = multer.diskStorage({
