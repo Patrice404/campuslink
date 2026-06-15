@@ -39,7 +39,6 @@ const filteredAnnonces = computed(() => {
   });
 });
 
-/*
 onMounted(async () => {
   loading.value = true;
   error.value = "";
@@ -74,25 +73,7 @@ onMounted(async () => {
     loading.value = false;
   }
 });
- */
-
-// A supprimer plus tard
-onMounted(async () => {
-  try {
-    // Fausse simulation de chargement (A remplacer plus tard quand la bdd sera pret)
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
-    annonces.value = [
-      { id: 1, type: "AnnonceBonPlan", datePublication: "2026-06-15T14:30:00Z", nbJaime: 45, auteur: { prenom: "Léo", nom: "Martin" }, nbCommentaires: 12, titre: "Réduction Crous", texte: "Profitez de 50%..." },
-      { id: 2, type: "AnnonceTutorat", datePublication: "2026-06-15T10:15:00Z", nbJaime: 12, auteur: { prenom: "Sarah", nom: "Lefevre" }, nbCommentaires: 3, description: "Cours d'algo...", annee: "L2" }
-    ];
-  } catch (err) {
-    error.value = "Impossible de charger les annonces.";
-  } finally {
-    loading.value = false;
-  }
-});
-
+ 
 </script>
 
 <template>
