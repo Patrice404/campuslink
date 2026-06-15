@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue' // <-- N'oublie pas l'import de onMounted ici
+import { ref, onMounted, computed } from 'vue' // <-- N'oublie pas l'import de onMounted ici
 import SidebarNav from '../components/SidebarNav.vue'
 import TopNav from '../components/TopNav.vue'
 import AnnonceCard from '../components/AnnonceCard.vue'
@@ -11,6 +11,31 @@ const error = ref("");
 
 // État du menu mobile
 const isMobileMenuOpen = ref(false)
+
+// Logique de recherche
+const searchQuery = ref("");
+const filteredAnnonces = computed(() => {
+  const query = searchQuery.value.toLowerCase().trim();
+  
+  // Si la barre de recherche est vide, on retourne toutes les annonces
+  if (!query) return annonces.value;
+
+  // Sinon, on filtre
+  return annonces.value.filter(annonce => {
+    // On rassemble tous les textes pertinents de l'annonce pour chercher partout d'un coup
+    const searchableText = [
+      annonce.titre,
+      annonce.texte,
+      annonce.description,
+      annonce.type,
+      annonce.sousType,
+      annonce.auteur?.prenom,
+      annonce.auteur?.nom
+    ].filter(Boolean).join(" ").toLowerCase(); // On enlève les vides et on met en minuscules
+
+    return searchableText.includes(query);
+  });
+});
 
 onMounted(async () => {
   try {
@@ -44,30 +69,36 @@ onMounted(async () => {
       <div class="flex-1 p-4 sm:p-6 overflow-y-auto">
         <div class="max-w-2xl mx-auto space-y-6">
           
-          <section class="bg-white rounded-xl shadow-sm p-4 flex gap-4 border border-gray-100">
-            <div class="w-12 h-12 rounded-full bg-blue-600 text-white flex-shrink-0 flex items-center justify-center font-bold">
-              Moi
-            </div>
-            <div class="flex-1">
+          <section class="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
+            <div class="relative">
+              <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <svg class="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                  <path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd"/>
+                </svg>
+              </div>
               <input 
-                type="text" 
-                class="w-full bg-gray-50 rounded-full px-4 py-3 border-transparent hover:bg-gray-100 focus:bg-white focus:ring-2 focus:ring-blue-100 transition cursor-pointer outline-none" 
-                placeholder="Publier une nouvelle annonce..."
-                readonly
-              >
+                v-model="searchQuery"
+                type="search" 
+                class="w-full bg-gray-50 rounded-lg pl-10 pr-4 py-3 border border-transparent focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition outline-none" 
+                placeholder="Rechercher par mots-clés, auteur, catégorie...">
             </div>
           </section>
 
           <div v-if="loading" class="text-center py-10 text-gray-500 animate-pulse">
-            Chargement...
+            Chargement des annonces...
           </div>
           <div v-else-if="error" class="bg-red-50 text-red-600 p-4 rounded-xl text-center">
             {{ error }}
           </div>
 
           <section v-else class="space-y-4">
+            
+            <div v-if="filteredAnnonces.length === 0" class="text-center py-10 text-gray-500 bg-white rounded-xl shadow-sm border border-gray-100">
+              <p class="text-lg">😕 Aucune annonce trouvée pour "<strong>{{ searchQuery }}</strong>"</p>
+            </div>
+
             <AnnonceCard 
-              v-for="item in annonces" 
+              v-for="item in filteredAnnonces" 
               :key="item.id" 
               :annonce="item" 
             />
