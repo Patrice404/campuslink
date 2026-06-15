@@ -11,7 +11,19 @@ dotenv.config();
 
 const app = express();
 
-app.use(cors());
+// Origines autorisées (front Vite en dev sur 5173, + variable d'env pour la prod).
+const origines = [
+  CORS_API_URL_FRONTEND ||
+  'http://localhost:8080',
+  process.env.FRONTEND_URL,
+].filter(Boolean) as string[];
+
+app.use(
+  cors({
+    origin: origines,
+    credentials: true,
+  })
+);
 app.use(express.json());
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
