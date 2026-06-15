@@ -45,18 +45,23 @@ const formatDate = (dateString: string) => {
 <template>
   <article class="bg-white rounded-xl shadow-sm hover:shadow transition duration-200 overflow-hidden">
     <div class="p-5">
+
       <div class="flex justify-between items-start mb-4">
-        <div class="flex items-center gap-3">
+        
+        <router-link 
+          :to="`/profil/${annonce.auteur.id}`" 
+          class="flex items-center gap-3 hover:opacity-75 transition"
+        >
           <div class="w-10 h-10 rounded-full bg-gray-200 border border-gray-300 flex items-center justify-center font-bold text-gray-600">
             {{ getInitials(annonce.auteur.prenom, annonce.auteur.nom) }}
           </div>
           <div>
-            <h3 class="font-bold text-gray-900 leading-tight">
+            <h3 class="font-bold text-gray-900 leading-tight hover:text-blue-600 transition">
               {{ annonce.auteur.prenom }} {{ annonce.auteur.nom }}
             </h3>
             <p class="text-xs text-gray-500">{{ formatDate(annonce.datePublication) }}</p>
           </div>
-        </div>
+        </router-link>
         
         <span class="text-xs font-bold px-3 py-1 rounded-full" 
               :class="{
@@ -94,9 +99,8 @@ const formatDate = (dateString: string) => {
           </span>
         </div>
       </div>
-    </div>
 
-    <div class="bg-gray-50 px-5 py-3 border-t border-gray-100 flex gap-6 text-gray-500 font-medium text-sm">
+    </div> <div class="bg-gray-50 px-5 py-3 border-t border-gray-100 flex gap-6 text-gray-500 font-medium text-sm">
       <button class="flex items-center gap-2 hover:text-red-500 transition">
         <span>❤️</span> {{ annonce.nbJaime }}
       </button>
