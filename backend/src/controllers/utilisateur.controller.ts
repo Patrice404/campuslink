@@ -1,6 +1,8 @@
-const { prisma } = require('../lib/prismaClient');
+import { Request, Response } from 'express';
+import { Utilisateur } from '@prisma/client';
+import { prisma } from '../lib/prismaClient';
 
-function serializeUser(user) {
+function serializeUser(user: Utilisateur) {
   return {
     id: user.id.toString(),
     nom: user.nom,
@@ -13,18 +15,19 @@ function serializeUser(user) {
   };
 }
 
-async function getProfil(req, res) {
+export async function getProfil(req: Request, res: Response): Promise<void> {
   try {
     const utilisateur = await prisma.utilisateur.findUnique({
-      where: { id: BigInt(req.utilisateur.id) },
+      where: { id: BigInt(req.utilisateur!.id) },
       include: { campus: true },
     });
 
     if (!utilisateur) {
-      return res.status(404).json({ message: 'Utilisateur introuvable' });
+      res.status(404).json({ message: 'Utilisateur introuvable' });
+      return;
     }
 
-    return res.json({
+    res.json({
       ...serializeUser(utilisateur),
       campus: utilisateur.campus
         ? {
@@ -37,14 +40,14 @@ async function getProfil(req, res) {
     });
   } catch (err) {
     console.error(err);
-    return res.status(500).json({ message: 'Erreur serveur' });
+    res.status(500).json({ message: 'Erreur serveur' });
   }
 }
 
-async function updateProfil(req, res) {
+export async function updateProfil(req: Request, res: Response): Promise<void> {
   try {
     const { nom, prenom, id_campus } = req.body;
-    const data = {};
+    const data: { nom?: string; prenom?: string; id_campus?: bigint; photoProfil?: string } = {};
 
     if (nom) data.nom = nom;
     if (prenom) data.prenom = prenom;
@@ -52,18 +55,18 @@ async function updateProfil(req, res) {
     if (req.file) data.photoProfil = req.file.filename;
 
     const utilisateur = await prisma.utilisateur.update({
-      where: { id: BigInt(req.utilisateur.id) },
+      where: { id: BigInt(req.utilisateur!.id) },
       data,
     });
 
-    return res.json(serializeUser(utilisateur));
+    res.json(serializeUser(utilisateur));
   } catch (err) {
     console.error(err);
-    return res.status(500).json({ message: 'Erreur serveur' });
+    res.status(500).json({ message: 'Erreur serveur' });
   }
 }
 
-async function getProfilPublic(req, res) {
+export async function getProfilPublic(req: Request, res: Response): Promise<void> {
   try {
     const utilisateur = await prisma.utilisateur.findUnique({
       where: { id: BigInt(req.params.id) },
@@ -71,10 +74,11 @@ async function getProfilPublic(req, res) {
     });
 
     if (!utilisateur) {
-      return res.status(404).json({ message: 'Utilisateur introuvable' });
+      res.status(404).json({ message: 'Utilisateur introuvable' });
+      return;
     }
 
-    return res.json({
+    res.json({
       id: utilisateur.id.toString(),
       nom: utilisateur.nom,
       prenom: utilisateur.prenom,
@@ -92,8 +96,6 @@ async function getProfilPublic(req, res) {
     });
   } catch (err) {
     console.error(err);
-    return res.status(500).json({ message: 'Erreur serveur' });
+    res.status(500).json({ message: 'Erreur serveur' });
   }
 }
-
-module.exports = { getProfil, updateProfil, getProfilPublic };
