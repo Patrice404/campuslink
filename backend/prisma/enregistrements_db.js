@@ -4,9 +4,9 @@ const prisma = new PrismaClient()
 async function main() {
   // La liste des campus à insérer
   const campusALancer = [
-    { nom: 'INSA CVL', ville: 'Bourges' },
-    { nom: 'IUT Bourges', ville: 'Bourges' },
-    { nom: "Université d'Orléans", ville: 'Orléans' }
+    { nom: 'INSA CVL', ville: 'Bourges', etablissement: 'INSA' },
+    { nom: 'IUT Bourges', ville: 'Bourges', etablissement: 'IUT' },
+    { nom: "Université d'Orléans", ville: 'Orléans', etablissement: 'Université' }
   ]
 
   for (const campus of campusALancer) {
