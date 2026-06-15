@@ -2,8 +2,12 @@ import { createRouter, createWebHistory } from 'vue-router'
 import CampusSelectView from '../views/CampusSelectView.vue' // <-- Nouvelle page
 import LoginView from '../views/LoginView.vue'
 import HomeView from '../views/HomeView.vue'
+<<<<<<< HEAD
 import ProjectsView from '../views/ProjectsView.vue'
 import UsersView from '../views/UsersView.vue'
+=======
+import RegisterView from '../views/RegisterView.vue' 
+>>>>>>> b75e108bf01691eec8d297805b1dc7e7cb570bd0
 import ProfileView from '../views/ProfileView.vue'
 
 const router = createRouter({
@@ -23,11 +27,18 @@ const router = createRouter({
       component: LoginView,
       meta: { hideNavbar: true }
     },
+    {
+      path: '/register',
+      name: 'register',
+      component: RegisterView,
+      meta: { hideNavbar: true }
+    },
     // 3. L'accueil du site (Une fois connecté)
     {
-      path: '/accueil',
+      path: '/home',
       name: 'home',
       component: HomeView
+<<<<<<< HEAD
     },
     {
       path: '/projets',
@@ -44,8 +55,10 @@ const router = createRouter({
       path: '/profil',
       name: 'profil',
       component: ProfileView
+=======
+>>>>>>> b75e108bf01691eec8d297805b1dc7e7cb570bd0
     }
   ]
 })
-
+  
 export default router

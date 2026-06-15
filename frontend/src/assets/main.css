@@ -1,5 +1,12 @@
 @import "tailwindcss";
 
 @theme {
+  /* Ton Vert Émeraude (Actions principales, succès, validation) */
   --color-primary: #10B981; 
+  
+  /* Ton Indigo (Boutons secondaires, alertes, favoris) */
+  --color-secondary: #6366F1; 
+  
+  /* Ton Gris Ardoise (Texte principal, menus de navigation) */
+  --color-dark: #1E293B;
 }

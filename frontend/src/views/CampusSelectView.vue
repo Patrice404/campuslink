@@ -1,20 +1,52 @@
 <script setup lang="ts">
+import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-
+import type { Campus } from '../types/'
+import CampusCard from '../components/CampusCard.vue' 
 const router = useRouter()
 
-// Une fausse liste de campus (qui viendra de la BDD plus tard)
-const campuses = [
-  { id: 1, name: "IUT Bourges", city: "Bourges" },
-  { id: 2, name: "Université d'Orléans", city: "Orléans" },
-  { id: 3, name: "Campus Châteauroux", city: "Châteauroux" },
-]
 
-// Fonction quand on clique sur un campus
-const handleSelect = (campusId: number) => {
+
+// 2. Variables réactives pour gérer les 3 états (Chargement, Données, Erreur)
+const campuses = ref<Campus[]>([])
+const isLoading = ref(true)
+const errorMessage = ref('')
+
+// 3. Fonction pour récupérer les campus depuis l'API Express
+const fetchCampuses = async () => {
+  isLoading.value = true
+  errorMessage.value = ''
+
+  try {
+    // Utilisation de la variable d'environnement (Port 3001 selon ton code backend)
+    const apiUrl = import.meta.env.VITE_API_URL
+    
+    const response = await fetch(`${apiUrl}/api/campus`)
+    
+    if (!response.ok) {
+      throw new Error(`Erreur HTTP: ${response.status}`)
+    }
+
+    const data = await response.json()
+    campuses.value = data
+
+  } catch (error) {
+    console.error("Erreur lors de la récupération des campus :", error)
+    errorMessage.value = "Impossible de charger les établissements. Veuillez réessayer plus tard."
+  } finally {
+    // Qu'il y ait une erreur ou un succès, on arrête le chargement
+    isLoading.value = false
+  }
+}
+
+// 4. Lancement de la requête dès que le composant est monté (affiché)
+onMounted(() => {
+  fetchCampuses()
+})
+
+const handleSelect = (campusId: string | number) => {
   console.log("Campus sélectionné :", campusId)
-  // Plus tard, on sauvegardera ce choix en mémoire, mais pour l'instant :
-  // On redirige l'étudiant vers la page de connexion !
+  // TODO: Sauvegarder le campus dans un store (Pinia) ou LocalStorage
   router.push('/login')
 }
 </script>
@@ -27,22 +59,31 @@ const handleSelect = (campusId: number) => {
       <p class="text-lg text-gray-600">Sélectionnez votre établissement pour commencer</p>
     </div>
 
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 w-full max-w-5xl">
+    <div class="w-full max-w-5xl">
       
-      <button 
+      <div v-if="isLoading" class="flex justify-center items-center py-12">
+        <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+      </div>
+
+      <div v-else-if="errorMessage" class="bg-red-50 text-red-600 p-4 rounded-lg text-center border border-red-200">
+        <p class="font-medium">{{ errorMessage }}</p>
+        <button @click="fetchCampuses" class="mt-3 text-sm underline hover:text-red-800">Réessayer</button>
+      </div>
+
+     <div v-else class="grid grid-cols-1 md:grid-cols-3 gap-6">
+    
+      <CampusCard 
         v-for="campus in campuses" 
         :key="campus.id"
+        :campus="campus" 
         @click="handleSelect(campus.id)"
-        class="flex flex-col items-center p-8 bg-white rounded-2xl shadow-sm border border-gray-100 hover:shadow-xl hover:-translate-y-1 hover:border-primary transition-all group"
-      >
-        <div class="w-16 h-16 bg-blue-50 text-primary rounded-full flex items-center justify-center mb-4 group-hover:bg-primary group-hover:text-white transition-colors">
-          <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-          </svg>
-        </div>
-        <h3 class="text-xl font-bold text-gray-800">{{ campus.name }}</h3>
-        <p class="text-gray-500 mt-2">{{ campus.city }}</p>
-      </button>
+      />
+
+    </div>
+
+      <div v-if="!isLoading && !errorMessage && campuses.length === 0" class="text-center text-gray-500 py-8">
+        Aucun campus n'est disponible pour le moment.
+      </div>
 
     </div>
   </div>

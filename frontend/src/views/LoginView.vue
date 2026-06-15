@@ -1,7 +1,8 @@
+
 <script setup lang="ts">
 import { ref } from 'vue'
 import { RouterLink } from 'vue-router'
-
+import BaseButton from '../components/BaseButton.vue'
 // Variables réactives
 const email = ref('')
 const password = ref('')
@@ -24,7 +25,7 @@ const handleLogin = () => {
       <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
       
       <div class="absolute bottom-10 left-10 right-10 text-white">
-        <span class="inline-flex items-center gap-1.5 text-xs font-bold tracking-wider uppercase px-3 py-1 rounded-full bg-white/20 border border-white/30 backdrop-blur-md mb-4">
+        <span class="inline-flex items-center gap-1.5 text-xs font-bold tracking-wider uppercase px-3 py-1 rounded-full bg-secondary/20 border border-secondary/30 backdrop-blur-md mb-4">
           CampusLink
         </span>
         <h2 class="text-3xl font-bold mb-2">Bienvenue sur le campus</h2>
@@ -61,7 +62,7 @@ const handleLogin = () => {
                 type="email"
                 required
                 placeholder="etudiant@campus.fr"
-                class="w-full pl-11 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary outline-none transition-all"
+                class="w-full pl-11 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-secondary focus:border-secondary outline-none transition-all"
               />
             </div>
           </div>
@@ -86,13 +87,13 @@ const handleLogin = () => {
                 :type="showPassword ? 'text' : 'password'"
                 required
                 placeholder="••••••••"
-                class="w-full pl-11 pr-12 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary outline-none transition-all"
+                class="w-full pl-11 pr-12 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-secondary focus:border-secondary outline-none transition-all"
               />
               
               <button
                 type="button"
                 @click="showPassword = !showPassword"
-                class="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-gray-400 hover:text-primary transition-colors"
+                class="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-gray-400 hover:text-secondary transition-colors"
               >
                 <svg v-if="!showPassword" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
                   <path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z" /><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
@@ -104,12 +105,9 @@ const handleLogin = () => {
             </div>
           </div>
 
-          <button
-            type="submit"
-            class="w-full py-3 px-4 text-white font-bold bg-primary rounded-lg hover:opacity-90 active:scale-95 transition-all"
-          >
-            Se connecter
-          </button>
+         <BaseButton type="submit" variant="primary">
+          Se connecter
+        </BaseButton>
         </form>
 
         <div class="flex items-center gap-3 my-6">
@@ -118,19 +116,16 @@ const handleLogin = () => {
           <hr class="flex-1 border-gray-200" />
         </div>
 
-        <button
-          type="button"
-          class="w-full flex items-center justify-center gap-2 py-3 px-4 font-medium text-gray-700 bg-white hover:bg-gray-50 border-2 border-gray-200 rounded-lg transition-all"
-        >
+        <BaseButton variant="outline">
           <svg class="w-5 h-5 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-             <path stroke-linecap="round" stroke-linejoin="round" d="M12 21v-8.25M15.75 21v-8.25M8.25 21v-8.25M3 9l9-6 9 6m-1.5 12V10.332A48.36 48.36 0 0 0 12 9.75c-2.551 0-5.056.2-7.5.582V21M3 21h18M12 6.75h.008v.008H12V6.75Z" />
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 21v-8.25M15.75 21v-8.25M8.25 21v-8.25M3 9l9-6 9 6m-1.5 12V10.332A48.36 48.36 0 0 0 12 9.75c-2.551 0-5.056.2-7.5.582V21M3 21h18M12 6.75h.008v.008H12V6.75Z" />
           </svg>
           Connexion via SSO Campus
-        </button>
+        </BaseButton>
 
         <p class="text-center text-sm text-gray-600 mt-6">
           Nouveau sur CampusLink ?
-          <RouterLink to="/register" class="font-bold text-primary hover:underline">Créer un compte</RouterLink>
+          <RouterLink to="/register" class="font-bold text-secondary hover:underline">Créer un compte</RouterLink>
         </p>
 
       </div>
@@ -138,3 +133,4 @@ const handleLogin = () => {
 
   </div>
 </template>
+
