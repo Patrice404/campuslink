@@ -27,5 +27,8 @@
     "prisma": "^6.19.3",
     "ts-node": "^10.9.1",
     "typescript": "^5.2.0"
+  },
+  "prisma": {
+    "seed": "node prisma/enregistrements_db.js"
   }
 }
