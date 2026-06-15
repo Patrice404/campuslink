@@ -12,8 +12,8 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage, limits: { fileSize: 2 * 1024 * 1024 } });
 
-router.get('/profil', auth, getProfil);
-router.put('/profil', auth, upload.single('photo'), updateProfil);
+router.get('/profile', auth, getProfil);
+router.put('/profile', auth, upload.single('photo'), updateProfil);
 router.get('/:id', auth, getProfilPublic);
 
 export default router;

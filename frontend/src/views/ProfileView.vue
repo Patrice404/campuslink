@@ -17,7 +17,7 @@ onMounted(async () => {
 
     const endpoint = userId
       ? `${apiUrl}/api/utilisateur/${userId}`
-      : `${apiUrl}/api/utilisateur/profil`;
+      : `${apiUrl}/api/utilisateur/profile`;
 
     const token = localStorage.getItem("token");
     
