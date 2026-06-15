@@ -22,5 +22,5 @@ app.use('/api/campus', require('./routes/campus.routes'));
 
 app.use((req, res) => res.status(404).json({ message: 'Route introuvable' }));
 
-const PORT = process.env.PORT || 3001;
+const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Serveur CampusLNK démarré sur le port ${PORT}`));
