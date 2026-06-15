@@ -3,6 +3,8 @@ import CampusSelectView from '../views/CampusSelectView.vue' // <-- Nouvelle pag
 import LoginView from '../views/LoginView.vue'
 import HomeView from '../views/HomeView.vue'
 import RegisterView from '../views/RegisterView.vue' 
+import ProfileView from '../views/ProfileView.vue'
+
 const router = createRouter({
   history: createWebHistory(),
   routes: [
@@ -31,8 +33,14 @@ const router = createRouter({
       path: '/home',
       name: 'home',
       component: HomeView
+    },
+    // La page profile utilisateur
+    {
+      path: "/users/:id",
+      name: "user-profile",
+      component: ProfileView
     }
   ]
 })
-
+  
 export default router
