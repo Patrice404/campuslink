@@ -1,6 +1,7 @@
-const { prisma } = require('../lib/prismaClient');
+import { Request, Response } from 'express';
+import { prisma } from '../lib/prismaClient';
 
-async function lister(req, res) {
+export async function lister(req: Request, res: Response): Promise<void> {
   try {
     const campus = await prisma.campus.findMany({
       orderBy: { nom: 'asc' },
@@ -13,11 +14,9 @@ async function lister(req, res) {
       etablissement: c.etablissement,
     }));
 
-    return res.json(resultat);
+    res.json(resultat);
   } catch (err) {
     console.error(err);
-    return res.status(500).json({ message: 'Erreur serveur' });
+    res.status(500).json({ message: 'Erreur serveur' });
   }
 }
-
-module.exports = { lister };
