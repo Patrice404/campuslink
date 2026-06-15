@@ -165,9 +165,7 @@ Profil **public** (sans l'email) d'un autre utilisateur.
 
 ---
 
-# 🟡 Annonces — `/api/annonces`
-
-> ⚠️ Controllers pas encore implémentés. Les formes ci-dessous sont **indicatives** (basées sur le schéma) et peuvent évoluer.
+# 🟢 Annonces — `/api/annonces`
 
 Les annonces ont **4 types** (champ `type`), chacun avec ses propres champs :
 - `EXERCICE` : `annee`, `texte`, `id_matiere`
@@ -188,7 +186,39 @@ Champs communs à toutes : `id`, `type`, `datePublication`, `nbJaime`, `image`, 
 | POST | `/api/annonces/:id/jaime` | 🔒 | Liker / unliker (toggle) |
 
 - **Création** : body en `multipart/form-data`, champ fichier `image` (max 5 Mo) + les champs du type choisi (dont `type`).
-- Comme les `id` ne sont pas uniques entre les 4 tables, certaines routes accepteront un paramètre `?type=BON_PLAN` pour lever l'ambiguïté.
+- Comme les `id` ne sont pas uniques entre les 4 tables, ajoutez `?type=BON_PLAN` sur `GET/PUT/DELETE/:id` et `:id/jaime` pour lever l'ambiguïté (sinon la 1ʳᵉ table contenant cet id est utilisée).
+
+### POST `/api/annonces` 🔒 — `multipart/form-data`
+Exemple (BON_PLAN) — champs : `type=BON_PLAN`, `titre`, `texte`, `sousType` (+ `image` fichier, `lien` optionnels).
+**Réponse `201` :**
+```json
+{
+  "id": "1",
+  "type": "BON_PLAN",
+  "datePublication": "2026-06-15T10:00:00.000Z",
+  "nbJaime": 0,
+  "image": null,
+  "lien": null,
+  "titre": "Coloc dispo",
+  "texte": "...",
+  "sousType": "COLOCATION",
+  "id_utilisateur": "1"
+}
+```
+> `400` si `type` invalide.
+
+### GET `/api/annonces` — liste
+Renvoie un tableau de toutes les annonces (les 4 types mélangés), plus récentes d'abord. Chaque objet a la forme ci-dessus selon son `type`.
+
+### GET `/api/annonces/:id` — détail
+Renvoie l'annonce (ajoutez `?type=` si besoin). `404` si introuvable.
+
+### POST `/api/annonces/:id/jaime` 🔒 — like / unlike
+Bascule le « j'aime » de l'utilisateur connecté et met à jour `nbJaime`.
+**Réponse `200` :** `{ "jaime": true, "message": "J'aime ajouté" }` (ou `false` / « J'aime retiré »).
+
+### PUT `/api/annonces/:id` 🔒 / DELETE `/api/annonces/:id` 🔒
+Réservés à **l'auteur** (`403` sinon, `404` si introuvable). PUT accepte les champs à modifier + `image` (form-data) ; DELETE renvoie `{ "message": "Annonce supprimée" }`.
 
 ---
 

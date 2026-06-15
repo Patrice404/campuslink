@@ -6,6 +6,7 @@ import dotenv from 'dotenv';
 import authRoutes from './routes/auth.routes';
 import utilisateurRoutes from './routes/utilisateur.routes';
 import campusRoutes from './routes/campus.routes';
+import annonceRoutes from './routes/annonce.routes';
 
 dotenv.config();
 
@@ -15,6 +16,7 @@ const app = express();
 const origines = [
   process.env.CORS_API_URL_FRONTEND, // Si c'est défini dans ton fichier .env
   'http://localhost:5173',           // L'URL de ton front Vite en développement
+  process.env.CORS_API_URL_FRONTEND || 'http://localhost:5173',
   'http://localhost:8080',
   process.env.FRONTEND_URL,          // L'URL pour la production
 ].filter(Boolean) as string[];
@@ -35,8 +37,8 @@ app.get('/', (_req: Request, res: Response) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/utilisateurs', utilisateurRoutes);
 app.use('/api/campus', campusRoutes);
+app.use('/api/annonces', annonceRoutes);
 // Routes à brancher une fois leurs controllers implémentés :
-// app.use('/api/annonces', annonceRoutes);
 // app.use('/api/commentaires', commentaireRoutes);
 // app.use('/api/candidatures', candidatureRoutes);
 // app.use('/api/notifications', notificationRoutes);
