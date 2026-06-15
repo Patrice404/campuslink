@@ -16,24 +16,31 @@ onMounted(async () => {
     const userId = route.params.id;
 
     const endpoint = userId
-      ? `${apiUrl}/api/users/${userId}/profile`
-      : `${apiUrl}/api/profil`;
+      ? `${apiUrl}/api/utilisateur/${userId}`
+      : `${apiUrl}/api/utilisateur/profil`;
 
     const token = localStorage.getItem("token");
-
+    
+    // C'EST ICI QUE ÇA SE PASSE :
     const response = await fetch(endpoint, {
+      method: 'GET',
+      cache: 'no-store', 
       headers: token
-        ? { Authorization: `Bearer ${token}` }
+        ? { 
+            Authorization: `Bearer ${token}`,
+            'Accept': 'application/json' 
+          }
         : {},
     });
 
     if (!response.ok) {
-      throw new Error("Impossible de charger le profil");
+      throw new Error(`Erreur HTTP : ${response.status}`);
     }
 
     user.value = await response.json();
   } catch (err) {
-    error.value = "Erreur lors du chargement du profil.";
+        console.error("Détail de l'erreur :", err); // Ajoute ceci pour voir la vraie erreur
+        error.value = "Erreur lors du chargement du profil.";
   } finally {
     loading.value = false;
   }
