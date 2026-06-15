@@ -1,15 +1,61 @@
-
 <script setup lang="ts">
 import { ref } from 'vue'
-import { RouterLink } from 'vue-router'
+import { useRouter, RouterLink } from 'vue-router'
 import BaseButton from '../components/BaseButton.vue'
+
+const router = useRouter()
+
 // Variables réactives
 const email = ref('')
 const password = ref('')
-const showPassword = ref(false) // Le fameux interrupteur pour l'œil
+const showPassword = ref(false) 
 
-const handleLogin = () => {
-  console.log("Tentative de connexion avec :", email.value, password.value)
+// Gestion de l'état
+const isLoading = ref(false)
+const errorMessage = ref('')
+
+const handleLogin = async () => {
+  // Réinitialiser les messages d'erreur et activer le chargement
+  errorMessage.value = '' 
+  isLoading.value = true
+
+  try {
+    const apiUrl = import.meta.env.VITE_API_URL
+    
+    const response = await fetch(`${apiUrl}/api/auth/connexion`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        email: email.value,
+        motDePasse: password.value // Mapping pour Prisma
+      })
+    })
+
+    const data = await response.json()
+
+    if (!response.ok) {
+      errorMessage.value = data.message || "Email ou mot de passe incorrect."
+      return
+    }
+
+    console.log("Connexion réussie !", data)
+    
+    // Sauvegarde du jeton de sécurité (JWT) dans le navigateur
+    if (data.token) {
+      localStorage.setItem('token', data.token)
+    }
+    
+    // Redirection vers le fil d'actualité
+    router.push('/home')
+
+  } catch (error) {
+    console.error("Erreur réseau :", error)
+    errorMessage.value = "Impossible de joindre le serveur. Veuillez vérifier votre connexion."
+  } finally {
+    isLoading.value = false
+  }
 }
 </script>
 
@@ -105,9 +151,14 @@ const handleLogin = () => {
             </div>
           </div>
 
-         <BaseButton type="submit" variant="primary">
-          Se connecter
-        </BaseButton>
+          <div v-if="errorMessage" class="p-3 mb-4 text-sm text-red-700 bg-red-50 rounded-lg border border-red-200">
+            {{ errorMessage }}
+          </div>
+
+          <BaseButton type="submit" variant="primary" :disabled="isLoading" :class="{ 'opacity-50 cursor-not-allowed': isLoading }">
+            <span v-if="isLoading">Connexion...</span>
+            <span v-else>Se connecter</span>
+          </BaseButton>
         </form>
 
         <div class="flex items-center gap-3 my-6">
@@ -133,4 +184,3 @@ const handleLogin = () => {
 
   </div>
 </template>
-

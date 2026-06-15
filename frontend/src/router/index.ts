@@ -35,6 +35,11 @@ const router = createRouter({
       name: 'home',
       component: HomeView
     },
+    {
+      path: '/projets',
+      name: 'projects',
+      component: ProjectsView
+    },
     // La page profile utilisateur
     {
       path: '/profil',
