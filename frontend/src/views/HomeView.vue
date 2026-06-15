@@ -2,9 +2,10 @@
 import { ref } from 'vue'
 import SidebarNav from '../components/SidebarNav.vue'
 import TopNav from '../components/TopNav.vue'
+import CreatePostModal from '../components/CreatePostModal.vue' 
 
 const isMobileMenuOpen = ref(false)
-
+const isCreateModalOpen = ref(false) 
 </script>
 
 <template>
@@ -17,7 +18,10 @@ const isMobileMenuOpen = ref(false)
 
     <main class="flex-1 flex flex-col min-w-0">
       
-      <TopNav @open-menu="isMobileMenuOpen = true" />
+      <TopNav 
+        @open-menu="isMobileMenuOpen = true" 
+        @open-create-modal="isCreateModalOpen = true" 
+      />
 
       <div class="flex-1 p-6 overflow-y-auto">
         <div class="max-w-3xl mx-auto space-y-6">
@@ -28,5 +32,10 @@ const isMobileMenuOpen = ref(false)
       </div>
 
     </main>
+
+    <CreatePostModal 
+      :is-open="isCreateModalOpen" 
+      @close="isCreateModalOpen = false" 
+    />
   </div>
 </template>

@@ -31,14 +31,16 @@ const createPost = () => {
         <span class="absolute top-1.5 right-1.5 block w-2.5 h-2.5 bg-red-500 rounded-full ring-2 ring-white"></span>
       </button>
 
+     <!-- Bouton Nouveau Post -->
       <button 
-        @click="createPost"
+        @click="$emit('open-create-modal')"
         class="flex items-center gap-2 bg-primary text-white px-3 md:px-4 py-2 rounded-lg font-medium hover:opacity-90 active:scale-95 transition-all shadow-sm text-sm md:text-base"
       >
         <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
           <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
         </svg>
-        <span class="hidden md:inline">Nouveau Post</span> </button>
+        <span class="hidden md:inline">Nouveau Post</span>
+      </button>
     </div>
   </header>
 </template>
