@@ -5,6 +5,8 @@ import HomeView from '../views/HomeView.vue'
 import ProjectsView from '../views/ProjectsView.vue'
 import RegisterView from '../views/RegisterView.vue' 
 import ProfileView from '../views/ProfileView.vue'
+import EntraideView from '../views/EntraideView.vue'
+
 
 const router = createRouter({
   history: createWebHistory(),
@@ -45,8 +47,14 @@ const router = createRouter({
       path: '/profil/:id?', // <-- 'profil' en FR, et ajout de '/:id?'
       name: 'profil',
       component: ProfileView
+    },
+    // La page d'entraide
+    {
+      path: '/entraide',
+      name: 'entraide',
+      component: EntraideView,
+      // Optionnel : meta: { requiresAuth: true } si tu as un guard de connexion
     }
   ]
 })
-  
 export default router
