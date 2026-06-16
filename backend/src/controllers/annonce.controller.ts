@@ -256,8 +256,8 @@ export async function createBonPlan(req: Request, res: Response): Promise<void> 
     const annonce = await prisma.annonceBonPlan.create({
       data: {
         titre,
-        description, 
-        sousType: sousType as SousTypeBonPlan,
+        description,
+        sousType,
         id_utilisateur,
         image,
         lien,

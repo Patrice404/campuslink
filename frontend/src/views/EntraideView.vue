@@ -2,7 +2,6 @@
 import { ref, onMounted } from 'vue'
 import SidebarNav from '../components/SidebarNav.vue'
 import TopNav from '../components/TopNav.vue'
-import CardView from '../components/CampusCard.vue' // Ton composant carte d'annonce
 import CreatePostModal from '../components/CreatePostModal.vue'
 import { useAuthStore } from '../stores/authStore'
 
@@ -24,19 +23,20 @@ const fetchExercices = async () => {
   errorMessage.value = null
   try {
     const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000'
-    const response = await fetch(`${apiUrl}/api/exercices`, {
+    const response = await fetch(`${apiUrl}/api/entraide`, {
       method: 'GET',
       headers: {
-        'Content-Type': 'application/json',
+    
         ...(authStore.token ? { Authorization: `Bearer ${authStore.token}` } : {})
       }
     })
-
     if (!response.ok) {
       throw new Error(`Erreur HTTP : ${response.status}`)
     }
 
-    exercices.value = await response.json()
+    const data = await response.json()
+    console.log('Exercices reçus:', data, 'count =', data.length)
+    exercices.value = data
   } catch (error) {
     console.error('Erreur entraide:', error)
     errorMessage.value = "Impossible de charger le fil d'entraide. Vérifie ta connexion."
@@ -98,11 +98,36 @@ onMounted(() => {
         </div>
 
         <div v-else class="space-y-4">
-          <CardView 
-            v-for="item in exercices" 
-            :key="item.id" 
-            :annonce="item" 
-          />
+          <article
+            v-for="item in exercices"
+            :key="item.id"
+            class="bg-white rounded-2xl p-5 border border-gray-200 shadow-sm hover:shadow-md transition"
+          >
+            <div class="flex items-center justify-between mb-3">
+              <div class="flex items-center gap-2">
+                <span class="text-xs font-semibold bg-blue-50 text-blue-600 px-2.5 py-1 rounded-full">
+                  {{ item.matiere?.titre || 'Exercice' }}
+                </span>
+                <span class="text-xs text-gray-400">{{ item.annee }}</span>
+              </div>
+              <span class="text-xs text-gray-400">❤️ {{ item.nbJaime }}</span>
+            </div>
+
+            <p class="text-gray-800 whitespace-pre-line">{{ item.description }}</p>
+
+            <a
+              v-if="item.lien"
+              :href="item.lien"
+              target="_blank"
+              class="inline-block mt-2 text-sm text-blue-600 hover:underline"
+            >
+              Voir le lien
+            </a>
+
+            <p class="text-xs text-gray-400 mt-4">
+              Par {{ item.utilisateur?.prenom }} {{ item.utilisateur?.nom }}
+            </p>
+          </article>
         </div>
       </main>
     </div>
