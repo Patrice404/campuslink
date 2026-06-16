@@ -1,99 +1,121 @@
-const { PrismaClient } = require('@prisma/client')
-const prisma = new PrismaClient()
+const { PrismaClient } = require('@prisma/client');
+const prisma = new PrismaClient();
 
 async function main() {
-  console.log("🧹 Nettoyage des tables (sauf Utilisateur)...\n")
+  console.log("🧹 Nettoyage...");
+  await prisma.jaime.deleteMany();
+  await prisma.commentaire.deleteMany();
+  await prisma.candidature.deleteMany();
+  await prisma.notification.deleteMany();
+  await prisma.blocage.deleteMany();
+  await prisma.annonceExercice.deleteMany();
+  await prisma.annonceBonPlan.deleteMany();
+  await prisma.annonceTutorat.deleteMany();
+  await prisma.annonceProjet.deleteMany();
+  await prisma.utilisateur.deleteMany();
+  await prisma.matiere.deleteMany();
+  await prisma.formation.deleteMany();
+  await prisma.departement.deleteMany();
+  await prisma.campus.deleteMany();
 
-  // Ordre important : supprimer d'abord les tables qui ont des FK vers les autres
-  await prisma.jaime.deleteMany()
-  await prisma.commentaire.deleteMany()
-  await prisma.candidature.deleteMany()
-  await prisma.annonceExercice.deleteMany()
-  await prisma.annonceBonPlan.deleteMany()
-  await prisma.annonceTutorat.deleteMany()
-  await prisma.annonceProjet.deleteMany()
-  await prisma.notification.deleteMany()
-  await prisma.matiere.deleteMany()
-  await prisma.campus.deleteMany()
-  console.log("✅ Tables vidées.\n")
+  // 1. STRUCTURE ACADÉMIQUE
+  const campusList = ['INSA CVL', 'IUT Bourges', 'Univ Orléans'];
+  const deps = ['Informatique', 'Génie Civil', 'Mécanique'];
 
-  // 1. CAMPUS
-  console.log("🏫 Création des campus...")
-  const [insaCvl, iutBourges, univOrleans] = await Promise.all([
-    prisma.campus.create({ data: { nom: 'INSA CVL', ville: 'Bourges', etablissement: 'INSA Centre Val de Loire' } }),
-    prisma.campus.create({ data: { nom: 'IUT Bourges', ville: 'Bourges', etablissement: 'Université de Bourges' } }),
-    prisma.campus.create({ data: { nom: "Université d'Orléans", ville: 'Orléans', etablissement: "Université d'Orléans" } }),
-  ])
-
-  // 2. MATIÈRES
-  console.log("\n📚 Création des matières...")
-  const [maths, algo, devWeb, bdd, physique, anglais, droit, reseaux, ia, gestion] = await Promise.all([
-    prisma.matiere.create({ data: { titre: 'Mathématiques', annee: 'L1' } }),
-    prisma.matiere.create({ data: { titre: 'Algorithmique', annee: 'L1' } }),
-    prisma.matiere.create({ data: { titre: 'Développement Web', annee: 'L2' } }),
-    prisma.matiere.create({ data: { titre: 'Bases de données', annee: 'L2' } }),
-    prisma.matiere.create({ data: { titre: 'Physique appliquée', annee: 'L1' } }),
-    prisma.matiere.create({ data: { titre: 'Anglais technique', annee: 'L3' } }),
-    prisma.matiere.create({ data: { titre: 'Droit du numérique', annee: 'L3' } }),
-    prisma.matiere.create({ data: { titre: 'Réseaux & Sécurité', annee: 'M1' } }),
-    prisma.matiere.create({ data: { titre: 'Intelligence Artificielle', annee: 'M1' } }),
-    prisma.matiere.create({ data: { titre: 'Gestion de projet', annee: 'M2' } }),
-  ])
-
-  // 3. UTILISATEURS
-  const utilisateurs = await prisma.utilisateur.findMany()
-  if (utilisateurs.length === 0) { console.error("❌ Pas d'utilisateur."); process.exit(1) }
-  
-  const campus = [insaCvl, iutBourges, univOrleans]
-  for (let i = 0; i < utilisateurs.length; i++) {
-    await prisma.utilisateur.update({
-      where: { id: utilisateurs[i].id },
-      data: { id_campus: campus[i % campus.length].id }
-    })
+  for (const cNom of campusList) {
+    const campus = await prisma.campus.create({ data: { nom: cNom, ville: 'Bourges', etablissement: 'Université' } });
+    for (const dNom of deps) {
+      const dep = await prisma.departement.create({ data: { nom: dNom, id_campus: campus.id } });
+      await prisma.formation.createMany({
+        data: [{ nom: `Licence ${dNom}`, niveau: 'L1', id_departement: dep.id }, { nom: `Master ${dNom}`, niveau: 'M1', id_departement: dep.id }]
+      });
+    }
   }
-  const users = await prisma.utilisateur.findMany()
-  const u = (i) => users[i % users.length]
 
-  // 4. ANNONCES EXERCICE (champ 'description' utilisé)
-  const exercices = await Promise.all([
-    prisma.annonceExercice.create({ data: { description: "Récursivité algo ?", annee: 'L1', id_matiere: algo.id, id_utilisateur: u(0).id } }),
-    prisma.annonceExercice.create({ data: { description: "Corrigé SQL Join", annee: 'L2', id_matiere: bdd.id, id_utilisateur: u(1).id } }),
-    prisma.annonceExercice.create({ data: { description: "Intégrales TD2", annee: 'L1', id_matiere: maths.id, id_utilisateur: u(2).id } }),
-  ])
+  const formations = await prisma.formation.findMany();
+  const matieres = await prisma.matiere.createManyAndReturn({
+    data: ['Algorithmique', 'Bases de données', 'Web', 'Réseaux', 'IA', 'Droit'].map(m => ({ titre: m, annee: 'L1' }))
+  });
 
-  // 5. ANNONCES BON PLAN (champ 'description' utilisé)
-  const bonsPlans = await Promise.all([
-    prisma.annonceBonPlan.create({ data: { titre: 'Job étudiant', description: "Animateur périscolaire", sousType: 'JOB_ETUDIANT', id_utilisateur: u(0).id } }),
-    prisma.annonceBonPlan.create({ data: { titre: 'Colocation', description: "Chambre 12m² centre ville", sousType: 'COLOCATION', id_utilisateur: u(1).id } }),
-  ])
+  // 2. UTILISATEURS (Patrice + 29 autres)
+  const users = [];
+  users.push(await prisma.utilisateur.create({
+    data: {
+      nom: 'COTCHO', prenom: 'Patrice', email: 'patricecotcho@gmail.com',
+      motDePasse: '$2b$10$.G/8tCnlMQaKvBhI/vAvTueLiyHVOU8fnIHhLx8.aI4tikFdtR6VS',
+      role: 'ETUDIANT', id_formation: formations[0].id, centresInteret: ['PROJET', 'ENTRAIDE']
+    }
+  }));
 
-  // 6. ANNONCES TUTORAT
-  const tutorats = await Promise.all([
-    prisma.annonceTutorat.create({ data: { description: "Tutorat algo L1", nbCandidatsVoulus: 4, annee: 'L1', id_matiere: algo.id, id_utilisateur: u(0).id } }),
-    prisma.annonceTutorat.create({ data: { description: "Tutorat BDD L2", nbCandidatsVoulus: 3, annee: 'L2', id_matiere: bdd.id, id_utilisateur: u(1).id } }),
-  ])
+  for (let i = 0; i < 29; i++) {
+    users.push(await prisma.utilisateur.create({
+      data: {
+        nom: `User${i}`, prenom: `Nom${i}`, email: `user${i}@test.fr`,
+        motDePasse: 'password', role: 'ETUDIANT',
+        id_formation: formations[i % formations.length].id
+      }
+    }));
+  }
 
-  // 7. ANNONCES PROJET
-  const projets = await Promise.all([
-    prisma.annonceProjet.create({ data: { titre: "App Covoiturage", description: "React Native stack", id_utilisateur: u(0).id } }),
-    prisma.annonceProjet.create({ data: { titre: "Bot Discord", description: "Node.js + Webhooks", id_utilisateur: u(1).id } }),
-  ])
+  // 3. ANNONCES (100 au total)
+  const sousTypes = ['JOB_ETUDIANT', 'ALTERNANCE', 'COLOCATION', 'FETE', 'RESTAURANT', 'HACKATHON'];
+  const vis = ['PUBLIQUE', 'PROMOTION', 'ETUDIANT'];
 
-  // 8. COMMENTAIRES
-  await prisma.commentaire.createMany({
-    data: [
-      { texte: "Merci !", id_utilisateur: u(1).id, id_exercice: exercices[0].id },
-      { texte: "Intéressé !", id_utilisateur: u(2).id, id_tutorat: tutorats[0].id }
-    ]
-  })
+  for (let i = 0; i < 100; i++) {
+    const user = users[i % users.length];
+    const type = i % 4;
 
-  // 9. CANDIDATURES
-  await prisma.candidature.create({ data: { messageMotivation: "Motivé !", datePostulation: new Date(), id_tutorat: tutorats[0].id } })
+    if (type === 0) await prisma.annonceExercice.create({ data: { description: `Exercice ${i}`, annee: 'L1', id_matiere: matieres[i % matieres.length].id, id_utilisateur: user.id, visibilite: vis[i % 3] } });
+    else if (type === 1) await prisma.annonceBonPlan.create({ data: { titre: `Plan ${i}`, description: "Description", sousType: sousTypes[i % sousTypes.length], id_utilisateur: user.id, visibilite: vis[i % 3] } });
+    else if (type === 2) await prisma.annonceTutorat.create({ data: { description: `Tutorat ${i}`, nbCandidatsVoulus: 3, id_matiere: matieres[i % matieres.length].id, id_utilisateur: user.id, visibilite: vis[i % 3] } });
+    else await prisma.annonceProjet.create({ data: { titre: `Projet ${i}`, description: "Description", id_utilisateur: user.id, visibilite: vis[i % 3] } });
+  }
 
-  // 10. NOTIFICATIONS
-  await prisma.notification.create({ data: { contenu: "Candidature acceptée", id_utilisateur: u(0).id } })
+  // ... après la création des annonces dans votre script ...
 
-  console.log("\n🌱 Seed terminé avec succès !")
+  console.log("💬 Génération des interactions sociales...");
+  
+  // Récupération de toutes les annonces créées pour interagir avec
+  const [exercices, bonsPlans, tutorats, projets] = await Promise.all([
+    prisma.annonceExercice.findMany(),
+    prisma.annonceBonPlan.findMany(),
+    prisma.annonceTutorat.findMany(),
+    prisma.annonceProjet.findMany()
+  ]);
+
+  const allAnnonces = [...exercices, ...bonsPlans, ...tutorats, ...projets];
+
+  // Création de 50 commentaires aléatoires
+  for (let i = 0; i < 50; i++) {
+    const randomUser = users[Math.floor(Math.random() * users.length)];
+    const randomAnnonce = allAnnonces[Math.floor(Math.random() * allAnnonces.length)];
+
+    await prisma.commentaire.create({
+      data: {
+        texte: `Ceci est le commentaire n°${i} pour l'annonce ${randomAnnonce.id}`,
+        id_utilisateur: randomUser.id,
+        // Association dynamique au bon modèle selon le type d'annonce
+        id_exercice: randomAnnonce.type === 'EXERCICE' ? randomAnnonce.id : null,
+        id_bonplan: randomAnnonce.type === 'BON_PLAN' ? randomAnnonce.id : null,
+        id_tutorat: randomAnnonce.type === 'TUTORAT' ? randomAnnonce.id : null,
+        id_projet: randomAnnonce.type === 'PROJET' ? randomAnnonce.id : null,
+      }
+    });
+
+    // Ajout d'un "J'aime" aléatoire une fois sur deux
+    if (i % 2 === 0) {
+      await prisma.jaime.create({
+        data: {
+          id_utilisateur: randomUser.id,
+          id_exercice: randomAnnonce.type === 'EXERCICE' ? randomAnnonce.id : null,
+          id_bonplan: randomAnnonce.type === 'BON_PLAN' ? randomAnnonce.id : null,
+          id_tutorat: randomAnnonce.type === 'TUTORAT' ? randomAnnonce.id : null,
+          id_projet: randomAnnonce.type === 'PROJET' ? randomAnnonce.id : null,
+        }
+      });
+    }
+  }
+
+  console.log("✅ Seed massif terminé.");
 }
-
-main().catch(e => { console.error(e); process.exit(1) }).finally(async () => await prisma.$disconnect())
+main().catch(console.error).finally(() => prisma.$disconnect());

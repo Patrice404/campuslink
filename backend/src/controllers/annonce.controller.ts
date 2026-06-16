@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { prisma } from '../lib/prismaClient';
 import { toJSON } from '../lib/serialize';
 import { ANNONCE_CONFIG, AnnonceType, findAnnonceById } from '../lib/annonces';
+import { SousTypeBonPlan } from '@prisma/client'; 
 
 const TYPES: AnnonceType[] = ['EXERCICE', 'BON_PLAN', 'TUTORAT', 'PROJET'];
 
@@ -107,12 +108,12 @@ export async function creer(req: Request, res: Response): Promise<void> {
     switch (type as AnnonceType) {
       case 'EXERCICE':
         annonce = await prisma.annonceExercice.create({
-          data: { annee: b.annee, texte: b.texte, id_matiere: BigInt(b.id_matiere), id_utilisateur, image, lien },
+          data: { annee: b.annee, description: b.description, id_matiere: BigInt(b.id_matiere), id_utilisateur, image, lien },
         });
         break;
       case 'BON_PLAN':
         annonce = await prisma.annonceBonPlan.create({
-          data: { titre: b.titre, texte: b.texte, sousType: b.sousType, id_utilisateur, image, lien },
+          data: { titre: b.titre, description: b.description, sousType: b.sousType, id_utilisateur, image, lien },
         });
         break;
       case 'TUTORAT':
@@ -130,7 +131,7 @@ export async function creer(req: Request, res: Response): Promise<void> {
         break;
       case 'PROJET':
         annonce = await prisma.annonceProjet.create({
-          data: { titre: b.titre, texte: b.texte, description: b.description, id_utilisateur, image, lien },
+          data: { titre: b.titre, description: b.description, id_utilisateur, image, lien },
         });
         break;
     }
@@ -158,7 +159,7 @@ export async function modifier(req: Request, res: Response): Promise<void> {
 
     // On ne met à jour que les champs fournis et autorisés
     const data: Record<string, unknown> = {};
-    for (const champ of ['titre', 'texte', 'description', 'annee', 'lien', 'sousType']) {
+    for (const champ of ['titre', 'description', 'annee', 'lien', 'sousType']) {
       if (req.body[champ] !== undefined) data[champ] = req.body[champ];
     }
     if (req.body.nbCandidatsVoulus !== undefined) data.nbCandidatsVoulus = Number(req.body.nbCandidatsVoulus);
@@ -204,18 +205,18 @@ export async function supprimer(req: Request, res: Response): Promise<void> {
 export async function createExercice(req: Request, res: Response): Promise<void> {
   try {
     const id_utilisateur = BigInt(req.utilisateur!.id);
-    const { texte, annee, id_matiere } = req.body;
+    const { annee, id_matiere, description } = req.body;
     const lien = req.body.lien || null;
     const image = req.file ? req.file.filename : null;
  
-    if (!texte || !annee || !id_matiere) {
-      res.status(400).json({ message: 'Champs requis manquants : texte, annee, id_matiere' });
+    if (!description || !annee || !id_matiere) {
+      res.status(400).json({ message: 'Champs requis manquants : description, annee, id_matiere' });
       return;
     }
  
     const annonce = await prisma.annonceExercice.create({
       data: {
-        texte,
+        description,
         annee,
         id_matiere: BigInt(id_matiere),
         id_utilisateur,
@@ -237,35 +238,26 @@ export async function createExercice(req: Request, res: Response): Promise<void>
 export async function createBonPlan(req: Request, res: Response): Promise<void> {
   try {
     const id_utilisateur = BigInt(req.utilisateur!.id);
-    const { titre, texte, sousType } = req.body;
+    const { titre, description, sousType } = req.body;
     const lien = req.body.lien || null;
     const image = req.file ? req.file.filename : null;
  
-    const SOUS_TYPES = [
-      'JOB_ETUDIANT',
-      'ALTERNANCE',
-      'COLOCATION',
-      'FETE',
-      'EVENEMENT',
-      'RESTAURANT',
-      'BOURSE',
-      'HACKATHON',
-    ];
+    const sousTypesAutorises = Object.values(SousTypeBonPlan);
  
-    if (!titre || !texte || !sousType) {
-      res.status(400).json({ message: 'Champs requis manquants : titre, texte, sousType' });
+    if (!titre || !description || !sousType) {
+      res.status(400).json({ message: 'Champs requis manquants : titre, description, sousType' });
       return;
     }
-    if (!SOUS_TYPES.includes(sousType)) {
-      res.status(400).json({ message: `sousType invalide. Valeurs autorisées : ${SOUS_TYPES.join(', ')}` });
+    if (!sousTypesAutorises.includes(sousType)) {
+      res.status(400).json({ message: `sousType invalide. Valeurs autorisées : ${sousTypesAutorises.join(', ')}` });
       return;
     }
  
     const annonce = await prisma.annonceBonPlan.create({
       data: {
         titre,
-        texte,
-        sousType,
+        description, 
+        sousType: sousType as SousTypeBonPlan,
         id_utilisateur,
         image,
         lien,
@@ -327,19 +319,18 @@ export async function createTutorat(req: Request, res: Response): Promise<void> 
 export async function createProjet(req: Request, res: Response): Promise<void> {
   try {
     const id_utilisateur = BigInt(req.utilisateur!.id);
-    const { titre, texte, description } = req.body;
+    const { titre, description } = req.body;
     const lien = req.body.lien || null;
     const image = req.file ? req.file.filename : null;
  
-    if (!titre || !texte || !description) {
-      res.status(400).json({ message: 'Champs requis manquants : titre, texte, description' });
+    if (!titre || !description) {
+      res.status(400).json({ message: 'Champs requis manquants : titre, description' });
       return;
     }
  
     const annonce = await prisma.annonceProjet.create({
       data: {
         titre,
-        texte,
         description,
         id_utilisateur,
         image,
