@@ -194,31 +194,26 @@ async function main() {
   const projets = await Promise.all([
     prisma.annonceProjet.create({ data: {
       titre: "Application mobile de covoiturage inter-campus",
-      texte: "On cherche des coéquipiers pour développer une app de covoiturage entre les campus INSA, IUT et Université d'Orléans.",
       description: "Stack envisagée : React Native + Node.js + PostgreSQL. On a déjà le cahier des charges et les maquettes Figma. Recherche 1 dev back et 1 designer UI/UX. Projet sur 3 mois.",
       id_utilisateur: u(0).id, nbJaime: 47
     }}),
     prisma.annonceProjet.create({ data: {
       titre: "Bot Discord pour gérer les annonces CampusLink",
-      texte: "Projet de créer un bot Discord qui poste automatiquement les nouvelles annonces CampusLink dans les serveurs de promo.",
       description: "On utilise l'API CampusLink + discord.js. Projet court (1 mois), idéal pour un L2/L3 qui veut s'initier aux bots et aux webhooks. Une personne suffit en plus de moi.",
       id_utilisateur: u(1).id, nbJaime: 31
     }}),
     prisma.annonceProjet.create({ data: {
       titre: "Jeu vidéo 2D en Python — thème : campus fantôme",
-      texte: "Je développe un petit jeu d'aventure 2D avec Pygame, dans un campus hanté. Je cherche quelqu'un pour les sprites et les niveaux.",
       description: "Pas besoin d'être expert en Python, je gère le code. J'ai besoin d'un(e) graphiste pixel art et d'un(e) game designer pour concevoir les maps et les énigmes. Projet fun et créatif.",
       id_utilisateur: u(2).id, nbJaime: 63
     }}),
     prisma.annonceProjet.create({ data: {
       titre: "Dashboard de suivi de notes pour étudiants",
-      texte: "Application web pour suivre ses notes par matière, calculer sa moyenne et prévoir les résultats aux rattrapages.",
       description: "Vue.js 3 + Express + PostgreSQL. Fonctionnalités : saisie des notes, graphiques d'évolution, export PDF. Recherche 1 dev fullstack motivé. Projet à valoriser dans un portfolio.",
       id_utilisateur: u(0).id, nbJaime: 55
     }}),
     prisma.annonceProjet.create({ data: {
       titre: "Podcast étudiant — interviews de professionnels du numérique",
-      texte: "On monte un podcast pour interviewer des pros du secteur tech (devs, chefs de projet, data scientists) et partager leurs parcours.",
       description: "Pas un projet de code ! On cherche quelqu'un pour le montage audio (Audacity/Adobe Audition), et un(e) autre pour gérer les réseaux sociaux. 2 épisodes par mois, ambiance détendue.",
       id_utilisateur: u(1).id, nbJaime: 29
     }}),
