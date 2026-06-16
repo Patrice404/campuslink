@@ -46,3 +46,44 @@ docker compose exec backend npx prisma migrate dev --name add_verification_email
 
 npm install nodemailer
 docker compose exec backend npm install nodemailer
+
+Commande 
+rm -rf node_modules package-lock.json
+cd backend 
+rm -rf node_modules package-lock.json
+cd ../frontend
+rm -rf node_modules package-lock.json
+
+Dans les trois dossiers
+npm install
+
+Si pas suffisant
+docker compose exec backend npm install
+docker compose exec frontend npm install
+
+npm install nodemailer
+npm install multer
+
+
+.env
+# ==========================================
+# VARIABLES D'ENVIRONNEMENT LOCALES (DEV)
+# ==========================================
+
+# Identifiants de la Base de Données
+DB_USER=campuslink_dev
+DB_PASSWORD=secret_local_password
+DB_NAME=campuslink_db
+
+# L'URL complète de connexion (utilisée par Prisma dans le backend)
+# Format : postgresql://USER:PASSWORD@HOST:PORT/DATABASE
+DATABASE_URL=postgresql://${DB_USER}:${DB_PASSWORD}@database:5432/${DB_NAME}
+CORS_API_URL_FRONTEND=http://localhost:5173
+FRONTEND_URL=http://localhost:8080
+JWT_SECRET=campuslink_jwt_secret_change_in_production
+PORT=3000
+EMAIL_FROM=noreply.campuslinkinsacvl@gmail.com
+EMAIL_PASS=alanhsqtxqueepwq
+EMAIL_HOST=smtp.gmail.com
+EMAIL_PORT=587
+EMAIL_USER=noreply.campuslinkinsacvl@gmail.com
