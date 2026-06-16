@@ -9,6 +9,7 @@ import campusRoutes from './routes/campus.routes';
 import annonceRoutes from './routes/annonce.routes';
 import matiereRoutes from './routes/matiere.routes';
 import commentaireRoutes from './routes/commentaire.routes';
+import entraideRoutes from './routes/entraide.routes';
 
 dotenv.config();
 
@@ -23,9 +24,8 @@ if (!fs.existsSync(uploadsDir)) {
   console.log('📁 Dossier uploads créé.');
 }
 
-// Origines autorisées (front Vite en dev sur 5173, + variable d'env pour la prod)
-
-const origines = [           // L'URL de ton front Vite en développement
+// Origines autorisées (front Vite en dev sur 5173, + variable d'env pour la prod).
+const origines = [
   process.env.CORS_API_URL_FRONTEND || 'http://localhost:5173',
   'http://localhost:8080',
   process.env.FRONTEND_URL,
@@ -48,7 +48,7 @@ app.use('/api/campus', campusRoutes);
 app.use('/api/annonces', annonceRoutes);
 app.use('/api/matieres', matiereRoutes);
 app.use('/api/commentaires', commentaireRoutes);
-app.use('/api/entraide', require('./routes/entraide.routes').default); // <-- Nouvelle route pour l'entraide
+app.use('/api/entraide', entraideRoutes);
 
 // Routes à brancher une fois leurs controllers implémentés :
 // app.use('/api/candidatures', candidatureRoutes);

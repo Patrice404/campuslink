@@ -58,13 +58,9 @@ const removeImage = () => {
   if (fileInput.value) fileInput.value.value = ''
 }
 
-// Texte / description selon le type
-// -> EXERCICE, BON_PLAN, PROJET utilisent "texte"
-// -> TUTORAT utilise "description"
-const texte = ref('')
-const description = ref('')
-
 // Spécifiques
+
+const description = ref('')
 const titre = ref('')          // BON_PLAN, PROJET
 const annee = ref('L1')         // EXERCICE, TUTORAT
 const id_matiere = ref('1')     // EXERCICE, TUTORAT
@@ -74,7 +70,6 @@ const nbCandidatsVoulus = ref(1)     // TUTORAT
 const resetForm = () => {
   removeImage()
   lien.value = ''
-  texte.value = ''
   description.value = ''
   titre.value = ''
   annee.value = 'L1'
@@ -141,13 +136,13 @@ const handleSubmit = async () => {
 
   switch (typeAnnonce.value) {
     case 'EXERCICE':
-      formData.append('texte', texte.value)
+      formData.append('description', description.value)
       formData.append('annee', annee.value)
       formData.append('id_matiere', id_matiere.value)
       break
     case 'BON_PLAN':
       formData.append('titre', titre.value)
-      formData.append('texte', texte.value)
+      formData.append('description', description.value)
       formData.append('sousType', sousType.value)
       break
     case 'TUTORAT':
@@ -158,7 +153,6 @@ const handleSubmit = async () => {
       break
     case 'PROJET':
       formData.append('titre', titre.value)
-      formData.append('texte', texte.value)
       formData.append('description', description.value)
       break
   }
@@ -292,18 +286,7 @@ onMounted(() => {
             <input v-model.number="nbCandidatsVoulus" type="number" min="1" max="10" required class="w-full py-2.5 px-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-secondary focus:border-secondary outline-none" />
           </div>
 
-          <!-- SECTION COMMUNE : Le Texte / Description -->
-          <!-- Pour EXERCICE, BON_PLAN, PROJET -> champ "texte" du schéma -->
-          <div v-if="typeAnnonce !== 'TUTORAT'">
-            <label class="block text-sm font-medium text-gray-700 mb-1">Description</label>
-            <textarea 
-              v-model="texte" 
-              required 
-              rows="4" 
-              class="w-full py-2.5 px-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-secondary focus:border-secondary outline-none resize-none" 
-              placeholder="Écrivez votre message ici..."
-            ></textarea>
-          </div>
+         
 
           <!-- Pour TUTORAT -> champ "description" du schéma -->
           <div v-if="typeAnnonce === 'TUTORAT'">
@@ -317,9 +300,9 @@ onMounted(() => {
             ></textarea>
           </div>
 
-          <!-- PROJET -> champ "description" supplémentaire du schéma (en plus de "texte") -->
-          <div v-if="typeAnnonce === 'PROJET'">
-            <label class="block text-sm font-medium text-gray-700 mb-1">Description détaillée du projet</label>
+          <!-- SECTION COMMUNE :  champ "description" supplémentaire du schéma -->
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Description </label>
             <textarea 
               v-model="description" 
               required 
