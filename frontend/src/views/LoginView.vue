@@ -51,13 +51,11 @@ const handleLogin = async () => {
 
     console.log("Connexion réussie !", data)
     
-    if (data.token) {
-      authStore.setToken(data.token)
-    }
-
-    if (data.utilisateur) {
-      // adapter le nom de la clé selon ce que renvoie /api/auth/connexion
-      authStore.setUser(data.utilisateur)
+    if(data && data.token && data.utilisateur) {
+      authStore.login(data.token, data.utilisateur)
+    }else {
+      errorMessage.value = "Réponse inattendue du serveur."
+      return
     }
     
     // Redirection vers le fil d'actualité

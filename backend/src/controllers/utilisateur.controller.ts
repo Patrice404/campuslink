@@ -1,7 +1,8 @@
 import { Request, Response } from 'express';
-import { Utilisateur } from '@prisma/client';
+import { Utilisateur, CentreInteret } from '@prisma/client';
 import { prisma } from '../lib/prismaClient';
 
+// Sérialisation mise à jour avec la bio, les centres d'intérêt et id_formation
 function serializeUser(user: Utilisateur) {
   return {
     id: user.id.toString(),
@@ -11,7 +12,9 @@ function serializeUser(user: Utilisateur) {
     role: user.role,
     dateInscription: user.dateInscription,
     photoProfil: user.photoProfil,
-    id_campus: user.id_campus ? user.id_campus.toString() : null,
+    bio: user.bio,
+    centresInteret: user.centresInteret,
+    id_formation: user.id_formation ? user.id_formation.toString() : null,
   };
 }
 
@@ -19,7 +22,18 @@ export async function getProfil(req: Request, res: Response): Promise<void> {
   try {
     const utilisateur = await prisma.utilisateur.findUnique({
       where: { id: BigInt(req.utilisateur!.id) },
-      include: { campus: true },
+      // On remonte la hiérarchie pour obtenir le campus via la formation
+      include: { 
+        formation: {
+          include: {
+            departement: {
+              include: {
+                campus: true
+              }
+            }
+          }
+        } 
+      },
     });
 
     if (!utilisateur) {
@@ -27,14 +41,23 @@ export async function getProfil(req: Request, res: Response): Promise<void> {
       return;
     }
 
+    // Extraction sécurisée du campus
+    const campus = utilisateur.formation?.departement?.campus;
+
     res.json({
       ...serializeUser(utilisateur),
-      campus: utilisateur.campus
+      // On peut aussi renvoyer les détails de la formation pour le frontend
+      formation: utilisateur.formation ? {
+        id: utilisateur.formation.id.toString(),
+        nom: utilisateur.formation.nom,
+        niveau: utilisateur.formation.niveau,
+      } : null,
+      campus: campus
         ? {
-            id: utilisateur.campus.id.toString(),
-            nom: utilisateur.campus.nom,
-            ville: utilisateur.campus.ville,
-            etablissement: utilisateur.campus.etablissement,
+            id: campus.id.toString(),
+            nom: campus.nom,
+            ville: campus.ville,
+            etablissement: campus.etablissement,
           }
         : null,
     });
@@ -46,12 +69,23 @@ export async function getProfil(req: Request, res: Response): Promise<void> {
 
 export async function updateProfil(req: Request, res: Response): Promise<void> {
   try {
-    const { nom, prenom, id_campus } = req.body;
-    const data: { nom?: string; prenom?: string; id_campus?: bigint; photoProfil?: string } = {};
+    // Remplacement de id_campus par id_formation et ajout des nouveaux champs
+    const { nom, prenom, id_formation, bio, centresInteret } = req.body;
+    
+    const data: { 
+      nom?: string; 
+      prenom?: string; 
+      id_formation?: bigint; 
+      photoProfil?: string;
+      bio?: string;
+      centresInteret?: CentreInteret[];
+    } = {};
 
     if (nom) data.nom = nom;
     if (prenom) data.prenom = prenom;
-    if (id_campus) data.id_campus = BigInt(id_campus);
+    if (id_formation) data.id_formation = BigInt(id_formation);
+    if (bio !== undefined) data.bio = bio; // Permet de vider la bio si on envoie une chaîne vide
+    if (centresInteret) data.centresInteret = centresInteret; 
     if (req.file) data.photoProfil = req.file.filename;
 
     const utilisateur = await prisma.utilisateur.update({
@@ -70,13 +104,26 @@ export async function getProfilPublic(req: Request, res: Response): Promise<void
   try {
     const utilisateur = await prisma.utilisateur.findUnique({
       where: { id: BigInt(req.params.id) },
-      include: { campus: true },
+      // Même logique pour remonter jusqu'au campus
+      include: { 
+        formation: {
+          include: {
+            departement: {
+              include: {
+                campus: true
+              }
+            }
+          }
+        } 
+      },
     });
 
     if (!utilisateur) {
       res.status(404).json({ message: 'Utilisateur introuvable' });
       return;
     }
+
+    const campus = utilisateur.formation?.departement?.campus;
 
     res.json({
       id: utilisateur.id.toString(),
@@ -85,12 +132,19 @@ export async function getProfilPublic(req: Request, res: Response): Promise<void
       role: utilisateur.role,
       photoProfil: utilisateur.photoProfil,
       dateInscription: utilisateur.dateInscription,
-      campus: utilisateur.campus
+      bio: utilisateur.bio,
+      centresInteret: utilisateur.centresInteret,
+      formation: utilisateur.formation ? {
+        id: utilisateur.formation.id.toString(),
+        nom: utilisateur.formation.nom,
+        niveau: utilisateur.formation.niveau,
+      } : null,
+      campus: campus
         ? {
-            id: utilisateur.campus.id.toString(),
-            nom: utilisateur.campus.nom,
-            ville: utilisateur.campus.ville,
-            etablissement: utilisateur.campus.etablissement,
+            id: campus.id.toString(),
+            nom: campus.nom,
+            ville: campus.ville,
+            etablissement: campus.etablissement,
           }
         : null,
     });

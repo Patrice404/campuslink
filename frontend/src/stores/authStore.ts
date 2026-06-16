@@ -1,48 +1,77 @@
 import { defineStore } from 'pinia'
 
+// 1. Définition stricte du type Utilisateur
+// Note: Les BigInt du backend (id, id_formation) doivent être convertis 
+// en string (ou number) par ton backend avant d'être envoyés au frontend !
+export interface AuthUser {
+  id: string; 
+  email: string;
+  nom: string;
+  prenom: string;
+  role: 'ETUDIANT' | 'PROFESSEUR';
+  id_formation?: string | null;
+}
+
 export const useAuthStore = defineStore('auth', {
   state: () => ({
-    // Gestion du campus
-    selectedCampusId: null as number | null,
-    // Gestion de l'utilisateur
-    user: null as any | null,
+    selectedCampusId: null as string | null,
+    user: null as AuthUser | null, // Remplacement du 'any' par l'interface
     token: null as string | null,
   }),
+
   getters: {
+    // Vérifie si l'utilisateur a un token
     isAuthenticated: (state) => !!state.token,
+    
+    // Raccourcis pratiques pour gérer l'affichage ou les routes front
+    isProfesseur: (state) => state.user?.role === 'PROFESSEUR',
+    isEtudiant: (state) => state.user?.role === 'ETUDIANT',
+    
+    // Récupère le nom complet proprement
+    fullName: (state) => {
+      if (!state.user) return '';
+      return `${state.user.prenom} ${state.user.nom}`;
+    }
   },
+
   actions: {
-    // Actions Campus
-    setCampusId(id: number) {
-      this.selectedCampusId = id
+    setCampusId(id: Number | string) {
+      this.selectedCampusId = id.toString()
     },
     clearCampusId() {
       this.selectedCampusId = null
     },
 
-    // Actions Authentification
-    setUser(userData: any) {
-      this.user = userData
+    // Stocke uniquement les informations vitales de l'utilisateur
+    setUser(userData: AuthUser) {
+      this.user = {
+        id: userData.id,
+        email: userData.email,
+        nom: userData.nom,
+        prenom: userData.prenom,
+        role: userData.role,
+        id_formation: userData.id_formation
+      }
     },
+
     setToken(token: string) {
       this.token = token
     },
 
-    // Pratique : centralise la mise à jour après une connexion réussie
-    login(token: string, user?: any) {
-      this.token = token
-      if (user) this.user = user
+    login(token: string, user: AuthUser) {
+      this.setToken(token)
+      this.setUser(user)
     },
 
     logout() {
       this.user = null
       this.token = null
       this.selectedCampusId = null
+      // Forcer le nettoyage du localStorage ici par précaution
+      localStorage.removeItem('auth')
     }
   },
 
-  // Persistance automatique dans localStorage (clé par défaut : "auth")
-  // -> token, user et selectedCampusId survivent au rafraîchissement de page.
   persist: {
     storage: localStorage,
     paths: ['token', 'user', 'selectedCampusId'],

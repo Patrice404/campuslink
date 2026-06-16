@@ -1,17 +1,30 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 import { useRouter, RouterLink } from 'vue-router'
 import BaseButton from '../components/BaseButton.vue'
 import { useAuthStore } from '../stores/authStore'
 
+// --- Types ---
+interface Departement {
+  id: number
+  nom: string
+}
+
+interface Formation {
+  id: number
+  nom: string
+  niveau: string
+}
+
 const authStore = useAuthStore()
 const router = useRouter()
+
 // Redirection vers la sélection de campus si aucun campus n'est sélectionné
 if (!authStore.selectedCampusId) {
   router.push('/')
 }
 
-// Variables réactives pour les champs
+// --- Variables réactives pour les champs ---
 const role = ref('ETUDIANT')
 const firstName = ref('')
 const lastName = ref('')
@@ -22,15 +35,76 @@ const confirmPassword = ref('')
 const showPassword = ref(false)
 const showConfirmPassword = ref(false)
 
+// --- Nouvelles variables pour la hiérarchie académique ---
+const departements = ref<Departement[]>([])
+const formations = ref<Formation[]>([])
+const selectedDepartement = ref<number | ''>('')
+const selectedFormation = ref<number | ''>('')
+
 // Gestion de l'état d'envoi et des erreurs
 const isLoading = ref(false)
 const errorMessage = ref('')
 const isVerifying = ref(false)
 const verificationCode = ref('')
 
+// --- Fonctions de récupération (API) ---
+
+const fetchDepartements = async () => {
+  try {
+    const response = await fetch(`${import.meta.env.VITE_API_URL}/api/campus/${authStore.selectedCampusId}/departements`)
+    if (!response.ok) throw new Error("Erreur de chargement des départements")
+    departements.value = await response.json()
+  } catch (err) {
+    console.error(err)
+    errorMessage.value = "Impossible de charger les départements. Veuillez réessayer."
+  }
+}
+
+const fetchFormations = async (departementId: number) => {
+  try {
+    const response = await fetch(`${import.meta.env.VITE_API_URL}/api/departements/${departementId}/formations`)
+    if (!response.ok) throw new Error("Erreur de chargement des formations")
+    formations.value = await response.json()
+  } catch (err) {
+    console.error(err)
+    errorMessage.value = "Impossible de charger les formations."
+  }
+}
+
+// --- Cycle de vie et Réactivité ---
+
+// 1. Au chargement de la page, on récupère les départements du campus sélectionné
+onMounted(() => {
+  if (authStore.selectedCampusId) {
+    fetchDepartements()
+  }
+})
+
+// 2. Dès que l'utilisateur choisit un département, on met à jour la liste des formations
+watch(selectedDepartement, (newVal) => {
+  selectedFormation.value = '' // Réinitialise la formation si le département change
+  formations.value = [] // Vide la liste précédente
+  
+  if (newVal !== '') {
+    fetchFormations(newVal as number)
+  }
+})
+
+// --- Soumission du formulaire ---
+
 const handleRegister = async () => {
+  errorMessage.value = ''
+
   // 1. Validation locale
-  if (password.value !== confirmPassword.value) return
+  if (password.value !== confirmPassword.value) {
+    errorMessage.value = "Les mots de passe ne correspondent pas."
+    return
+  }
+  
+  if (!selectedFormation.value) {
+    errorMessage.value = "Veuillez sélectionner une formation."
+    return
+  }
   
   isLoading.value = true
   try {
@@ -43,14 +117,18 @@ const handleRegister = async () => {
         email: email.value,
         motDePasse: password.value,
         role: role.value,
-        id_campus: authStore.selectedCampusId
+        id_formation: selectedFormation.value // Remplace id_campus par id_formation
       })
     })
-    if (!response.ok) throw new Error("Erreur lors de l'envoi du code")
+    
+    if (!response.ok) {
+      const errorData = await response.json()
+      throw new Error(errorData.message || "Erreur lors de l'envoi du code")
+    }
     
     isVerifying.value = true // Ouverture de la modale
-  } catch (err) {
-    errorMessage.value = "Erreur lors de la préparation de l'inscription."
+  } catch (err: any) {
+    errorMessage.value = err.message || "Erreur lors de la préparation de l'inscription."
   } finally {
     isLoading.value = false
   }
@@ -58,7 +136,8 @@ const handleRegister = async () => {
 
 const handleVerifyAndRegister = async () => {
   isLoading.value = true
-  // Récupération de l'ID du campus depuis le store
+  errorMessage.value = ''
+  
   try {
     const response = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/verify-and-register`, {
       method: 'POST',
@@ -73,12 +152,11 @@ const handleVerifyAndRegister = async () => {
     
     router.push('/login')
   } catch (err) {
-    errorMessage.value = "Le code est incorrect."
+    errorMessage.value = "Le code est incorrect ou a expiré."
   } finally {
     isLoading.value = false
   }
 }
-
 </script>
 
 <template>
@@ -103,9 +181,9 @@ const handleVerifyAndRegister = async () => {
       </div>
     </div>
 
-    <div class="flex flex-1 items-center justify-center bg-gray-50 p-8">
+    <div class="flex flex-1 items-center justify-center bg-gray-50 p-8 overflow-y-auto">
       
-      <div class="w-full max-w-md p-8 space-y-6 bg-white rounded-2xl shadow-xl border border-gray-100">
+      <div class="w-full max-w-md p-8 space-y-6 bg-white rounded-2xl shadow-xl border border-gray-100 my-8">
 
         <div class="text-center mb-2">
           <h1 class="text-3xl font-extrabold text-gray-900">Inscription</h1>
@@ -139,9 +217,7 @@ const handleVerifyAndRegister = async () => {
 
           <div class="flex gap-4">
             <div class="flex-1">
-              <label for="firstName" class="block text-sm font-medium text-gray-700 mb-1">
-                Prénom
-              </label>
+              <label for="firstName" class="block text-sm font-medium text-gray-700 mb-1">Prénom</label>
               <div class="relative">
                 <span class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none">
                   <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
@@ -160,9 +236,7 @@ const handleVerifyAndRegister = async () => {
             </div>
 
             <div class="flex-1">
-              <label for="lastName" class="block text-sm font-medium text-gray-700 mb-1">
-                Nom
-              </label>
+              <label for="lastName" class="block text-sm font-medium text-gray-700 mb-1">Nom</label>
               <div class="relative">
                 <span class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none">
                   <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
@@ -181,10 +255,55 @@ const handleVerifyAndRegister = async () => {
             </div>
           </div>
 
+          <div class="flex gap-4">
+            <div class="flex-1">
+              <label for="departement" class="block text-sm font-medium text-gray-700 mb-1">Département</label>
+              <div class="relative">
+                <select
+                  id="departement"
+                  v-model="selectedDepartement"
+                  required
+                  class="w-full pl-3 pr-10 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-secondary focus:border-secondary outline-none transition-all bg-white appearance-none"
+                >
+                  <option value="" disabled>Sélectionner...</option>
+                  <option v-for="dep in departements" :key="dep.id" :value="dep.id">
+                    {{ dep.nom }}
+                  </option>
+                </select>
+                <span class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none">
+                  <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 15 12 18.75 15.75 15m-7.5-6L12 5.25 15.75 9" />
+                  </svg>
+                </span>
+              </div>
+            </div>
+
+            <div class="flex-1">
+              <label for="formation" class="block text-sm font-medium text-gray-700 mb-1">Formation</label>
+              <div class="relative">
+                <select
+                  id="formation"
+                  v-model="selectedFormation"
+                  required
+                  :disabled="!selectedDepartement"
+                  class="w-full pl-3 pr-10 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-secondary focus:border-secondary outline-none transition-all bg-white appearance-none disabled:bg-gray-100 disabled:text-gray-400"
+                >
+                  <option value="" disabled>Sélectionner...</option>
+                  <option v-for="form in formations" :key="form.id" :value="form.id">
+                    {{ form.nom }} ({{ form.niveau }})
+                  </option>
+                </select>
+                <span class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none">
+                  <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 15 12 18.75 15.75 15m-7.5-6L12 5.25 15.75 9" />
+                  </svg>
+                </span>
+              </div>
+            </div>
+          </div>
+
           <div>
-            <label for="email" class="block text-sm font-medium text-gray-700 mb-1">
-              Adresse email
-            </label>
+            <label for="email" class="block text-sm font-medium text-gray-700 mb-1">Adresse email</label>
             <div class="relative">
               <span class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none">
                 <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
@@ -203,9 +322,7 @@ const handleVerifyAndRegister = async () => {
           </div>
 
           <div>
-            <label for="password" class="block text-sm font-medium text-gray-700 mb-1">
-              Mot de passe
-            </label>
+            <label for="password" class="block text-sm font-medium text-gray-700 mb-1">Mot de passe</label>
             <div class="relative">
               <span class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none">
                 <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
@@ -238,9 +355,7 @@ const handleVerifyAndRegister = async () => {
           </div>
 
           <div>
-            <label for="confirmPassword" class="block text-sm font-medium text-gray-700 mb-1">
-              Confirmer le mot de passe
-            </label>
+            <label for="confirmPassword" class="block text-sm font-medium text-gray-700 mb-1">Confirmer le mot de passe</label>
             <div class="relative">
               <span class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none">
                 <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
@@ -275,11 +390,17 @@ const handleVerifyAndRegister = async () => {
               Les mots de passe ne correspondent pas.
             </p>
           </div>
+
           <div v-if="errorMessage" class="p-3 mb-4 text-sm text-red-700 bg-red-50 rounded-lg border border-red-200">
             {{ errorMessage }}
           </div>
 
-          <BaseButton type="submit" variant="primary" :disabled="isLoading" :class="{ 'opacity-50 cursor-not-allowed': isLoading }">
+          <BaseButton 
+            type="submit" 
+            variant="primary" 
+            :disabled="isLoading || !selectedFormation" 
+            :class="{ 'opacity-50 cursor-not-allowed': isLoading || !selectedFormation }"
+          >
             <span v-if="isLoading">Création du compte...</span>
             <span v-else>S'inscrire</span>
           </BaseButton>
@@ -293,21 +414,26 @@ const handleVerifyAndRegister = async () => {
       </div>
     </div>
 
-    //---
-    <div v-if="isVerifying" class="fixed inset-0 bg-black/50 flex items-center justify-center p-4">
-    <div class="bg-white p-6 rounded-xl shadow-xl w-full max-w-sm">
-      <h2 class="text-xl font-bold mb-4">Vérification par email</h2>
-      <p class="text-sm text-gray-600 mb-4">Un code a été envoyé à {{ email }}.</p>
-      <input 
-        v-model="verificationCode" 
-        placeholder="Entrez le code" 
-        class="w-full p-3 border rounded-lg mb-4"
-      />
-      <BaseButton @click="handleVerifyAndRegister" :disabled="isLoading">
-        Valider
-      </BaseButton>
+    <div v-if="isVerifying" class="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+      <div class="bg-white p-6 rounded-xl shadow-xl w-full max-w-sm">
+        <h2 class="text-xl font-bold mb-4 text-gray-900">Vérification par email</h2>
+        <p class="text-sm text-gray-600 mb-4">Un code a été envoyé à <span class="font-semibold">{{ email }}</span>.</p>
+        
+        <input 
+          v-model="verificationCode" 
+          placeholder="Entrez le code à 6 chiffres" 
+          class="w-full p-3 border border-gray-300 rounded-lg mb-4 focus:ring-2 focus:ring-secondary focus:border-secondary outline-none transition-all text-center tracking-widest font-mono text-lg"
+        />
+        
+        <div v-if="errorMessage && isVerifying" class="p-3 mb-4 text-sm text-red-700 bg-red-50 rounded-lg border border-red-200">
+          {{ errorMessage }}
+        </div>
+
+        <BaseButton @click="handleVerifyAndRegister" :disabled="isLoading || !verificationCode">
+          <span v-if="isLoading">Validation...</span>
+          <span v-else>Valider</span>
+        </BaseButton>
+      </div>
     </div>
   </div>
-  </div>
-  
 </template>

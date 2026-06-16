@@ -66,3 +66,9 @@ docker compose exec frontend npm install
 npm install nodemailer
 npm install multer
 
+docker compose exec backend npx prisma migrate dev --name init
+docker compose exec backend npx prisma migrate dev --name init_hierarchie
+docker compose exec backend npx prisma db seed
+TypeScript: Restart TS server
+
+npx prisma generate

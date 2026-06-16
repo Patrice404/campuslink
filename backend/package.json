@@ -31,6 +31,6 @@
     "typescript": "^5.2.0"
   },
   "prisma": {
-    "seed": "node prisma/enregistrements_db.js"
+    "seed": "node prisma/seed.js"
   }
 }

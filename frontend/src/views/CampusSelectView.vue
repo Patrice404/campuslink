@@ -77,9 +77,9 @@ const handleSelect = (campusId: number) => {
     
       <CampusCard 
         v-for="campus in campuses" 
-        :key="campus.id"
+        :key="Number(campus.id)"
         :campus="campus" 
-        @click="handleSelect(campus.id)"
+        @click="handleSelect(Number(campus.id))"
       />
 
     </div>

@@ -74,12 +74,13 @@ model Departement {
 }
 
 model Formation {
-  id             BigInt      @id @default(autoincrement())
+  id             BigInt        @id @default(autoincrement())
   nom            String
-  niveau         String // ex: L1, L2, M1...
+  niveau         String 
   id_departement BigInt
-  departement    Departement @relation(fields: [id_departement], references: [id])
+  departement    Departement   @relation(fields: [id_departement], references: [id])
   utilisateurs   Utilisateur[]
+  matieres       Matiere[]     // Ajout de la relation inverse
 }
 
 // --- UTILISATEUR & SOCIAL ---
@@ -130,6 +131,8 @@ model AnnonceExercice {
   visibilite      Visibilite  @default(PUBLIQUE)
   datePublication DateTime    @default(now())
   nbJaime         Int         @default(0)
+  image           String?
+  lien            String?
   annee           String
   description     String
   id_utilisateur  BigInt
@@ -146,6 +149,8 @@ model AnnonceBonPlan {
   visibilite      Visibilite      @default(PUBLIQUE)
   datePublication DateTime        @default(now())
   nbJaime         Int             @default(0)
+  image           String?
+  lien            String?
   titre           String
   description     String
   sousType        SousTypeBonPlan
@@ -162,6 +167,9 @@ model AnnonceTutorat {
   datePublication   DateTime    @default(now())
   nbCandidatsVoulus Int
   description       String
+  image             String?
+  lien              String?
+  annee             String
   id_utilisateur    BigInt
   utilisateur       Utilisateur @relation(fields: [id_utilisateur], references: [id], onDelete: Cascade)
   id_matiere        BigInt
@@ -177,6 +185,8 @@ model AnnonceProjet {
   visibilite      Visibilite  @default(PUBLIQUE)
   datePublication DateTime    @default(now())
   titre           String
+  lien            String?
+  image           String? 
   description     String
   id_utilisateur  BigInt
   utilisateur     Utilisateur @relation(fields: [id_utilisateur], references: [id], onDelete: Cascade)
@@ -187,9 +197,10 @@ model AnnonceProjet {
 // --- AUTRES ---
 
 model Matiere {
-  id               BigInt           @id @default(autoincrement())
+  id               BigInt            @id @default(autoincrement())
   titre            String
-  annee            String
+  formations       Formation[]       // Liste des formations qui ont cette matière
+  
   annoncesExercice AnnonceExercice[]
   annoncesTutorat  AnnonceTutorat[]
 }
@@ -197,6 +208,7 @@ model Matiere {
 model Notification {
   id             BigInt      @id @default(autoincrement())
   contenu        String
+  dateCreation   DateTime    @default(now())
   lue            Boolean     @default(false)
   id_utilisateur BigInt
   utilisateur    Utilisateur @relation(fields: [id_utilisateur], references: [id], onDelete: Cascade)
@@ -205,6 +217,7 @@ model Notification {
 model Commentaire {
   id             BigInt           @id @default(autoincrement())
   texte          String
+  dateCreation   DateTime         @default(now())
   id_utilisateur BigInt
   utilisateur    Utilisateur      @relation(fields: [id_utilisateur], references: [id], onDelete: Cascade)
   id_exercice    BigInt?
@@ -219,6 +232,7 @@ model Commentaire {
 
 model Jaime {
   id             BigInt           @id @default(autoincrement())
+  date           DateTime         @default(now()) @db.Date
   id_utilisateur BigInt
   utilisateur    Utilisateur      @relation(fields: [id_utilisateur], references: [id], onDelete: Cascade)
   id_exercice    BigInt?
@@ -234,6 +248,7 @@ model Jaime {
 model Candidature {
   id                BigInt            @id @default(autoincrement())
   statut            StatutCandidature @default(EN_ATTENTE)
+  date              DateTime         @default(now()) @db.Date
   messageMotivation String
   id_tutorat        BigInt
   tutorat           AnnonceTutorat    @relation(fields: [id_tutorat], references: [id], onDelete: Cascade)

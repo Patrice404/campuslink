@@ -8,16 +8,16 @@ import { genererCode, envoyerCode } from '../lib/mailer';
 // Durée de validité d'un code de vérification (en minutes)
 const CODE_DUREE_MIN = 10;
 
-function serializeUser(user: Utilisateur) {
+function serializeUser(utilisateur: any) {
   return {
-    id: user.id.toString(),
-    nom: user.nom,
-    prenom: user.prenom,
-    email: user.email,
-    role: user.role,
-    dateInscription: user.dateInscription,
-    photoProfil: user.photoProfil,
-    id_campus: user.id_campus ? user.id_campus.toString() : null,
+    id: utilisateur.id.toString(), // ⚡️ CRUCIAL : Conversion du BigInt en String
+    email: utilisateur.email,
+    nom: utilisateur.nom,
+    prenom: utilisateur.prenom,
+    role: utilisateur.role,
+    photoProfil: utilisateur.photoProfil,
+    id_formation: utilisateur.id_formation ? utilisateur.id_formation.toString() : null 
+    
   };
 }
 
@@ -29,49 +29,15 @@ function genererToken(user: Utilisateur): string {
   );
 }
 
-export async function inscription(req: Request, res: Response): Promise<void> {
-  try {
-    const { nom, prenom, email, motDePasse, role, id_campus } = req.body;
-
-    if (!nom || !prenom || !email || !motDePasse || !role || !id_campus) {
-      res.status(400).json({ message: 'Tous les champs obligatoires doivent être remplis' });
-      return;
-    }
-
-    const existant = await prisma.utilisateur.findUnique({ where: { email } });
-    if (existant) {
-      res.status(409).json({ message: 'Un compte avec cet email existe déjà' });
-      return;
-    }
-
-    const hash = await bcrypt.hash(motDePasse, 10);
-
-    const utilisateur = await prisma.utilisateur.create({
-      data: {
-        nom,
-        prenom,
-        email,
-        motDePasse: hash,
-        role,
-        id_campus: id_campus ? BigInt(id_campus) : null,
-      },
-    });
-
-    res.status(201).json({ token: genererToken(utilisateur), utilisateur: serializeUser(utilisateur) });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: 'Erreur serveur' });
-  }
-}
 
 // POST /send-verification : reçoit TOUTES les infos du futur compte au moment de
 // l'inscription, génère un code, stocke infos + code (avec expiration), envoie l'email.
 export async function sendVerification(req: Request, res: Response): Promise<void> {
   try {
-    const { nom, prenom, email, motDePasse, role, id_campus } = req.body;
+    const { nom, prenom, email, motDePasse, role, id_formation } = req.body;
 
-    if (!nom || !prenom || !email || !motDePasse || !role || !id_campus) {
-      res.status(400).json({ message: 'Tous les champs obligatoires doivent être remplis (nom, prenom, email, motDePasse, role, id_campus)' });
+    if (!nom || !prenom || !email || !motDePasse || !role || !id_formation) {
+      res.status(400).json({ message: 'Tous les champs obligatoires doivent être remplis (nom, prenom, email, motDePasse, role, id_formation)' });
       return;
     }
 
@@ -85,13 +51,13 @@ export async function sendVerification(req: Request, res: Response): Promise<voi
     const code = genererCode();
     const expiration = new Date(Date.now() + CODE_DUREE_MIN * 60 * 1000);
     const hash = await bcrypt.hash(motDePasse, 10); // on ne stocke jamais le mot de passe en clair
-    const campus = id_campus ? BigInt(id_campus) : null;
+    const formation = id_formation ? BigInt(id_formation) : null;
 
     // Une seule inscription en attente par email : on écrase l'ancienne
     await prisma.verificationEmail.upsert({
       where: { email },
-      update: { code, expiration, nom, prenom, motDePasse: hash, role, id_campus: campus },
-      create: { email, code, expiration, nom, prenom, motDePasse: hash, role, id_campus: campus },
+      update: { code, expiration, nom, prenom, motDePasse: hash, role, id_formation: formation },
+      create: { email, code, expiration, nom, prenom, motDePasse: hash, role, id_formation: formation },
     });
 
     await envoyerCode(email, 'Code de vérification CampusLink', 'Voici ton code de vérification :', code);
@@ -139,7 +105,7 @@ export async function verifyAndRegister(req: Request, res: Response): Promise<vo
         email: verif.email,
         motDePasse: verif.motDePasse,
         role: verif.role,
-        id_campus: verif.id_campus,
+        id_formation: verif.id_formation,
       },
     });
 
@@ -155,9 +121,9 @@ export async function verifyAndRegister(req: Request, res: Response): Promise<vo
 
 export async function connexion(req: Request, res: Response): Promise<void> {
   try {
-    const { email, motDePasse, id_campus } = req.body;
+    const { email, motDePasse } = req.body;
 
-    if (!email || !motDePasse || !id_campus) {
+    if (!email || !motDePasse ) {
       res.status(400).json({ message: 'Email et mot de passe requis' });
       return;
     }

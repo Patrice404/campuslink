@@ -1,6 +1,5 @@
 import { Router } from 'express';
 import {
-  inscription,
   connexion,
   me,
   sendVerification,
@@ -15,7 +14,6 @@ router.post('/send-verification', sendVerification);
 router.post('/verify-and-register', verifyAndRegister);
 
 // Inscription directe (sans vérification) — conservée
-router.post('/inscription', inscription);
 router.post('/connexion', connexion);
 router.get('/me', auth, me);
 
