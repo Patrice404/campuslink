@@ -50,7 +50,7 @@ const handleUpdateProfile = async () => {
       formData.append("photo", selectedFile.value); 
     }
 
-    const response = await fetch(`${apiUrl}/api/utilisateur/profile`, {
+    const response = await fetch(`${apiUrl}/api/utilisateurs/profile`, {
       method: 'PUT',
       headers: {
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -112,6 +112,18 @@ const initials = computed(() => {
 
 <template>
   <div class="min-h-screen bg-slate-50 py-8 px-4 sm:px-6 lg:px-8">
+
+    <div class="max-w-4xl mx-auto mb-5">
+      <router-link 
+        to="/home" 
+        class="inline-flex items-center gap-2 text-sm font-semibold text-slate-600 hover:text-slate-900 bg-white px-4 py-2.5 rounded-xl shadow-sm border border-slate-100 transition duration-200 group"
+      >
+        <svg class="w-4 h-4 transform group-hover:-translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+        </svg>
+        Retour à l'accueil
+      </router-link>
+    </div>
     
     <!-- États de chargement et d'erreur -->
     <div v-if="loading" class="flex flex-col items-center justify-center mt-20 space-y-4">
