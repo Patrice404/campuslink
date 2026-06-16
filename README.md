@@ -35,3 +35,9 @@ Le problème : Tu as fait trop de tests, les ID sont emmêlés, les données n'o
 La commande à taper :
 # Supprime TOUTES les données et remet la base à neuf (vide)
 docker compose exec backend npx prisma migrate reset
+
+
+docker compose exec database psql -U campuslink_dev -d campuslink_db -c 'SELECT id, titre, annee FROM "Matiere";'
+docker compose logs database --tail=20
+docker compose exec backend npx prisma studio
+ sudo lsof -i :5173
