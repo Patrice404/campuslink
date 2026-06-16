@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
+import { toJSON } from '../lib/serialize';
 
 const prisma = new PrismaClient();
 
@@ -29,8 +30,8 @@ export const getExercices = async (req: Request, res: Response): Promise<void> =
       nbJaime: exo.nbJaime || 0
     }));
 
-    res.status(200).json(formatEtudiants);
-  } catch (error) {
+    res.status(200).json(toJSON(formatEtudiants));
+""  } catch (error) {
     console.error("Erreur lors de la récupération des exercices :", error);
     res.status(500).json({ error: "Une erreur est survenue lors de la récupération des entraides." });
   }

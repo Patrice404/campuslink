@@ -8,11 +8,16 @@ import utilisateurRoutes from './routes/utilisateur.routes';
 import campusRoutes from './routes/campus.routes';
 import annonceRoutes from './routes/annonce.routes';
 import matiereRoutes from './routes/matiere.routes';
+import commentaireRoutes from './routes/commentaire.routes';
 
 dotenv.config();
 
 const app = express();
 
+<<<<<<< HEAD
+// Origines autorisées (front Vite en dev sur 5173, + variable d'env pour la prod).
+<<<<<<< HEAD
+=======
 // Garantit que le dossier uploads existe au démarrage
 // (le volume Docker peut être vide au premier lancement)
 const uploadsDir = path.join(__dirname, '../uploads');
@@ -22,7 +27,11 @@ if (!fs.existsSync(uploadsDir)) {
 }
 
 // Origines autorisées (front Vite en dev sur 5173, + variable d'env pour la prod)
+>>>>>>> 989d5c06c23917d9f80cdb77a516d8542740bd34
 const origines = [
+=======
+const origines = [           // L'URL de ton front Vite en développement
+>>>>>>> be2fa656bbc6340c32fe375ef0130e3d7f78c59b
   process.env.CORS_API_URL_FRONTEND || 'http://localhost:5173',
   'http://localhost:8080',
   process.env.FRONTEND_URL,
@@ -44,9 +53,10 @@ app.use('/api/utilisateurs', utilisateurRoutes);
 app.use('/api/campus', campusRoutes);
 app.use('/api/annonces', annonceRoutes);
 app.use('/api/matieres', matiereRoutes);
+app.use('/api/commentaires', commentaireRoutes);
+app.use('/api/entraide', require('./routes/entraide.routes').default); // <-- Nouvelle route pour l'entraide
 
 // Routes à brancher une fois leurs controllers implémentés :
-// app.use('/api/commentaires', commentaireRoutes);
 // app.use('/api/candidatures', candidatureRoutes);
 // app.use('/api/notifications', notificationRoutes);
 
