@@ -96,7 +96,7 @@ model AnnonceExercice {
   image           String?
   lien            String?
   annee           String
-  texte           String
+  description     String
   id_utilisateur  BigInt
   utilisateur     Utilisateur   @relation(fields: [id_utilisateur], references: [id], onDelete: Cascade)
   id_matiere      BigInt
@@ -113,7 +113,7 @@ model AnnonceBonPlan {
   image           String?
   lien            String?
   titre           String
-  texte           String
+  description           String
   sousType        SousTypeBonPlan
   id_utilisateur  BigInt
   utilisateur     Utilisateur     @relation(fields: [id_utilisateur], references: [id], onDelete: Cascade)
@@ -148,7 +148,6 @@ model AnnonceProjet {
   image           String?
   lien            String?
   titre           String
-  texte           String?
   description     String
   id_utilisateur  BigInt
   utilisateur     Utilisateur   @relation(fields: [id_utilisateur], references: [id], onDelete: Cascade)
