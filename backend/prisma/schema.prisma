@@ -148,7 +148,7 @@ model AnnonceProjet {
   image           String?
   lien            String?
   titre           String
-  texte           String
+  texte           String?
   description     String
   id_utilisateur  BigInt
   utilisateur     Utilisateur   @relation(fields: [id_utilisateur], references: [id], onDelete: Cascade)
