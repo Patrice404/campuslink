@@ -12,8 +12,10 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage, limits: { fileSize: 2 * 1024 * 1024 } });
 
+// Mon profil (utilisateur connecté)
 router.get('/profile', auth, getProfil);
 router.put('/profile', auth, upload.single('photo'), updateProfil);
-router.get('/:id', auth, getProfilPublic);
+// Parcourir le profil public d'un autre utilisateur
+router.get('/profile/:id', auth, getProfilPublic);
 
 export default router;

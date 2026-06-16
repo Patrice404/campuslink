@@ -37,9 +37,15 @@ const handleRegister = async () => {
     const response = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/send-verification`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: email.value })
+      body: JSON.stringify({ 
+        nom: lastName.value,
+        prenom: firstName.value,
+        email: email.value,
+        motDePasse: password.value,
+        role: role.value,
+        id_campus: authStore.selectedCampusId
+      })
     })
-    
     if (!response.ok) throw new Error("Erreur lors de l'envoi du code")
     
     isVerifying.value = true // Ouverture de la modale
@@ -53,19 +59,13 @@ const handleRegister = async () => {
 const handleVerifyAndRegister = async () => {
   isLoading.value = true
   // Récupération de l'ID du campus depuis le store
-  const campusId = authStore.selectedCampusId 
   try {
     const response = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/verify-and-register`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         email: email.value,
-        code: verificationCode.value,
-        nom: lastName.value,
-        prenom: firstName.value,
-        motDePasse: password.value,
-        role: role.value,
-        campusId: campusId
+        code: verificationCode.value
       })
     })
 

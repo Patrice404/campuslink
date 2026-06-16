@@ -70,8 +70,8 @@ export async function sendVerification(req: Request, res: Response): Promise<voi
   try {
     const { nom, prenom, email, motDePasse, role, id_campus } = req.body;
 
-    if (!nom || !prenom || !email || !motDePasse || !role) {
-      res.status(400).json({ message: 'Tous les champs obligatoires doivent être remplis (nom, prenom, email, motDePasse, role)' });
+    if (!nom || !prenom || !email || !motDePasse || !role || !id_campus) {
+      res.status(400).json({ message: 'Tous les champs obligatoires doivent être remplis (nom, prenom, email, motDePasse, role, id_campus)' });
       return;
     }
 
