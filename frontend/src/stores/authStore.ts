@@ -43,5 +43,8 @@ export const useAuthStore = defineStore('auth', {
 
   // Persistance automatique dans localStorage (clé par défaut : "auth")
   // -> token, user et selectedCampusId survivent au rafraîchissement de page.
-  persist: true,
+  persist: {
+    storage: localStorage,
+    paths: ['token', 'user', 'selectedCampusId'],
+  },
 })
