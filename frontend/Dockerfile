@@ -20,5 +20,5 @@ COPY . .
 EXPOSE 5173
 
 # 5. Démarrage du serveur de développement
-# (La configuration de Vite devra autoriser l'écoute sur le réseau Docker)
+#CMD ["sh", "-c", "npm install && npx prisma generate && npx prisma studio --hostname 0.0.0.0 & npm run dev"]
 CMD ["npm", "run", "dev"]

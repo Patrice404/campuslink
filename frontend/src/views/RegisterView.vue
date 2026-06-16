@@ -2,8 +2,14 @@
 import { ref } from 'vue'
 import { useRouter, RouterLink } from 'vue-router'
 import BaseButton from '../components/BaseButton.vue'
+import { useAuthStore } from '../stores/authStore'
 
+const authStore = useAuthStore()
 const router = useRouter()
+// Redirection vers la sélection de campus si aucun campus n'est sélectionné
+if (!authStore.selectedCampusId) {
+  router.push('/')
+}
 
 // Variables réactives pour les champs
 const role = ref('ETUDIANT')
@@ -19,58 +25,60 @@ const showConfirmPassword = ref(false)
 // Gestion de l'état d'envoi et des erreurs
 const isLoading = ref(false)
 const errorMessage = ref('')
+const isVerifying = ref(false)
+const verificationCode = ref('')
 
 const handleRegister = async () => {
-  // 1. Réinitialiser les erreurs
-  errorMessage.value = ''
-
-  // 2. Vérification locale des mots de passe
-  if (password.value !== confirmPassword.value) {
-    errorMessage.value = "Les mots de passe ne correspondent pas."
-    return
-  }
+  // 1. Validation locale
+  if (password.value !== confirmPassword.value) return
   
   isLoading.value = true
-
   try {
-    // 3. Définir l'URL de l'API (basée sur ton backend qui tourne sur le port 3001)
-    const apiUrl = import.meta.env.VITE_API_URL
-
-    // 4. Envoi de la requête POST 
-    const response = await fetch(`${apiUrl}/api/auth/inscription`, {
+    const response = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/send-verification`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        nom: lastName.value,
-        prenom: firstName.value,
-        email: email.value,
-        motDePasse: password.value,
-        role: role.value
-      })
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: email.value })
     })
-
-    const data = await response.json()
-
-    // 5. Gestion des erreurs renvoyées par le backend (ex: email déjà pris)
-    if (!response.ok) {
-      errorMessage.value = data.message || "Erreur lors de l'inscription."
-      return
-    }
-
-    console.log("Inscription réussie !", data)
     
-    // 6. Succès : Redirection vers la page de connexion
-    router.push('/login')
-
-  } catch (error) {
-    console.error("Erreur réseau :", error)
-    errorMessage.value = "Impossible de joindre le serveur. Veuillez vérifier votre connexion."
+    if (!response.ok) throw new Error("Erreur lors de l'envoi du code")
+    
+    isVerifying.value = true // Ouverture de la modale
+  } catch (err) {
+    errorMessage.value = "Erreur lors de la préparation de l'inscription."
   } finally {
     isLoading.value = false
   }
 }
+
+const handleVerifyAndRegister = async () => {
+  isLoading.value = true
+  // Récupération de l'ID du campus depuis le store
+  const campusId = authStore.selectedCampusId 
+  try {
+    const response = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/verify-and-register`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        email: email.value,
+        code: verificationCode.value,
+        nom: lastName.value,
+        prenom: firstName.value,
+        motDePasse: password.value,
+        role: role.value,
+        campusId: campusId
+      })
+    })
+
+    if (!response.ok) throw new Error("Code invalide ou expiré")
+    
+    router.push('/login')
+  } catch (err) {
+    errorMessage.value = "Le code est incorrect."
+  } finally {
+    isLoading.value = false
+  }
+}
+
 </script>
 
 <template>
@@ -285,5 +293,21 @@ const handleRegister = async () => {
       </div>
     </div>
 
+    //---
+    <div v-if="isVerifying" class="fixed inset-0 bg-black/50 flex items-center justify-center p-4">
+    <div class="bg-white p-6 rounded-xl shadow-xl w-full max-w-sm">
+      <h2 class="text-xl font-bold mb-4">Vérification par email</h2>
+      <p class="text-sm text-gray-600 mb-4">Un code a été envoyé à {{ email }}.</p>
+      <input 
+        v-model="verificationCode" 
+        placeholder="Entrez le code" 
+        class="w-full p-3 border rounded-lg mb-4"
+      />
+      <BaseButton @click="handleVerifyAndRegister" :disabled="isLoading">
+        Valider
+      </BaseButton>
+    </div>
   </div>
+  </div>
+  
 </template>

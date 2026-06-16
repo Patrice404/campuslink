@@ -4,6 +4,13 @@ import { useRouter, RouterLink } from 'vue-router'
 import BaseButton from '../components/BaseButton.vue'
 
 const router = useRouter()
+import { useAuthStore } from '../stores/authStore'
+
+const authStore = useAuthStore()
+// Redirection vers la sélection de campus si aucun campus n'est sélectionné
+if (!authStore.selectedCampusId) {
+  router.push('/')
+}
 
 // Variables réactives
 const email = ref('')
@@ -21,6 +28,7 @@ const handleLogin = async () => {
 
   try {
     const apiUrl = import.meta.env.VITE_API_URL
+    const campusId = authStore.selectedCampusId // Récupération de l'ID du campus depuis le store
     
     const response = await fetch(`${apiUrl}/api/auth/connexion`, {
       method: 'POST',
@@ -29,7 +37,8 @@ const handleLogin = async () => {
       },
       body: JSON.stringify({
         email: email.value,
-        motDePasse: password.value // Mapping pour Prisma
+        motDePasse: password.value, // Mapping pour Prisma
+        id_campus: campusId
       })
     })
 
@@ -42,9 +51,13 @@ const handleLogin = async () => {
 
     console.log("Connexion réussie !", data)
     
-    // Sauvegarde du jeton de sécurité (JWT) dans le navigateur
     if (data.token) {
-      localStorage.setItem('token', data.token)
+      authStore.setToken(data.token)
+    }
+
+    if (data.utilisateur) {
+      // adapter le nom de la clé selon ce que renvoie /api/auth/connexion
+      authStore.setUser(data.utilisateur)
     }
     
     // Redirection vers le fil d'actualité

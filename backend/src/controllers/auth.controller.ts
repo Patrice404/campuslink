@@ -33,7 +33,7 @@ export async function inscription(req: Request, res: Response): Promise<void> {
   try {
     const { nom, prenom, email, motDePasse, role, id_campus } = req.body;
 
-    if (!nom || !prenom || !email || !motDePasse || !role) {
+    if (!nom || !prenom || !email || !motDePasse || !role || !id_campus) {
       res.status(400).json({ message: 'Tous les champs obligatoires doivent être remplis' });
       return;
     }
@@ -155,13 +155,13 @@ export async function verifyAndRegister(req: Request, res: Response): Promise<vo
 
 export async function connexion(req: Request, res: Response): Promise<void> {
   try {
-    const { email, motDePasse } = req.body;
+    const { email, motDePasse, id_campus } = req.body;
 
-    if (!email || !motDePasse) {
+    if (!email || !motDePasse || !id_campus) {
       res.status(400).json({ message: 'Email et mot de passe requis' });
       return;
     }
-
+      
     const utilisateur = await prisma.utilisateur.findUnique({ where: { email } });
     if (!utilisateur) {
       res.status(401).json({ message: 'Identifiants incorrects' });

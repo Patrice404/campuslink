@@ -32,7 +32,7 @@ export enum SousTypeBonPlan {
 // --- MODÈLES DE BASE ---
 
 export interface Campus {
-  id: string | number; // Remplacement de BigInt
+  id:  number; // Remplacement de BigInt
   nom: string;
   ville: string;
   etablissement: string;
@@ -41,7 +41,7 @@ export interface Campus {
 }
 
 export interface Matiere {
-  id: string | number;
+  id: number;
   titre: string;
   annee: string;
   annoncesExercice?: AnnonceExercice[];

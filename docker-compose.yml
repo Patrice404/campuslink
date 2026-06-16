@@ -12,17 +12,20 @@ services:
     container_name: campuslink-db
     restart: unless-stopped
     env_file:
-      - .env  # Va lire les mots de passe dans le fichier .env
+      - .env  
     environment:
       POSTGRES_USER: ${DB_USER}
       POSTGRES_PASSWORD: ${DB_PASSWORD}
       POSTGRES_DB: ${DB_NAME}
+      TZ: Europe/Paris
     ports:
-      - "5432:5432" # Accessible depuis ton ordinateur (pour utiliser un outil comme DBeaver ou PgAdmin)
+      - "5432:5432" 
     networks:
       - campus_net
     volumes:
-      - pg_data:/var/lib/postgresql/data # Persistance des données même si on coupe Docker
+      - pg_data:/var/lib/postgresql/data 
+      - /etc/localtime:/etc/localtime:ro
+      - /etc/timezone:/etc/timezone:ro
 
   # ==========================================
   # 2. BACKEND (Node.js + Prisma)
@@ -35,18 +38,20 @@ services:
     restart: unless-stopped
     ports:
       - "3000:3000"
-      - "5555:5555" # Port pour le hot reloading de Prisma
     env_file:
       - .env
+    environment:
+      TZ: Europe/Paris
     networks:
       - campus_net
     depends_on:
       - database # Attendre que la DB soit prête avant de lancer l'API
     volumes:
-      # LE HOT RELOADING : Synchronise ton code en direct
       - ./backend:/app
-      # L'ASTUCE DEVOPS : Protège le dossier node_modules interne au conteneur
+      - uploads_data:/app/uploads  
       - /app/node_modules
+      - /etc/localtime:/etc/localtime:ro
+      - /etc/timezone:/etc/timezone:ro
 
   # ==========================================
   # 3. FRONTEND (Vue.js + Vite)
@@ -61,13 +66,17 @@ services:
       - "5173:5173"
     networks:
       - campus_net
+    environment:
+      TZ: Europe/Paris
     depends_on:
       - backend # Attendre que l'API soit prête avant de lancer la vue
     volumes:
-      # LE HOT RELOADING
       - ./frontend:/app
       - /app/node_modules
+      - /etc/localtime:/etc/localtime:ro
+      - /etc/timezone:/etc/timezone:ro
 
 # Déclaration du volume persistant pour la base de données
 volumes:
   pg_data:
+  uploads_data:

@@ -6,25 +6,50 @@ import { ANNONCE_CONFIG, AnnonceType, findAnnonceById } from '../lib/annonces';
 const TYPES: AnnonceType[] = ['EXERCICE', 'BON_PLAN', 'TUTORAT', 'PROJET'];
 
 // GET / : liste toutes les annonces (les 4 types fusionnés, plus récentes d'abord)
-export async function lister(_req: Request, res: Response): Promise<void> {
+export async function lister(req: Request, res: Response): Promise<void> {
   try {
+    const id_utilisateur = BigInt(req.utilisateur!.id);
+ 
+    // On récupère le campus de l'utilisateur connecté
+    const utilisateur = await prisma.utilisateur.findUnique({
+      where: { id: id_utilisateur },
+      select: { id_campus: true },
+    });
+ 
+    if (!utilisateur) {
+      res.status(404).json({ message: 'Utilisateur introuvable' });
+      return;
+    }
+ 
+    // Si l'utilisateur n'a pas de campus défini, on ne renvoie rien
+    // (à adapter si vous voulez plutôt renvoyer toutes les annonces dans ce cas)
+    if (utilisateur.id_campus === null) {
+      res.json([]);
+      return;
+    }
+ 
+    const where = { utilisateur: { id_campus: utilisateur.id_campus } };
+ 
     const [exercices, bonsPlans, tutorats, projets] = await Promise.all([
-      prisma.annonceExercice.findMany(),
-      prisma.annonceBonPlan.findMany(),
-      prisma.annonceTutorat.findMany(),
-      prisma.annonceProjet.findMany(),
+      prisma.annonceExercice.findMany({ where, include: { utilisateur: true } }),
+      prisma.annonceBonPlan.findMany({ where, include: { utilisateur: true } }),
+      prisma.annonceTutorat.findMany({ where, include: { utilisateur: true } }),
+      prisma.annonceProjet.findMany({ where, include: { utilisateur: true } }),
     ]);
-
+ 
     const toutes = [...exercices, ...bonsPlans, ...tutorats, ...projets].sort(
       (a, b) => b.datePublication.getTime() - a.datePublication.getTime()
     );
-
+ 
     res.json(toJSON(toutes));
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Erreur serveur' });
   }
 }
+ 
+
+
 
 // GET /mes : annonces de l'utilisateur connecté
 export async function mesAnnonces(req: Request, res: Response): Promise<void> {
@@ -172,3 +197,160 @@ export async function supprimer(req: Request, res: Response): Promise<void> {
     res.status(500).json({ message: 'Erreur serveur' });
   }
 }
+
+// ---------------------------------------------------------------------
+// POST /api/annonces/exercice
+// ---------------------------------------------------------------------
+export async function createExercice(req: Request, res: Response): Promise<void> {
+  try {
+    const id_utilisateur = BigInt(req.utilisateur!.id);
+    const { texte, annee, id_matiere } = req.body;
+    const lien = req.body.lien || null;
+    const image = req.file ? req.file.filename : null;
+ 
+    if (!texte || !annee || !id_matiere) {
+      res.status(400).json({ message: 'Champs requis manquants : texte, annee, id_matiere' });
+      return;
+    }
+ 
+    const annonce = await prisma.annonceExercice.create({
+      data: {
+        texte,
+        annee,
+        id_matiere: BigInt(id_matiere),
+        id_utilisateur,
+        image,
+        lien,
+      },
+    });
+ 
+    res.status(201).json(toJSON(annonce));
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Erreur serveur' });
+  }
+}
+ 
+// ---------------------------------------------------------------------
+// POST /api/annonces/bonplan
+// ---------------------------------------------------------------------
+export async function createBonPlan(req: Request, res: Response): Promise<void> {
+  try {
+    const id_utilisateur = BigInt(req.utilisateur!.id);
+    const { titre, texte, sousType } = req.body;
+    const lien = req.body.lien || null;
+    const image = req.file ? req.file.filename : null;
+ 
+    const SOUS_TYPES = [
+      'JOB_ETUDIANT',
+      'ALTERNANCE',
+      'COLOCATION',
+      'FETE',
+      'EVENEMENT',
+      'RESTAURANT',
+      'BOURSE',
+      'HACKATHON',
+    ];
+ 
+    if (!titre || !texte || !sousType) {
+      res.status(400).json({ message: 'Champs requis manquants : titre, texte, sousType' });
+      return;
+    }
+    if (!SOUS_TYPES.includes(sousType)) {
+      res.status(400).json({ message: `sousType invalide. Valeurs autorisées : ${SOUS_TYPES.join(', ')}` });
+      return;
+    }
+ 
+    const annonce = await prisma.annonceBonPlan.create({
+      data: {
+        titre,
+        texte,
+        sousType,
+        id_utilisateur,
+        image,
+        lien,
+      },
+    });
+ 
+    res.status(201).json(toJSON(annonce));
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Erreur serveur' });
+  }
+}
+ 
+// ---------------------------------------------------------------------
+// POST /api/annonces/tutorat
+// ---------------------------------------------------------------------
+export async function createTutorat(req: Request, res: Response): Promise<void> {
+  try {
+    const id_utilisateur = BigInt(req.utilisateur!.id);
+    const { description, annee, id_matiere, nbCandidatsVoulus } = req.body;
+    const lien = req.body.lien || null;
+    const image = req.file ? req.file.filename : null;
+ 
+    if (!description || !annee || !id_matiere || nbCandidatsVoulus === undefined) {
+      res.status(400).json({
+        message: 'Champs requis manquants : description, annee, id_matiere, nbCandidatsVoulus',
+      });
+      return;
+    }
+ 
+    const nb = Number(nbCandidatsVoulus);
+    if (!Number.isInteger(nb) || nb < 1) {
+      res.status(400).json({ message: 'nbCandidatsVoulus doit être un entier >= 1' });
+      return;
+    }
+ 
+    const annonce = await prisma.annonceTutorat.create({
+      data: {
+        description,
+        annee,
+        id_matiere: BigInt(id_matiere),
+        nbCandidatsVoulus: nb,
+        id_utilisateur,
+        image,
+        lien,
+      },
+    });
+ 
+    res.status(201).json(toJSON(annonce));
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Erreur serveur' });
+  }
+}
+ 
+// ---------------------------------------------------------------------
+// POST /api/annonces/projet
+// ---------------------------------------------------------------------
+export async function createProjet(req: Request, res: Response): Promise<void> {
+  try {
+    const id_utilisateur = BigInt(req.utilisateur!.id);
+    const { titre, texte, description } = req.body;
+    const lien = req.body.lien || null;
+    const image = req.file ? req.file.filename : null;
+ 
+    if (!titre || !texte || !description) {
+      res.status(400).json({ message: 'Champs requis manquants : titre, texte, description' });
+      return;
+    }
+ 
+    const annonce = await prisma.annonceProjet.create({
+      data: {
+        titre,
+        texte,
+        description,
+        id_utilisateur,
+        image,
+        lien,
+      },
+    });
+ 
+    res.status(201).json(toJSON(annonce));
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Erreur serveur' });
+  }
+}
+ 
