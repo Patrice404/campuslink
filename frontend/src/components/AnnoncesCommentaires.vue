@@ -3,7 +3,8 @@ import { ref, onMounted } from 'vue'
 import { useAuthStore } from '../stores/authStore'
 
 const props = defineProps<{
-  annonceId: number
+  annonceId: number 
+  annonceType: string
 }>()
 
 const emit = defineEmits(['comment-added'])
@@ -14,12 +15,21 @@ const nouveauCommentaire = ref('')
 const isLoading = ref(false)
 const isSubmitting = ref(false)
 
-// Charger les commentaires de cette annonce
+// 1. Récupérer les commentaires
 const fetchCommentaires = async () => {
   isLoading.value = true
   try {
     const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000'
-    const response = await fetch(`${apiUrl}/api/annonces/${props.annonceId}/commentaires`, {
+    
+    // Traduction du type visuel vers le type Prisma
+    let typePrisma = props.annonceType
+    if (typePrisma === 'AnnonceExercice') typePrisma = 'EXERCICE'
+    if (typePrisma === 'AnnonceBonPlan') typePrisma = 'BON_PLAN'
+    if (typePrisma === 'AnnonceTutorat') typePrisma = 'TUTORAT'
+    if (typePrisma === 'AnnonceProjet') typePrisma = 'PROJET'
+
+    // Route corrigée avec le point d'entrée global /api/commentaires
+    const response = await fetch(`${apiUrl}/api/commentaires/annonce/${props.annonceId}?type=${typePrisma}`, {
       headers: {
         ...(authStore.token ? { Authorization: `Bearer ${authStore.token}` } : {})
       }
@@ -34,35 +44,49 @@ const fetchCommentaires = async () => {
   }
 }
 
-// Soumettre un nouveau commentaire
+// 2. Ajouter un commentaire
 const ajouterCommentaire = async () => {
   if (!nouveauCommentaire.value.trim() || isSubmitting.value) return
 
   isSubmitting.value = true
   try {
     const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000'
-    const response = await fetch(`${apiUrl}/api/annonces/${props.annonceId}/commentaires`, {
+    
+    let typePrisma = props.annonceType
+    if (typePrisma === 'AnnonceExercice') typePrisma = 'EXERCICE'
+    if (typePrisma === 'AnnonceBonPlan') typePrisma = 'BON_PLAN'
+    if (typePrisma === 'AnnonceTutorat') typePrisma = 'TUTORAT'
+    if (typePrisma === 'AnnonceProjet') typePrisma = 'PROJET'
+
+    // Route POST /api/commentaires
+    const response = await fetch(`${apiUrl}/api/commentaires`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        ...(authStore.token ? { Authorization: `Bearer ${authStore.token}` } : {})
+        'Authorization': `Bearer ${authStore.token}`
       },
-      body: JSON.stringify({ texte: nouveauCommentaire.value })
+      body: JSON.stringify({
+        texte: nouveauCommentaire.value,
+        id_annonce: props.annonceId,
+        type: typePrisma // Transmet le bon type attendu par ton contrôleur !
+      })
     })
 
     if (response.ok) {
-      const commentaireCree = await response.json()
-      commentaires.value.push(commentaireCree)
+      const nouveauCom = await response.json()
+      
+      // Ajout dynamique en haut de la liste pour l'affichage instantané !
+      commentaires.value.unshift(nouveauCom)
+      
       nouveauCommentaire.value = ''
-      emit('comment-added')
+      emit('comment-added') // Notifie le parent (AnnonceCard) pour +1 sur le compteur
     }
   } catch (error) {
-    console.error('Erreur publication commentaire:', error)
+    console.error('Erreur lors de l\'ajout du commentaire:', error)
   } finally {
     isSubmitting.value = false
   }
 }
-
 onMounted(() => {
   fetchCommentaires()
 })

@@ -34,36 +34,33 @@ const toggleLike = async () => {
   if (isLikeSubmitting.value) return
   isLikeSubmitting.value = true
 
-  // Sauvegarde de l'état initial pour le rollback
-  const wasLiked = isLiked.value
-
-  // UI Optimiste : Changement immédiat à l'écran
-  if (isLiked.value) {
-    localNbJaime.value--
-    isLiked.value = false
-  } else {
-    localNbJaime.value++
-    isLiked.value = true
-  }
-
   try {
     const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000'
-    const response = await fetch(`${apiUrl}/api/annonces/${props.annonce.id}/like`, {
+    
+    // On nettoie le type si jamais il a été transformé pour le visuel
+    let typeRequete = props.annonce.type
+    if (typeRequete === 'AnnonceExercice') typeRequete = 'EXERCICE'
+    if (typeRequete === 'AnnonceBonPlan') typeRequete = 'BON_PLAN'
+    if (typeRequete === 'AnnonceTutorat') typeRequete = 'TUTORAT'
+    if (typeRequete === 'AnnonceProjet') typeRequete = 'PROJET'
+
+    // ON CORRIGE L'URL : /jaime?type=... au lieu de /like
+    const response = await fetch(`${apiUrl}/api/annonces/${props.annonce.id}/jaime?type=${typeRequete}`, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
-        ...(authStore.token ? { Authorization: `Bearer ${authStore.token}` } : {})
+        'Authorization': `Bearer ${authStore.token}`,
+        'Content-Type': 'application/json'
       }
     })
 
-    if (!response.ok) {
-      throw new Error('Erreur serveur lors du like')
+    if (response.ok) {
+      const data = await response.json()
+      // On met à jour l'état local avec ce que le serveur valide
+      isLiked.value = data.jaime
+      localNbJaime.value = data.jaime ? localNbJaime.value + 1 : localNbJaime.value - 1
     }
   } catch (error) {
     console.error('Erreur lors du like:', error)
-    // Rollback automatique en cas d'erreur réseau ou HTTP
-    isLiked.value = wasLiked
-    localNbJaime.value = wasLiked ? props.annonce.nbJaime : props.annonce.nbJaime
   } finally {
     isLikeSubmitting.value = false
   }
@@ -128,7 +125,9 @@ const toggleLike = async () => {
     <AnnonceCommentaires 
       v-if="showCommentaires" 
       :annonce-id="annonce.id" 
-      @comment-added="localNbCommentaires++" 
+      :annonceType="annonce.type" 
+      @comment-added="localNbCommentaires++"
+     
     />
   </article>
 </template>
