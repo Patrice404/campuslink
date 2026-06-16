@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useAuthStore } from '../stores/authStore'
-import AnnonceCommentaires from './AnnoncesCommentaires.vue' // Import du nouveau composant
+import AnnoncesCommentaires from './AnnoncesCommentaires.vue' // Import du nouveau composant
 
 // Interfaces restent intactes
 interface Utilisateur { id: number; prenom: string; nom: string; photoProfil?: string; }

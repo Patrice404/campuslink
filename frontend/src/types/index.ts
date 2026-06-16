@@ -1,28 +1,28 @@
 import {
-  // --- ENUMS ---
-  Role,
-  TypeAnnonce,
-  StatutCandidature,
-  SousTypeBonPlan,
-  CentreInteret,
-  Visibilite,
+    // --- ENUMS ---
+    Role,
+    TypeAnnonce,
+    StatutCandidature,
+    SousTypeBonPlan,
+    CentreInteret,
+    Visibilite,
 
-  // --- MODÈLES ---
-  Campus,
-  Departement,
-  Formation,
-  Utilisateur,
-  Blocage,
-  AnnonceExercice,
-  AnnonceBonPlan,
-  AnnonceTutorat,
-  AnnonceProjet,
-  Matiere,
-  Notification,
-  Commentaire,
-  Jaime,
-  Candidature,
-  VerificationEmail,
+    // --- MODÈLES ---
+    Campus,
+    Departement,
+    Formation,
+    Utilisateur,
+    Blocage,
+    AnnonceExercice,
+    AnnonceBonPlan,
+    AnnonceTutorat,
+    AnnonceProjet,
+    Matiere,
+    Notification,
+    Commentaire,
+    Jaime,
+    Candidature,
+    VerificationEmail,
 
   // --- NAMESPACE PRISMA (Optionnel, utile pour les types avancés) ---
   Prisma
