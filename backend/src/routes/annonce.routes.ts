@@ -2,6 +2,7 @@ import { Router } from 'express';
 import multer from 'multer';
 import path from 'path';
 import { toggle } from '../controllers/jaime.controller';
+import { listerParAnnonce } from '../controllers/commentaire.controller';
 import { auth } from '../middlewares/auth.middleware';
 import {
   lister,
@@ -44,6 +45,8 @@ router.get('/:id', detail);
 router.put('/:id', auth, upload.single('image'), modifier);
 router.delete('/:id', auth, supprimer);
 router.post('/:id/jaime', auth, toggle);
+// Commentaires d'une annonce (param ?type= recommandé)
+router.get('/:id/commentaires', auth, listerParAnnonce);
 
 
 //Ancien code (avant la refonte pour les types d'annonces spécifiques)
