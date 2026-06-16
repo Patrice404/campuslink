@@ -1,3 +1,5 @@
+/// <reference types="pinia-plugin-persistedstate" />
+
 declare module '*.css' {
   const content: { [className: string]: string };
   export default content;

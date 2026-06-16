@@ -34,8 +34,7 @@ services:
     container_name: campuslink-api
     restart: unless-stopped
     ports:
-      - "3000:3000"
-      - "5555:5555" # Port pour le hot reloading de Prisma
+      - "3001:3000"
     env_file:
       - .env
     networks:
@@ -46,6 +45,7 @@ services:
       # LE HOT RELOADING : Synchronise ton code en direct
       - ./backend:/app
       # L'ASTUCE DEVOPS : Protège le dossier node_modules interne au conteneur
+      - uploads_data:/app/uploads  
       - /app/node_modules
 
   # ==========================================
@@ -71,3 +71,4 @@ services:
 # Déclaration du volume persistant pour la base de données
 volumes:
   pg_data:
+  uploads_data:

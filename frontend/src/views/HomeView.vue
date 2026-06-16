@@ -4,6 +4,8 @@ import SidebarNav from '../components/SidebarNav.vue'
 import TopNav from '../components/TopNav.vue'
 import CreatePostModal from '../components/CreatePostModal.vue' 
 import AnnonceCard from '../components/AnnonceCard.vue'
+import { useAuthStore } from '../stores/authStore'
+const authStore = useAuthStore()
 
 // États du Feed
 const annonces = ref<any[]>([]); 
@@ -46,7 +48,7 @@ onMounted(async () => {
   try {
     // 1. Récupération de l'URL de base et du token de connexion
     const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:3000";
-    const token = localStorage.getItem("token");
+    const token = authStore.token; // Récupération du token depuis le store Pinia
 
     // 2. Appel à l'API (On suppose que ta route est /api/annonces)
     const response = await fetch(`${apiUrl}/api/annonces`, {

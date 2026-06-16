@@ -8,6 +8,11 @@
   "scripts": {
     "sync-types": "cd backend && npx prisma generate",
     "install:all": "npm install",
-    "build:all": "npm run build --workspaces --if-present"
+    "build:all": "npm run build --workspaces --if-present",
+    "dev": "vite --host"
+  },
+  "dependencies": {
+    "pinia": "^3.0.4",
+    "pinia-plugin-persistedstate": "^4.7.1"
   }
 }

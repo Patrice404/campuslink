@@ -3,8 +3,10 @@ import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import type { Campus } from '../types/'
 import CampusCard from '../components/CampusCard.vue' 
-const router = useRouter()
+import { useAuthStore } from '../stores/authStore'
 
+const router = useRouter()
+const authStore = useAuthStore()
 
 
 // 2. Variables réactives pour gérer les 3 états (Chargement, Données, Erreur)
@@ -44,11 +46,12 @@ onMounted(() => {
   fetchCampuses()
 })
 
-const handleSelect = (campusId: string | number) => {
-  console.log("Campus sélectionné :", campusId)
-  // TODO: Sauvegarder le campus dans un store (Pinia) ou LocalStorage
+const handleSelect = (campusId: number) => {
+  // On stocke l'ID dans le store global avant de changer de page
+  authStore.setCampusId(campusId)
   router.push('/login')
 }
+
 </script>
 
 <template>
