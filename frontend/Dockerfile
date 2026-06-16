@@ -20,4 +20,5 @@ COPY . .
 EXPOSE 5173
 
 # 5. Démarrage du serveur de développement
-CMD ["sh", "-c", "npm install && npx prisma generate && npx prisma studio --hostname 0.0.0.0 & npm run dev"]
+#CMD ["sh", "-c", "npm install && npx prisma generate && npx prisma studio --hostname 0.0.0.0 & npm run dev"]
+CMD ["npm", "run", "dev"]
