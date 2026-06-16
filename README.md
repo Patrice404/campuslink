@@ -46,3 +46,21 @@ docker compose exec backend npx prisma migrate dev --name add_verification_email
 
 npm install nodemailer
 docker compose exec backend npm install nodemailer
+
+Commande 
+rm -rf node_modules package-lock.json
+cd backend 
+rm -rf node_modules package-lock.json
+cd ../frontend
+rm -rf node_modules package-lock.json
+
+Dans les trois dossiers
+npm install
+
+Si pas suffisant
+docker compose exec backend npm install
+docker compose exec frontend npm install
+
+npm install nodemailer
+npm install multer
+
