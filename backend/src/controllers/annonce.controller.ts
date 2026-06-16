@@ -7,7 +7,7 @@ import { SousTypeBonPlan } from '@prisma/client';
 const TYPES: AnnonceType[] = ['EXERCICE', 'BON_PLAN', 'TUTORAT', 'PROJET'];
 
 // GET / : liste toutes les annonces (les 4 types fusionnés, plus récentes d'abord)
-export async function lister(req: Request, res: Response): Promise<void> {
+/*export async function lister(req: Request, res: Response): Promise<void> {
   try {
     const id_utilisateur = BigInt(req.utilisateur!.id);
  
@@ -49,7 +49,7 @@ export async function lister(req: Request, res: Response): Promise<void> {
   }
 }
  
-
+*/
 
 
 // GET /mes : annonces de l'utilisateur connecté
@@ -205,7 +205,7 @@ export async function supprimer(req: Request, res: Response): Promise<void> {
 export async function createExercice(req: Request, res: Response): Promise<void> {
   try {
     const id_utilisateur = BigInt(req.utilisateur!.id);
-    const { annee, id_matiere, description } = req.body;
+    const { annee, id_matiere, description, visibilite } = req.body;
     const lien = req.body.lien || null;
     const image = req.file ? req.file.filename : null;
  
@@ -218,6 +218,7 @@ export async function createExercice(req: Request, res: Response): Promise<void>
       data: {
         description,
         annee,
+        visibilite,
         id_matiere: BigInt(id_matiere),
         id_utilisateur,
         image,
@@ -238,7 +239,7 @@ export async function createExercice(req: Request, res: Response): Promise<void>
 export async function createBonPlan(req: Request, res: Response): Promise<void> {
   try {
     const id_utilisateur = BigInt(req.utilisateur!.id);
-    const { titre, description, sousType } = req.body;
+    const { titre, description, sousType, visibilite } = req.body;
     const lien = req.body.lien || null;
     const image = req.file ? req.file.filename : null;
  
@@ -257,6 +258,7 @@ export async function createBonPlan(req: Request, res: Response): Promise<void> 
       data: {
         titre,
         description,
+        visibilite,
         sousType,
         id_utilisateur,
         image,
@@ -277,7 +279,7 @@ export async function createBonPlan(req: Request, res: Response): Promise<void> 
 export async function createTutorat(req: Request, res: Response): Promise<void> {
   try {
     const id_utilisateur = BigInt(req.utilisateur!.id);
-    const { description, annee, id_matiere, nbCandidatsVoulus } = req.body;
+    const { description, annee, id_matiere, nbCandidatsVoulus, visibilite } = req.body;
     const lien = req.body.lien || null;
     const image = req.file ? req.file.filename : null;
  
@@ -298,6 +300,7 @@ export async function createTutorat(req: Request, res: Response): Promise<void> 
       data: {
         description,
         annee,
+        visibilite,
         id_matiere: BigInt(id_matiere),
         nbCandidatsVoulus: nb,
         id_utilisateur,
@@ -319,7 +322,7 @@ export async function createTutorat(req: Request, res: Response): Promise<void> 
 export async function createProjet(req: Request, res: Response): Promise<void> {
   try {
     const id_utilisateur = BigInt(req.utilisateur!.id);
-    const { titre, description } = req.body;
+    const { titre, description, visibilite } = req.body;
     const lien = req.body.lien || null;
     const image = req.file ? req.file.filename : null;
  
@@ -332,6 +335,7 @@ export async function createProjet(req: Request, res: Response): Promise<void> {
       data: {
         titre,
         description,
+        visibilite,
         id_utilisateur,
         image,
         lien,

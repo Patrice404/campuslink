@@ -133,8 +133,10 @@ const handleSubmit = async () => {
   // Champs communs à toutes les annonces
   if (imageFile.value) formData.append('image', imageFile.value)
   if (lien.value) formData.append('lien', lien.value)
+  
+  // Ces champs sont communs à toutes les annonces
   formData.append('description', description.value)
-  formData.append('visibilite', visibilite.value) // NOUVEAU : Envoi de la visibilité
+  formData.append('visibilite', visibilite.value) 
 
   // Champs spécifiques
   switch (typeAnnonce.value) {
@@ -175,9 +177,15 @@ const handleSubmit = async () => {
 
     emit('close')
     resetForm()
-  } catch (error) {
-    console.error('Erreur lors de la création de l\'annonce :', error)
-    submitError.value = "Une erreur est survenue lors de la publication. Veuillez réessayer."
+} catch (error: any) {
+    console.error("Erreur complète :", error);
+    // Si l'erreur provient de notre Backend (ex: format invalide)
+    if (error.response && error.response.data && error.response.data.message) {
+      submitError.value = error.response.data.message;
+    } else {
+      // Erreur réseau ou autre
+      submitError.value = "Une erreur est survenue lors de la publication. Veuillez réessayer.";
+    }
   } finally {
     isSubmitting.value = false
   }
@@ -266,7 +274,7 @@ onMounted(() => {
                 <option v-if="matieresLoading" disabled value="">Chargement...</option>
                 <option v-else-if="matieresError" disabled value="">{{ matieresError }}</option>
                 <option v-else-if="matieres.length === 0" disabled value="">Aucune matière trouvée</option>
-                <option v-else v-for="matiere in matieres" :key="matiere.id" :value="String(matiere.id)">
+                <option v-else v-for="matiere in matieres" :key="matiere.id.toString()" :value="String(matiere.id)">
                   {{ matiere.titre }}
                 </option>
               </select>
