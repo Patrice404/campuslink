@@ -38,8 +38,6 @@ docker compose exec backend npx prisma migrate reset
 
 
 docker compose exec database psql -U campuslink_dev -d campuslink_db -c 'SELECT id, titre, annee FROM "Matiere";'
-docker compose exec database psql -U campuslink_dev -d campuslink_db -c 'SELECT * FROM "Utilisateur";'
-
 docker compose logs database --tail=20
 docker compose exec backend npx prisma studio
  sudo lsof -i :5173
@@ -48,27 +46,3 @@ docker compose exec backend npx prisma migrate dev --name add_verification_email
 
 npm install nodemailer
 docker compose exec backend npm install nodemailer
-
-Commande 
-rm -rf node_modules package-lock.json
-cd backend 
-rm -rf node_modules package-lock.json
-cd ../frontend
-rm -rf node_modules package-lock.json
-
-Dans les trois dossiers
-npm install
-
-Si pas suffisant
-docker compose exec backend npm install
-docker compose exec frontend npm install
-
-npm install nodemailer
-npm install multer
-
-docker compose exec backend npx prisma migrate dev --name init
-docker compose exec backend npx prisma migrate dev --name init_hierarchie
-docker compose exec backend npx prisma db seed
-TypeScript: Restart TS server
-
-npx prisma generate
