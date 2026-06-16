@@ -27,12 +27,31 @@ async function main() {
   const premierCampus = await prisma.campus.findFirst()
 
   // ---------------------------------------------------------
+  // 1.bis CRÉATION D'UN DÉPARTEMENT + FORMATION (requis pour rattacher un utilisateur)
+  // ---------------------------------------------------------
+  let departement = await prisma.departement.findFirst({ where: { nom: 'Informatique', id_campus: premierCampus.id } })
+  if (!departement) {
+    departement = await prisma.departement.create({
+      data: { nom: 'Informatique', id_campus: premierCampus.id }
+    })
+    console.log(`✅ Département créé : ${departement.nom}`)
+  }
+
+  let formation = await prisma.formation.findFirst({ where: { nom: 'Informatique L2', id_departement: departement.id } })
+  if (!formation) {
+    formation = await prisma.formation.create({
+      data: { nom: 'Informatique L2', niveau: 'L2', id_departement: departement.id }
+    })
+    console.log(`✅ Formation créée : ${formation.nom}`)
+  }
+
+  // ---------------------------------------------------------
   // 2. CRÉATION DES MATIÈRES (Requises pour Tutorat et Exercice)
   // ---------------------------------------------------------
   const matieresALancer = [
-    { titre: 'Développement Web', annee: 'L2' },
-    { titre: 'Algorithmique', annee: 'L1' },
-    { titre: 'Bases de données', annee: 'L3' }
+    { titre: 'Développement Web' },
+    { titre: 'Algorithmique' },
+    { titre: 'Bases de données' }
   ]
 
   for (const matiere of matieresALancer) {
@@ -60,7 +79,7 @@ async function main() {
       email: 'alice.dupont@etudiant.fr',
       motDePasse: 'motdepasse123', // Pense à hasher avec bcrypt dans ton vrai backend !
       role: 'ETUDIANT',
-      id_campus: premierCampus.id
+      id_formation: formation.id
     }
   })
   console.log(`✅ Utilisateur créé : ${user1.prenom} ${user1.nom}`)
@@ -74,7 +93,7 @@ async function main() {
       email: 'prof.martin@univ.fr',
       motDePasse: 'motdepasse123',
       role: 'PROFESSEUR',
-      id_campus: premierCampus.id
+      id_formation: formation.id
     }
   })
   console.log(`✅ Utilisateur créé : ${user2.prenom} ${user2.nom}`)
@@ -90,7 +109,7 @@ async function main() {
     await prisma.annonceBonPlan.create({
       data: {
         titre: "Réduction Crous",
-        texte: "Profitez de 50% sur vos repas cette semaine avec votre carte étudiante !",
+        description: "Profitez de 50% sur vos repas cette semaine avec votre carte étudiante !",
         sousType: "RESTAURANT",
         id_utilisateur: user1.id,
         nbJaime: 42
@@ -121,7 +140,6 @@ async function main() {
     await prisma.annonceProjet.create({
       data: {
         titre: "Création d'App Mobile",
-        texte: "Nous montons une équipe pour créer l'appli officielle de l'école.",
         description: "Recherche un développeur React Native et un UI Designer.",
         id_utilisateur: user1.id,
         nbJaime: 8
@@ -131,11 +149,11 @@ async function main() {
   }
 
   // --- 4.4 Annonce Exercice ---
-  const existExercice = await prisma.annonceExercice.findFirst({ where: { texte: "Corrigé du TP1 de Dev Web" }})
+  const existExercice = await prisma.annonceExercice.findFirst({ where: { description: "Corrigé du TP1 de Dev Web" }})
   if (!existExercice) {
     await prisma.annonceExercice.create({
       data: {
-        texte: "Corrigé du TP1 de Dev Web",
+        description: "Corrigé du TP1 de Dev Web",
         annee: "L2",
         id_utilisateur: user2.id,
         id_matiere: matiereWeb.id,

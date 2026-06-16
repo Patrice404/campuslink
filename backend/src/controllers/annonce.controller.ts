@@ -9,7 +9,7 @@ import path from 'path';
 const TYPES: AnnonceType[] = ['EXERCICE', 'BON_PLAN', 'TUTORAT', 'PROJET'];
 
 // GET / : liste toutes les annonces (les 4 types fusionnés, plus récentes d'abord)
-/*export async function lister(req: Request, res: Response): Promise<void> {
+export async function lister(req: Request, res: Response): Promise<void> {
   try {
     const id_utilisateur = BigInt(req.utilisateur!.id);
  
@@ -51,7 +51,7 @@ const TYPES: AnnonceType[] = ['EXERCICE', 'BON_PLAN', 'TUTORAT', 'PROJET'];
   }
 }
  
-*/
+
 
 
 // GET /mes : annonces de l'utilisateur connecté
