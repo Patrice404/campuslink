@@ -16,6 +16,9 @@ import {
   createBonPlan,
   createTutorat,
   createProjet,
+  supprimerAnnonce,
+  modifierAnnonce,
+  toggleLike
 } from '../controllers/annonce.controller';
 
 
@@ -38,16 +41,18 @@ router.post('/exercice', auth, uploadImageMiddleware, createExercice);
 router.post('/bonplan', auth, uploadImageMiddleware, createBonPlan);
 router.post('/tutorat', auth, uploadImageMiddleware, createTutorat);
 router.post('/projet', auth, uploadImageMiddleware, createProjet);
- 
-//router.put('/:id', auth, uploadImageMiddleware, modifier);
 
+// Ex: PUT /api/annonces/tutorat/42
+router.put('/:type/:id', auth, uploadImageMiddleware, modifierAnnonce);
+// Ex: DELETE /api/annonces/tutorat/42
+router.delete('/:type/:id', auth, supprimerAnnonce);
+// Ex: POST /api/annonces/tutorat/42/like
+router.post('/:type/:id/like', auth, toggleLike);
 
 // Endpoint générique (conservé)
-router.post('/', auth, upload.single('image'), creer);
  
 router.get('/:id', detail);
 router.put('/:id', auth, upload.single('image'), modifier);
-router.delete('/:id', auth, supprimer);
 router.post('/:id/jaime', auth, toggle);
 // Commentaires d'une annonce (param ?type= recommandé)
 router.get('/:id/commentaires', auth, listerParAnnonce);

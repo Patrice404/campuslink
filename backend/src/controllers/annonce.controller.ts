@@ -3,6 +3,8 @@ import { prisma } from '../lib/prismaClient';
 import { toJSON } from '../lib/serialize';
 import { ANNONCE_CONFIG, AnnonceType, findAnnonceById } from '../lib/annonces';
 import { SousTypeBonPlan } from '@prisma/client'; 
+import fs from 'fs';
+import path from 'path';
 
 const TYPES: AnnonceType[] = ['EXERCICE', 'BON_PLAN', 'TUTORAT', 'PROJET'];
 
@@ -349,3 +351,278 @@ export async function createProjet(req: Request, res: Response): Promise<void> {
   }
 }
  
+//---------------------------------------------------------------------
+// DELETE /api/annonces/:type/:id : supprime une annonce selon son type (l'auteur uniquement)
+//---------------------------------------------------------------------
+
+
+export async function supprimerAnnonce(req: Request, res: Response): Promise<void> {
+  try {
+    const { type, id } = req.params;
+    
+    // Vérification de sécurité pour éviter que BigInt() ne plante sur des lettres
+    if (isNaN(Number(id))) {
+      res.status(400).json({ message: "L'ID fourni est invalide." });
+      return;
+    }
+
+    const idAnnonce = BigInt(id);
+    const idUtilisateur = BigInt(req.utilisateur!.id); // On suppose que auth peuple req.utilisateur
+
+    let annonce;
+    let actionSuppression;
+
+    // 1. Déterminer la cible selon le paramètre URL (:type)
+    switch (type.toLowerCase()) {
+      case 'exercice':
+        annonce = await prisma.annonceExercice.findUnique({ where: { id: idAnnonce } });
+        actionSuppression = () => prisma.annonceExercice.delete({ where: { id: idAnnonce } });
+        break;
+      case 'bonplan':
+        annonce = await prisma.annonceBonPlan.findUnique({ where: { id: idAnnonce } });
+        actionSuppression = () => prisma.annonceBonPlan.delete({ where: { id: idAnnonce } });
+        break;
+      case 'tutorat':
+        annonce = await prisma.annonceTutorat.findUnique({ where: { id: idAnnonce } });
+        actionSuppression = () => prisma.annonceTutorat.delete({ where: { id: idAnnonce } });
+        break;
+      case 'projet':
+        annonce = await prisma.annonceProjet.findUnique({ where: { id: idAnnonce } });
+        actionSuppression = () => prisma.annonceProjet.delete({ where: { id: idAnnonce } });
+        break;
+      default:
+        res.status(400).json({ message: "Type d'annonce inconnu." });
+        return;
+    }
+
+    // 2. Vérifier si l'annonce existe
+    if (!annonce) {
+      res.status(404).json({ message: "Annonce introuvable." });
+      return;
+    }
+
+    // 3. Vérifier les permissions (Seul l'auteur peut la supprimer)
+    if (annonce.id_utilisateur !== idUtilisateur) {
+      res.status(403).json({ message: "Action non autorisée. Vous n'êtes pas l'auteur de cette publication." });
+      return;
+    }
+
+    // 4. Nettoyage du disque : Supprimer l'image associée si elle existe
+    if (annonce.image) {
+      const imagePath = path.join(process.cwd(), 'uploads', annonce.image);
+      // fs.existsSync vérifie que le fichier est bien là avant d'essayer de le supprimer
+      if (fs.existsSync(imagePath)) {
+        try {
+          fs.unlinkSync(imagePath); // Suppression physique du fichier
+        } catch (fileErr) {
+          console.error(`Impossible de supprimer l'image physique : ${imagePath}`, fileErr);
+          // On ne bloque pas la suppression en BDD si l'image physique a un problème
+        }
+      }
+    }
+
+    // 5. Suppression en base de données
+    await actionSuppression();
+
+    res.status(200).json({ message: "Publication supprimée avec succès." });
+
+  } catch (error) {
+    console.error("Erreur lors de la suppression de l'annonce :", error);
+    res.status(500).json({ message: "Erreur serveur lors de la suppression." });
+  }
+}
+
+// Fonction utilitaire pour éviter la répétition de la conversion BigInt -> String
+const serializeAnnonce = (annonce: any) => {
+  return {
+    ...annonce,
+    id: annonce.id.toString(),
+    id_utilisateur: annonce.id_utilisateur.toString(),
+    id_matiere: annonce.id_matiere ? annonce.id_matiere.toString() : undefined,
+  };
+};
+
+export async function modifierAnnonce(req: Request, res: Response): Promise<void> {
+  try {
+    const { type, id } = req.params;
+    
+    if (isNaN(Number(id))) {
+      res.status(400).json({ message: "L'ID fourni est invalide." });
+      return;
+    }
+
+    const idAnnonce = BigInt(id);
+    const idUtilisateur = BigInt(req.utilisateur!.id);
+
+    // 1. Récupérer l'annonce existante pour vérifier les droits et l'ancienne image
+    let annonceExistante;
+    switch (type.toLowerCase()) {
+      case 'exercice': annonceExistante = await prisma.annonceExercice.findUnique({ where: { id: idAnnonce } }); break;
+      case 'bonplan':  annonceExistante = await prisma.annonceBonPlan.findUnique({ where: { id: idAnnonce } }); break;
+      case 'tutorat':  annonceExistante = await prisma.annonceTutorat.findUnique({ where: { id: idAnnonce } }); break;
+      case 'projet':   annonceExistante = await prisma.annonceProjet.findUnique({ where: { id: idAnnonce } }); break;
+      default: {
+        res.status(400).json({ message: "Type d'annonce inconnu." });
+        return;
+      }
+    }
+
+    if (!annonceExistante) {
+      res.status(404).json({ message: "Annonce introuvable." });
+      return;
+    }
+
+    if (annonceExistante.id_utilisateur !== idUtilisateur) {
+      res.status(403).json({ message: "Action non autorisée. Seul l'auteur peut modifier cette publication." });
+      return;
+    }
+
+    // 2. Construire l'objet de données à mettre à jour dynamiquement
+    const data: any = {};
+
+    // Champs communs
+    if (req.body.description !== undefined) data.description = req.body.description;
+    if (req.body.lien !== undefined) data.lien = req.body.lien;
+    if (req.body.visibilite !== undefined) data.visibilite = req.body.visibilite;
+
+    // Gestion de l'image
+    if (req.file) {
+      data.image = req.file.filename; // Nouvelle image
+
+      // Nettoyage : supprimer l'ancienne image du disque
+      if (annonceExistante.image) {
+        const oldImagePath = path.join(process.cwd(), 'uploads', annonceExistante.image);
+        if (fs.existsSync(oldImagePath)) {
+          try {
+            fs.unlinkSync(oldImagePath);
+          } catch (err) {
+            console.error("Erreur lors de la suppression de l'ancienne image :", err);
+          }
+        }
+      }
+    }
+
+    // Champs spécifiques selon le type
+    if (type === 'exercice' || type === 'tutorat') {
+      if (req.body.annee) data.annee = req.body.annee;
+      if (req.body.id_matiere) data.id_matiere = BigInt(req.body.id_matiere);
+    }
+    
+    if (type === 'tutorat') {
+      if (req.body.nbCandidatsVoulus) data.nbCandidatsVoulus = Number(req.body.nbCandidatsVoulus);
+    }
+
+    if (type === 'bonplan' || type === 'projet') {
+      if (req.body.titre) data.titre = req.body.titre;
+    }
+
+    if (type === 'bonplan') {
+      if (req.body.sousType) data.sousType = req.body.sousType;
+    }
+
+    // 3. Exécuter la mise à jour
+    let annonceMiseAJour;
+    switch (type.toLowerCase()) {
+      case 'exercice': annonceMiseAJour = await prisma.annonceExercice.update({ where: { id: idAnnonce }, data }); break;
+      case 'bonplan':  annonceMiseAJour = await prisma.annonceBonPlan.update({ where: { id: idAnnonce }, data }); break;
+      case 'tutorat':  annonceMiseAJour = await prisma.annonceTutorat.update({ where: { id: idAnnonce }, data }); break;
+      case 'projet':   annonceMiseAJour = await prisma.annonceProjet.update({ where: { id: idAnnonce }, data }); break;
+    }
+
+    // 4. Réponse
+    res.status(200).json(serializeAnnonce(annonceMiseAJour));
+
+  } catch (error) {
+    console.error("Erreur lors de la modification de l'annonce :", error);
+    res.status(500).json({ message: "Erreur serveur lors de la modification." });
+  }
+}
+
+export async function toggleLike(req: Request, res: Response): Promise<void> {
+  try {
+    const { type, id } = req.params;
+
+    if (isNaN(Number(id))) {
+      res.status(400).json({ message: "L'ID fourni est invalide." });
+      return;
+    }
+
+    const idAnnonce = BigInt(id);
+    const idUtilisateur = BigInt(req.utilisateur!.id);
+
+    // 1. Mappage dynamique selon le type d'annonce
+    let champIdType: string;
+    let modelAnnonce: any;
+
+    switch (type.toLowerCase()) {
+      case 'exercice': 
+        champIdType = 'id_exercice'; 
+        modelAnnonce = prisma.annonceExercice; 
+        break;
+      case 'bonplan':  
+        champIdType = 'id_bonplan';  
+        modelAnnonce = prisma.annonceBonPlan;  
+        break;
+      case 'tutorat':  
+        champIdType = 'id_tutorat';  
+        modelAnnonce = prisma.annonceTutorat;  
+        break;
+      case 'projet':   
+        champIdType = 'id_projet';   
+        modelAnnonce = prisma.annonceProjet;   
+        break;
+      default: 
+        res.status(400).json({ message: "Type d'annonce inconnu." });
+        return;
+    }
+
+    // 2. Vérifier si l'annonce existe
+    const annonce = await modelAnnonce.findUnique({ where: { id: idAnnonce } });
+    if (!annonce) {
+      res.status(404).json({ message: "Annonce introuvable." });
+      return;
+    }
+
+    // 3. Chercher si le "J'aime" existe déjà pour cet utilisateur et cette annonce
+    const likeExistant = await prisma.jaime.findFirst({
+      where: {
+        id_utilisateur: idUtilisateur,
+        [champIdType]: idAnnonce, // Utilisation de la clé dynamique (ex: id_exercice: 12)
+      },
+    });
+
+    // 4. Utilisation d'une Transaction pour garantir la cohérence des données
+    if (likeExistant) {
+      // Cas A : Il a déjà aimé -> On retire le like et on décrémente le compteur
+      await prisma.$transaction([
+        prisma.jaime.delete({ where: { id: likeExistant.id } }),
+        modelAnnonce.update({
+          where: { id: idAnnonce },
+          data: { nbJaime: { decrement: 1 } },
+        }),
+      ]);
+      
+      res.status(200).json({ message: "Like retiré.", liked: false });
+    } else {
+      // Cas B : Il n'a pas encore aimé -> On ajoute le like et on incrémente le compteur
+      await prisma.$transaction([
+        prisma.jaime.create({
+          data: {
+            id_utilisateur: idUtilisateur,
+            [champIdType]: idAnnonce,
+          },
+        }),
+        modelAnnonce.update({
+          where: { id: idAnnonce },
+          data: { nbJaime: { increment: 1 } },
+        }),
+      ]);
+
+      res.status(200).json({ message: "Annonce likée.", liked: true });
+    }
+
+  } catch (error) {
+    console.error("Erreur lors du toggle du like :", error);
+    res.status(500).json({ message: "Erreur serveur lors de l'action." });
+  }
+}
