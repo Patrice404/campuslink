@@ -15,14 +15,8 @@ const app = express();
 
 // Origines autorisées (front Vite en dev sur 5173, + variable d'env pour la prod).
 const origines = [
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
   process.env.CORS_API_URL_FRONTEND, // Si c'est défini dans ton fichier .env
   'http://localhost:5173',           // L'URL de ton front Vite en développement
->>>>>>> frontend-feature
-=======
->>>>>>> d402032d87db47d43ec2879661fbe4b140f23f5e
   process.env.CORS_API_URL_FRONTEND || 'http://localhost:5173',
   'http://localhost:8080',
   process.env.FRONTEND_URL,          // L'URL pour la production
