@@ -1,8 +1,11 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from "vue";
 import { useRoute } from "vue-router";
+// 1. On importe le store d'authentification comme dans HomeView
+import { useAuthStore } from '../stores/authStore';
 
 const route = useRoute();
+const authStore = useAuthStore(); // 2. On initialise le store
 
 const user = ref<any>(null);
 const loading = ref(true);
@@ -10,7 +13,6 @@ const error = ref("");
 
 const isMyProfile = computed(() => !route.params.id);
 
-// 1. On place la logique d'appel API dans une fonction réutilisable
 const fetchProfile = async () => {
   loading.value = true;
   error.value = "";
@@ -19,19 +21,22 @@ const fetchProfile = async () => {
     const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:3000";
     const userId = route.params.id;
 
-    // L'URL s'adapte automatiquement au back-end (/profile ou /:id)
+    // L'URL s'adapte automatiquement : /api/utilisateur/1 ou /api/utilisateur/profile
+    // ATTENTION : Vérifie que le préfixe dans ton app.ts est bien '/api/utilisateur' (au singulier)
     const endpoint = userId
       ? `${apiUrl}/api/utilisateur/${userId}`
       : `${apiUrl}/api/utilisateur/profile`;
 
-    const token = localStorage.getItem("token");
+    // 3. On utilise le token du store !
+    const token = authStore.token; 
     
     const response = await fetch(endpoint, {
       method: 'GET',
       cache: 'no-store', 
-      headers: token
-        ? { Authorization: `Bearer ${token}`, 'Accept': 'application/json' }
-        : {},
+      headers: { 
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        'Accept': 'application/json' 
+      },
     });
 
     if (!response.ok) {
@@ -47,10 +52,7 @@ const fetchProfile = async () => {
   }
 };
 
-// 2. On charge au premier affichage de la page
 onMounted(fetchProfile);
-
-// 3. NOUVEAU : On recharge la page si l'ID dans l'URL change
 watch(() => route.params.id, fetchProfile);
 
 const initials = computed(() => {
