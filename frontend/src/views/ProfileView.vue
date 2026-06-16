@@ -24,8 +24,8 @@ const fetchProfile = async () => {
     // L'URL s'adapte automatiquement : /api/utilisateur/1 ou /api/utilisateur/profile
     // ATTENTION : Vérifie que le préfixe dans ton app.ts est bien '/api/utilisateur' (au singulier)
     const endpoint = userId
-      ? `${apiUrl}/api/utilisateur/${userId}`
-      : `${apiUrl}/api/utilisateur/profile`;
+      ? `${apiUrl}/api/utilisateurs/profile/${userId}`
+      : `${apiUrl}/api/utilisateurs/profile`;
 
     // 3. On utilise le token du store !
     const token = authStore.token; 
