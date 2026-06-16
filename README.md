@@ -38,6 +38,8 @@ docker compose exec backend npx prisma migrate reset
 
 
 docker compose exec database psql -U campuslink_dev -d campuslink_db -c 'SELECT id, titre, annee FROM "Matiere";'
+docker compose exec database psql -U campuslink_dev -d campuslink_db -c 'SELECT * FROM "Utilisateur";'
+
 docker compose logs database --tail=20
 docker compose exec backend npx prisma studio
  sudo lsof -i :5173
