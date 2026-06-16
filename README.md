@@ -41,3 +41,8 @@ docker compose exec database psql -U campuslink_dev -d campuslink_db -c 'SELECT 
 docker compose logs database --tail=20
 docker compose exec backend npx prisma studio
  sudo lsof -i :5173
+docker compose exec backend npx prisma migrate dev --name add_verification_email
+
+
+npm install nodemailer
+docker compose exec backend npm install nodemailer
