@@ -16,7 +16,7 @@ const app = express();
 const origines = [
   process.env.CORS_API_URL_FRONTEND || 'http://localhost:5173',
   'http://localhost:8080',
-  process.env.FRONTEND_URL,
+  process.env.FRONTEND_URL,          // L'URL pour la production
 ].filter(Boolean) as string[];
 
 app.use(
