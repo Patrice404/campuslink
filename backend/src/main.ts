@@ -10,11 +10,13 @@ import annonceRoutes from './routes/annonce.routes';
 import matiereRoutes from './routes/matiere.routes';
 import commentaireRoutes from './routes/commentaire.routes';
 import entraideRoutes from './routes/entraide.routes';
+import academiqueRoutes from './routes/academique.routes'
 
 dotenv.config();
 
 const app = express();
 
+// Origines autorisées (front Vite en dev sur 5173, + variable d'env pour la prod).
 // Garantit que le dossier uploads existe au démarrage
 // (le volume Docker peut être vide au premier lancement)
 const uploadsDir = path.join(__dirname, '../uploads');
@@ -48,6 +50,7 @@ app.use('/api/annonces', annonceRoutes);
 app.use('/api/matieres', matiereRoutes);
 app.use('/api/commentaires', commentaireRoutes);
 app.use('/api/entraide', entraideRoutes);
+app.use('/api', academiqueRoutes);
 
 // Routes à brancher une fois leurs controllers implémentés :
 // app.use('/api/candidatures', candidatureRoutes);
@@ -59,3 +62,4 @@ app.use((_req: Request, res: Response) => {
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Serveur CampusLink démarré sur le port ${PORT}`));
+

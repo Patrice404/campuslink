@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { prisma } from '../lib/prismaClient';
 import { toJSON } from '../lib/serialize';
 import { ANNONCE_CONFIG, AnnonceType, findAnnonceById } from '../lib/annonces';
+import { SousTypeBonPlan } from '@prisma/client'; 
 
 const TYPES: AnnonceType[] = ['EXERCICE', 'BON_PLAN', 'TUTORAT', 'PROJET'];
 
@@ -204,7 +205,7 @@ export async function supprimer(req: Request, res: Response): Promise<void> {
 export async function createExercice(req: Request, res: Response): Promise<void> {
   try {
     const id_utilisateur = BigInt(req.utilisateur!.id);
-    const { description, annee, id_matiere } = req.body;
+    const { annee, id_matiere, description } = req.body;
     const lien = req.body.lien || null;
     const image = req.file ? req.file.filename : null;
  
@@ -241,23 +242,14 @@ export async function createBonPlan(req: Request, res: Response): Promise<void> 
     const lien = req.body.lien || null;
     const image = req.file ? req.file.filename : null;
  
-    const SOUS_TYPES = [
-      'JOB_ETUDIANT',
-      'ALTERNANCE',
-      'COLOCATION',
-      'FETE',
-      'EVENEMENT',
-      'RESTAURANT',
-      'BOURSE',
-      'HACKATHON',
-    ];
+    const sousTypesAutorises = Object.values(SousTypeBonPlan);
  
     if (!titre || !description || !sousType) {
       res.status(400).json({ message: 'Champs requis manquants : titre, description, sousType' });
       return;
     }
-    if (!SOUS_TYPES.includes(sousType)) {
-      res.status(400).json({ message: `sousType invalide. Valeurs autorisées : ${SOUS_TYPES.join(', ')}` });
+    if (!sousTypesAutorises.includes(sousType)) {
+      res.status(400).json({ message: `sousType invalide. Valeurs autorisées : ${sousTypesAutorises.join(', ')}` });
       return;
     }
  
@@ -327,19 +319,18 @@ export async function createTutorat(req: Request, res: Response): Promise<void> 
 export async function createProjet(req: Request, res: Response): Promise<void> {
   try {
     const id_utilisateur = BigInt(req.utilisateur!.id);
-    const { titre, texte, description } = req.body;
+    const { titre, description } = req.body;
     const lien = req.body.lien || null;
     const image = req.file ? req.file.filename : null;
  
-    if (!titre || !texte || !description) {
-      res.status(400).json({ message: 'Champs requis manquants : titre, texte, description' });
+    if (!titre || !description) {
+      res.status(400).json({ message: 'Champs requis manquants : titre, description' });
       return;
     }
  
     const annonce = await prisma.annonceProjet.create({
       data: {
         titre,
-        //texte,
         description,
         id_utilisateur,
         image,
