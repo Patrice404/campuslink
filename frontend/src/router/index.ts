@@ -42,8 +42,8 @@ const router = createRouter({
     },
     // La page profile utilisateur
     {
-      path: '/profile',
-      name: 'profile',
+      path: '/profil/:id?', // <-- 'profil' en FR, et ajout de '/:id?'
+      name: 'profil',
       component: ProfileView
     }
   ]
