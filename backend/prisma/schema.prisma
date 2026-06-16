@@ -197,3 +197,18 @@ model Candidature {
   id_tutorat        BigInt
   tutorat           AnnonceTutorat    @relation(fields: [id_tutorat], references: [id], onDelete: Cascade)
 }
+
+// Inscription en attente : on stocke TOUTES les infos du futur compte + le code,
+// AVANT la création réelle de l'utilisateur. Clé = email (écrasé à chaque renvoi).
+// Le compte n'est créé (table Utilisateur) qu'une fois le code validé.
+model VerificationEmail {
+  id         BigInt    @id @default(autoincrement())
+  email      String    @unique
+  code       String
+  expiration DateTime
+  nom        String
+  prenom     String
+  motDePasse String // déjà hashé (bcrypt)
+  role       Role
+  id_campus  BigInt?
+}
