@@ -19,8 +19,9 @@ import {
   supprimerAnnonce,
   modifierAnnonce,
   toggleLike,
-  recherche
+  recherche,
 } from '../controllers/annonce.controller';
+import { getBonPlanSubTypes } from '../controllers/bonPlan.controller';
 
 
 const router = Router();
@@ -38,6 +39,7 @@ router.get('/', auth, lister);
 router.get('/mes', auth, mesAnnonces);
 // Recherche à tags (type, matiere, annee, auteur, has, avant/apres, q) — avant /:id
 router.get('/recherche', auth, recherche);
+router.get('/bonplan/soustypes', getBonPlanSubTypes);
 
 // Endpoints dédiés de création par type d'annonce
 router.post('/exercice', auth, uploadImageMiddleware, createExercice);

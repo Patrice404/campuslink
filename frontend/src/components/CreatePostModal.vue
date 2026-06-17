@@ -8,10 +8,14 @@ const matieres = ref<Matiere[]>([])
 const matieresLoading = ref(true)
 const matieresError = ref<string | null>(null)
 
+// ⚡️ NOUVEAUX ÉTATS POUR LES SOUS-TYPES DYNAMIQUES
+const sousTypes = ref<string[]>([])
+const sousTypesLoading = ref(true)
+const sousTypesError = ref<string | null>(null)
+
 const authStore = useAuthStore()
 const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:3000"
 
-//  MODIFICATION : On ajoute la prop annonceToEdit
 const props = defineProps({
   isOpen: {
     type: Boolean,
@@ -25,14 +29,12 @@ const props = defineProps({
 
 const emit = defineEmits(['close', 'post-created'])
 
-// ⚡️ CALCUL DU MODE UTILISATION
 const isEditMode = computed(() => !!props.annonceToEdit)
 
 // --- Variables du formulaire ---
 const typeAnnonce = ref('EXERCICE')
 const visibilite = ref('PUBLIQUE')
 
-// Communes
 const imageFile = ref<File | null>(null)
 const imagePreview = ref<string | null>(null)
 const lien = ref('')
@@ -49,7 +51,6 @@ const handleFileChange = (event: Event) => {
   const file = target.files?.[0] ?? null
   imageFile.value = file
 
-  // Si on est en train de téléverser une nouvelle image, on révoque l'ancien aperçu local
   if (imagePreview.value && !imagePreview.value.startsWith(apiUrl)) {
     URL.revokeObjectURL(imagePreview.value)
   }
@@ -58,7 +59,6 @@ const handleFileChange = (event: Event) => {
 
 const removeImage = () => {
   imageFile.value = null
-  // On ne nettoie l'aperçu par URL que si c'était un fichier local temporaire
   if (imagePreview.value && !imagePreview.value.startsWith(apiUrl)) {
     URL.revokeObjectURL(imagePreview.value)
   }
@@ -70,7 +70,7 @@ const removeImage = () => {
 const titre = ref('')          
 const annee = ref('L1')         
 const id_matiere = ref('')     
-const sousType = ref('JOB_ETUDIANT') 
+const sousType = ref('') // ⚡️ Initialisé vide pour accueillir la valeur dynamique
 const nbCandidatsVoulus = ref(1)     
 
 const resetForm = () => {
@@ -82,14 +82,13 @@ const resetForm = () => {
   titre.value = ''
   annee.value = 'L1'
   if (matieres.value.length > 0) id_matiere.value = String(matieres.value[0].id)
-  sousType.value = 'JOB_ETUDIANT'
+  // ⚡️ Reset sur le premier sous-type de la BDD s'il existe
+  sousType.value = sousTypes.value.length > 0 ? sousTypes.value[0] : 'JOB_ETUDIANT'
   nbCandidatsVoulus.value = 1
 }
 
-//  OBSERVATEUR DYNAMIQUE : Remplit le formulaire si annonceToEdit est fourni
 watch(() => props.annonceToEdit, (newAnnonce) => {
   if (newAnnonce) {
-    // Conversion sûre du type (Ex: AnnonceBonPlan -> BON_PLAN)
     let cleanType = newAnnonce.type.replace('Annonce', '')
     if (cleanType === 'BonPlan') cleanType = 'BON_PLAN'
     typeAnnonce.value = cleanType.toUpperCase()
@@ -100,10 +99,9 @@ watch(() => props.annonceToEdit, (newAnnonce) => {
     titre.value = newAnnonce.titre || ''
     annee.value = newAnnonce.annee || 'L1'
     id_matiere.value = newAnnonce.id_matiere ? String(newAnnonce.id_matiere) : ''
-    sousType.value = newAnnonce.sousType || 'JOB_ETUDIANT'
+    sousType.value = newAnnonce.sousType || ''
     nbCandidatsVoulus.value = newAnnonce.nbCandidatsVoulus || 1
 
-    // Gestion de l'image existante s'il y en a une sur la BDD
     const existingFile = newAnnonce.image || newAnnonce.photo
     if (existingFile) {
       imagePreview.value = `${apiUrl}/uploads/${existingFile}`
@@ -116,7 +114,6 @@ watch(() => props.annonceToEdit, (newAnnonce) => {
   }
 }, { immediate: true })
 
-// État de la soumission
 const isSubmitting = ref(false)
 const submitError = ref<string | null>(null)
 
@@ -142,9 +139,7 @@ const fetchMatieres = async () => {
       },
     })
  
-    if (!response.ok) {
-      throw new Error(`Erreur HTTP: ${response.status}`)
-    }
+    if (!response.ok) throw new Error(`Erreur HTTP: ${response.status}`)
  
     const data: Matiere[] = await response.json()
     matieres.value = data
@@ -160,14 +155,54 @@ const fetchMatieres = async () => {
   }
 }
 
+// ⚡️ NOUVELLE FONCTION : Récupère les enums SousTypeBonPlan depuis le backend
+const fetchSousTypes = async () => {
+  sousTypesLoading.value = true
+  sousTypesError.value = null
+  try {
+    const response = await fetch(`${apiUrl}/api/annonces/bonplan/soustypes`, {
+      headers: {
+        ...(authStore.token ? { Authorization: `Bearer ${authStore.token}` } : {}),
+      },
+    })
+
+    if (!response.ok) throw new Error(`Erreur HTTP: ${response.status}`)
+
+    const data: string[] = await response.json()
+    sousTypes.value = data
+
+    // Si on est en mode création, on sélectionne par défaut le premier élément reçu
+    if (data.length > 0 && !isEditMode.value) {
+      sousType.value = data[0]
+    }
+  } catch (error) {
+    console.error('Erreur lors de la récupération des sous-types :', error)
+    sousTypesError.value = 'Impossible de charger les catégories.'
+  } finally {
+    sousTypesLoading.value = false
+  }
+}
+
+// ⚡️ FONCTION UTILITAIRE : Traduit les enums de la BDD en chaînes élégantes pour l'UI
+const getSousTypeLabel = (type: string) => {
+  const labels: Record<string, string> = {
+    JOB_ETUDIANT: 'Job Étudiant',
+    ALTERNANCE: 'Alternance',
+    COLOCATION: 'Colocation',
+    FETE: 'Fête',
+    EVENEMENT: 'Évènement',
+    RESTAURANT: 'Restaurant / Réduction',
+    BOURSE: 'Bourse',
+    HACKATHON: 'Hackathon'
+  }
+  return labels[type] || type.replace('_', ' ')
+}
+
 const handleSubmit = async () => {
   submitError.value = null
   const formData = new FormData()
 
-  // Si l'utilisateur charge un nouveau fichier, on l'envoie
   if (imageFile.value) formData.append('image', imageFile.value)
-  
-  // ⚡️ STRATÉGIE SI IMAGE SUPPRIMÉE : On signale au serveur si l'image pré-existante a été retirée
   if (isEditMode.value && !imagePreview.value) {
     formData.append('deleteImage', 'true')
   }
@@ -197,7 +232,6 @@ const handleSubmit = async () => {
 
   const endpoint = ENDPOINTS[typeAnnonce.value]
   
-  // ⚡️ ADAPTATION DYNAMIQUE DE LA ROUTE REST
   const targetUrl = isEditMode.value
     ? `${apiUrl}/api/annonces/${endpoint}/${props.annonceToEdit.id}`
     : `${apiUrl}/api/annonces/${endpoint}`
@@ -234,6 +268,7 @@ const handleSubmit = async () => {
 onMounted(() => {
   if (authStore.isAuthenticated) {
     fetchMatieres()
+    fetchSousTypes() // ⚡️ Lancement de la récupération au montage du composant
   }
 })
 </script>
@@ -243,7 +278,6 @@ onMounted(() => {
     <div class="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh]">
       
       <div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-gray-50">
-        <!--  TITRE DYNAMIQUE -->
         <h3 class="text-lg font-bold text-gray-900">
           {{ isEditMode ? 'Modifier la publication' : 'Créer une publication' }}
         </h3>
@@ -260,7 +294,6 @@ onMounted(() => {
           <div class="flex gap-4">
             <div class="flex-1">
               <label class="block text-sm font-medium text-gray-700 mb-1">Type de publication</label>
-              <!--  DÉSACTIVÉ EN MODE ÉDITION (Sécurité intégrité BDD) -->
               <select :disabled="isEditMode" v-model="typeAnnonce" class="w-full py-2.5 px-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-secondary focus:border-secondary outline-none bg-white disabled:bg-gray-100 disabled:text-gray-500">
                 <option value="EXERCICE">Aide & Exercices</option>
                 <option value="BON_PLAN">Bon Plan</option>
@@ -288,15 +321,12 @@ onMounted(() => {
 
           <div v-if="typeAnnonce === 'BON_PLAN'">
             <label class="block text-sm font-medium text-gray-700 mb-1">Catégorie du Bon Plan</label>
-            <select v-model="sousType" class="w-full py-2.5 px-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-secondary focus:border-secondary outline-none bg-white">
-              <option value="JOB_ETUDIANT">Job Étudiant</option>
-              <option value="ALTERNANCE">Alternance</option>
-              <option value="COLOCATION">Colocation</option>
-              <option value="FETE">Fête</option>
-              <option value="EVENEMENT">Évènement</option>
-              <option value="RESTAURANT">Restaurant / Réduction</option>
-              <option value="BOURSE">Bourse</option>
-              <option value="HACKATHON">Hackathon</option>
+            <select v-model="sousType" required class="w-full py-2.5 px-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-secondary focus:border-secondary outline-none bg-white">
+              <option v-if="sousTypesLoading" disabled value="">Chargement des catégories...</option>
+              <option v-else-if="sousTypesError" disabled value="">{{ sousTypesError }}</option>
+              <option v-else v-for="type in sousTypes" :key="type" :value="type">
+                {{ getSousTypeLabel(type) }}
+              </option>
             </select>
           </div>
 
@@ -370,7 +400,6 @@ onMounted(() => {
 
       <div class="px-6 py-4 border-t border-gray-100 bg-white">
         <p v-if="submitError" class="text-sm text-red-600 mb-2">{{ submitError }}</p>
-        <!-- LIBELLÉ BOUTON DYNAMIQUE -->
         <BaseButton form="postForm" type="submit" variant="primary" :disabled="isSubmitting">
           {{ isSubmitting ? 'Enregistrement...' : (isEditMode ? 'Enregistrer les modifications' : 'Publier') }}
         </BaseButton>
@@ -378,4 +407,4 @@ onMounted(() => {
 
     </div>
   </div>
-</template> 
+</template>

@@ -13,21 +13,38 @@ const annonces = ref<any[]>([]);
 const loading = ref(true);
 const error = ref("");
 const isRecherche = ref(false);
-const visibleCount = ref(10); // Gestion de la pagination "Afficher plus"
+const visibleCount = ref(10); 
 
 const isMobileMenuOpen = ref(false)
 const isCreateModalOpen = ref(false)
+
+// ⚡️ AJOUT : État pour stocker l'annonce en cours de modification
+const annonceToEdit = ref<any | null>(null);
+
+/**
+ * ⚡️ AJOUT : Ouvre la modale en mode édition avec l'annonce sélectionnée
+ */
+const handleEditAnnonce = (annonce: any) => {
+  annonceToEdit.value = annonce;
+  isCreateModalOpen.value = true;
+};
+
+/**
+ * ⚡️ AJOUT : Ferme la modale et réinitialise l'état d'édition pour la prochaine fois
+ */
+const handleModalClose = () => {
+  isCreateModalOpen.value = false;
+  annonceToEdit.value = null;
+};
 
 // --- DÉBUT INTEGRATION SYSTÈME NOTIFICATIONS ---
 const notifications = ref<any[]>([])
 const showNotifDropdown = ref(false)
 
-// Propriété calculée pour le compteur de badges rouges (uniquement les alertes lues = false)
 const unreadCount = computed(() => {
   return notifications.value.filter(n => !n.lue).length
 })
 
-// Récupération des notifications depuis l'API globale
 const fetchNotifications = async () => {
   if (!authStore.token) return
   try {
@@ -46,7 +63,6 @@ const fetchNotifications = async () => {
   }
 }
 
-// Ouvre/ferme la cloche et force la récupération des dernières notifications en BDD
 const toggleNotifDropdown = () => {
   showNotifDropdown.value = !showNotifDropdown.value
   if (showNotifDropdown.value) {
@@ -54,7 +70,6 @@ const toggleNotifDropdown = () => {
   }
 }
 
-// Marquer une alerte comme lue lors du clic
 const markAsRead = async (notifId: string) => {
   try {
     const response = await fetch(`${apiUrl}/api/notifications/${notifId}/lire`, {
@@ -65,7 +80,6 @@ const markAsRead = async (notifId: string) => {
       }
     })
     if (response.ok) {
-      // Mutation de l'état local optimiste pour mettre à jour l'UI instantanément
       const notif = notifications.value.find(n => n.id === notifId)
       if (notif) notif.lue = true
     }
@@ -75,7 +89,6 @@ const markAsRead = async (notifId: string) => {
 }
 // --- FIN INTEGRATION SYSTÈME NOTIFICATIONS ---
 
-// Barre de recherche et filtrage local des annonces
 const searchQuery = ref("");
 const filteredAnnonces = computed(() => {
   const query = searchQuery.value.toLowerCase().trim();
@@ -96,7 +109,6 @@ const filteredAnnonces = computed(() => {
   });
 });
 
-// Annonces découpées pour la pagination "Afficher plus"
 const displayedAnnonces = computed(() => {
   return filteredAnnonces.value.slice(0, visibleCount.value);
 });
@@ -105,7 +117,6 @@ const loadMore = () => {
   visibleCount.value += 10;
 };
 
-// Normalise une annonce de l'API pour l'affichage (type visuel + auteur)
 const mapAnnonce = (a: any) => {
   const map: Record<string, string> = {
     BON_PLAN: 'AnnonceBonPlan', TUTORAT: 'AnnonceTutorat',
@@ -123,7 +134,6 @@ const headers = () => ({
   Accept: 'application/json',
 });
 
-// Fonction générique de chargement d'URL
 const charger = async (url: string) => {
   loading.value = true;
   error.value = "";
@@ -132,7 +142,7 @@ const charger = async (url: string) => {
     if (!response.ok) throw new Error(`Erreur HTTP : ${response.status}`);
     const rawData = await response.json();
     annonces.value = rawData.map(mapAnnonce);
-    visibleCount.value = 10; // Reset la pagination au rechargement
+    visibleCount.value = 10; 
   } catch (err) {
     console.error("Détail de l'erreur API :", err);
     error.value = "Impossible de charger les annonces depuis le serveur.";
@@ -141,13 +151,11 @@ const charger = async (url: string) => {
   }
 };
 
-// Charge le flux par défaut initial
 const fetchAnnonces = async () => {
   isRecherche.value = false;
   await charger(`${apiUrl}/api/annonces`);
 };
 
-// Recherche à tags (émise par SmartSearch) : interroge l'endpoint backend
 const runSearch = (params: Record<string, string>) => {
   const keys = Object.keys(params);
   isRecherche.value = keys.length > 0;
@@ -159,7 +167,6 @@ const runSearch = (params: Record<string, string>) => {
   charger(`${apiUrl}/api/annonces/recherche?${qs}`);
 };
 
-// Chargement initial au montage du composant
 onMounted(() => {
   fetchAnnonces();
   fetchNotifications();
@@ -255,6 +262,8 @@ onMounted(() => {
               v-for="item in displayedAnnonces"
               :key="item.id"
               :annonce="item"
+              @edit="handleEditAnnonce"
+              @deleted="fetchAnnonces"
             />
 
             <div v-if="visibleCount < filteredAnnonces.length" class="text-center pt-4">
@@ -277,7 +286,8 @@ onMounted(() => {
 
     <CreatePostModal
       :is-open="isCreateModalOpen"
-      @close="isCreateModalOpen = false"
+      :annonce-to-edit="annonceToEdit"
+      @close="handleModalClose"
       @post-created="fetchAnnonces"
     />
   </div>

@@ -25,6 +25,9 @@ export async function verifierContenuAvecIA(description: string, titre?: string,
     1. Profanity & Vulgarity: Explicit or implicit insults, French slurs, vulgar anatomical or sexual terms, harassment, or aggressive behavior.
     2. Adult Content: Inappropriate sexual references, pornography, or dating-like behavior unsuitable for an academic environment.
     3. Scams & Malicious Activity: Spam, phishing, suspicious links, cryptocurrency promotions, or shady homework-cheating offers.
+    4. Hate Speech & Discrimination: Racist, sexist, homophobic, or discriminatory content targeting any group or individual.
+    5. Allow companies, brands, or products only if they are relevant to the academic context and do not promote commercial interests.
+    6. Companies site links are allowed, github and coworking spaces.
 
     POST TO ANALYZE:
     ---

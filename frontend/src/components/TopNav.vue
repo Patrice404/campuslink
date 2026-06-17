@@ -1,10 +1,15 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
+// ⚡️ AJOUT : Importations pour l'avatar et la navigation du profil
+import { RouterLink } from 'vue-router'
+import { useAuthStore } from '../stores/authStore'
 
-// On garde STRICTEMENT tes deux événements d'origine, surtout 'open-create-modal' !
 defineEmits(['open-menu', 'open-create-modal'])
 
-// --- UNIQUEMENT DES AJOUTS POUR LES NOTIFICATIONS ---
+// ⚡️ AJOUT : Initialisation du store et de l'URL API
+const authStore = useAuthStore()
+const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000'
+
 const notifications = ref<any[]>([])
 const isDropdownOpen = ref(false)
 
@@ -12,10 +17,16 @@ const hasUnread = computed(() => {
   return notifications.value.some(n => !n.lue)
 })
 
+// ⚡️ AJOUT : Calcul des initiales si pas de photo de profil
+const initials = computed(() => {
+  const user = authStore.user
+  if (!user) return "?"
+  return `${user.prenom?.[0] || ""}${user.nom?.[0] || ""}`.toUpperCase()
+})
+
 const fetchNotifications = async () => {
   try {
     const token = localStorage.getItem('token') 
-    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000'
 
     const response = await fetch(`${apiUrl}/api/notifications`, {
       method: 'GET',
@@ -36,7 +47,6 @@ const fetchNotifications = async () => {
 const markAsRead = async (id: string) => {
   try {
     const token = localStorage.getItem('token')
-    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000'
 
     await fetch(`${apiUrl}/api/notifications/${id}/lue`, {
       method: 'PUT',
@@ -68,7 +78,7 @@ onMounted(() => {
         </svg>
       </button>
 
-      <h1 class="text-xl font-bold text-gray-800">Fil d'actualité</h1>
+      <h1 class="text-xl font-bold text-gray-800">Actualité</h1>
     </div>
 
     <div class="flex items-center gap-3 md:gap-4">
@@ -115,6 +125,15 @@ onMounted(() => {
         </svg>
         <span class="hidden md:inline">Nouveau Post</span> 
       </button>
+
+      <RouterLink 
+        to="/profil" 
+        class="w-9 h-9 rounded-full bg-slate-100 border border-slate-200 overflow-hidden flex items-center justify-center font-bold text-slate-600 text-xs hover:border-indigo-500 hover:ring-2 hover:ring-indigo-100 transition shrink-0 cursor-pointer"
+        title="Mon Profil"
+      >
+    
+        <span >{{ initials }}</span>
+      </RouterLink>
 
     </div>
   </header>
