@@ -1,19 +1,23 @@
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue' 
+import { ref, onMounted, computed } from 'vue'
 import SidebarNav from '../components/SidebarNav.vue'
 import TopNav from '../components/TopNav.vue'
-import CreatePostModal from '../components/CreatePostModal.vue' 
+import CreatePostModal from '../components/CreatePostModal.vue'
 import AnnonceCard from '../components/AnnonceCard.vue'
+import SmartSearch from '../components/SmartSearch.vue'
 import { useAuthStore } from '../stores/authStore'
 const authStore = useAuthStore()
+const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:3000";
 
-const annonces = ref<any[]>([]); 
+const annonces = ref<any[]>([]);
 const loading = ref(true);
 const error = ref("");
+const isRecherche = ref(false);
 
 const isMobileMenuOpen = ref(false)
-const isCreateModalOpen = ref(false) 
+const isCreateModalOpen = ref(false)
 
+<<<<<<< HEAD
 // --- DÉBUT INTEGRATION SYSTÈME NOTIFICATIONS ---
 const notifications = ref<any[]>([])
 const showNotifDropdown = ref(false)
@@ -77,56 +81,39 @@ const searchQuery = ref("");
 const filteredAnnonces = computed(() => {
   const query = searchQuery.value.toLowerCase().trim();
   if (!query) return annonces.value;
+=======
+// Pagination : affichage progressif par lots de 5
+const visibleCount = ref(5);
+const displayedAnnonces = computed(() => annonces.value.slice(0, visibleCount.value));
+const loadMore = () => { visibleCount.value += 5; };
+>>>>>>> 160b20de483442cbda3430caff66a932825dc89e
 
-  return annonces.value.filter(annonce => {
-    const searchableText = [
-      annonce.titre,
-      annonce.texte,
-      annonce.description,
-      annonce.type,
-      annonce.sousType,
-      annonce.auteur?.prenom,
-      annonce.auteur?.nom
-    ].filter(Boolean).join(" ").toLowerCase();
+// Normalise une annonce de l'API pour l'affichage (type visuel + auteur)
+const mapAnnonce = (a: any) => {
+  const map: Record<string, string> = {
+    BON_PLAN: 'AnnonceBonPlan', TUTORAT: 'AnnonceTutorat',
+    PROJET: 'AnnonceProjet', EXERCICE: 'AnnonceExercice',
+  };
+  return {
+    ...a,
+    type: map[a.type] || a.type,
+    auteur: a.utilisateur || { prenom: "Utilisateur", nom: "Inconnu", id: 0 },
+  };
+};
 
-    return searchableText.includes(query);
-  });
+const headers = () => ({
+  ...(authStore.token ? { Authorization: `Bearer ${authStore.token}` } : {}),
+  Accept: 'application/json',
 });
 
-// Fonction nommée réutilisable pour charger le flux d'actualités
-const fetchAnnonces = async () => {
+const charger = async (url: string) => {
   loading.value = true;
   error.value = "";
-
   try {
-    const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:3000";
-    const token = authStore.token;
-
-    const response = await fetch(`${apiUrl}/api/annonces`, {
-      method: 'GET',
-      headers: {
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        'Accept': 'application/json'
-      }
-    });
-
+    const response = await fetch(url, { headers: headers() });
     if (!response.ok) throw new Error(`Erreur HTTP : ${response.status}`);
-
     const rawData = await response.json();
-    annonces.value = rawData.map((annonce: any) => {
-      let typeVisuel = annonce.type;
-      if (annonce.type === 'BON_PLAN') typeVisuel = 'AnnonceBonPlan';
-      if (annonce.type === 'TUTORAT') typeVisuel = 'AnnonceTutorat';
-      if (annonce.type === 'PROJET') typeVisuel = 'AnnonceProjet';
-      if (annonce.type === 'EXERCICE') typeVisuel = 'AnnonceExercice';
-
-      return {
-        ...annonce,
-        type: typeVisuel, 
-        auteur: annonce.utilisateur || { prenom: "Utilisateur", nom: "Inconnu", id: 0 }
-      };
-    });
-
+    annonces.value = rawData.map(mapAnnonce);
   } catch (err) {
     console.error("Détail de l'erreur API :", err);
     error.value = "Impossible de charger les annonces depuis le serveur.";
@@ -135,30 +122,52 @@ const fetchAnnonces = async () => {
   }
 };
 
+<<<<<<< HEAD
 // Modification du hook de montage pour charger à la fois le fil et les notifications au départ
 onMounted(() => {
   fetchAnnonces();
   fetchNotifications();
 });
+=======
+// Flux complet
+const fetchAnnonces = () => charger(`${apiUrl}/api/annonces`);
+
+// Recherche à tags : appelée par SmartSearch
+const runSearch = (params: Record<string, string>) => {
+  const keys = Object.keys(params);
+  isRecherche.value = keys.length > 0;
+  visibleCount.value = 5; // on réinitialise la pagination à chaque recherche
+  if (keys.length === 0) {
+    fetchAnnonces();
+    return;
+  }
+  const qs = new URLSearchParams(params).toString();
+  charger(`${apiUrl}/api/annonces/recherche?${qs}`);
+};
+
+// On charge au démarrage initial de la page
+onMounted(fetchAnnonces);
+>>>>>>> 160b20de483442cbda3430caff66a932825dc89e
 </script>
 
 <template>
   <div class="flex min-h-screen bg-gray-50">
-    
-    <SidebarNav 
-      :is-open="isMobileMenuOpen" 
-      @close="isMobileMenuOpen = false" 
+
+    <SidebarNav
+      :is-open="isMobileMenuOpen"
+      @close="isMobileMenuOpen = false"
     />
 
     <main class="flex-1 flex flex-col min-w-0">
-      
-      <TopNav 
-        @open-menu="isMobileMenuOpen = true" 
-        @open-create-modal="isCreateModalOpen = true" 
+
+      <TopNav
+        @open-menu="isMobileMenuOpen = true"
+        @open-create-modal="isCreateModalOpen = true"
       />
 
       <div class="flex-1 p-4 sm:p-6 overflow-y-auto">
         <div class="max-w-2xl mx-auto space-y-6">
+<<<<<<< HEAD
           
           <section class="bg-white rounded-xl shadow-sm p-4 border border-gray-100 flex items-center gap-3">
             <div class="relative flex-1">
@@ -221,6 +230,11 @@ onMounted(() => {
                 </div>
               </div>
             </div>
+=======
+
+          <section class="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
+            <SmartSearch @search="runSearch" />
+>>>>>>> 160b20de483442cbda3430caff66a932825dc89e
           </section>
 
           <div v-if="loading" class="text-center py-10 text-gray-500 animate-pulse">
@@ -231,25 +245,38 @@ onMounted(() => {
           </div>
 
           <section v-else class="space-y-4">
-            
-            <div v-if="filteredAnnonces.length === 0" class="text-center py-10 text-gray-500 bg-white rounded-xl shadow-sm border border-gray-100">
-              <p class="text-lg">😕 Aucune annonce trouvée pour "<strong>{{ searchQuery }}</strong>"</p>
+
+            <div v-if="annonces.length === 0" class="text-center py-10 text-gray-500 bg-white rounded-xl shadow-sm border border-gray-100">
+              <p class="text-lg"> {{ isRecherche ? 'Aucune annonce ne correspond à ta recherche.' : 'Aucune annonce pour le moment.' }}</p>
             </div>
 
-            <AnnonceCard 
-              v-for="item in filteredAnnonces" 
-              :key="item.id" 
-              :annonce="item" 
+            <AnnonceCard
+              v-for="item in displayedAnnonces"
+              :key="item.id"
+              :annonce="item"
             />
+
+            <div v-if="visibleCount < annonces.length" class="text-center pt-4">
+              <button
+                @click="loadMore"
+                class="inline-flex items-center gap-2 px-6 py-2.5 bg-white hover:bg-indigo-50 text-indigo-600 border border-gray-200 hover:border-indigo-300 font-bold text-sm rounded-xl transition shadow-sm cursor-pointer"
+              >
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+                </svg>
+                Afficher plus de publications
+              </button>
+            </div>
+
           </section>
 
         </div>
       </div>
     </main>
 
-    <CreatePostModal 
-      :is-open="isCreateModalOpen" 
-      @close="isCreateModalOpen = false" 
+    <CreatePostModal
+      :is-open="isCreateModalOpen"
+      @close="isCreateModalOpen = false"
       @post-created="fetchAnnonces"
     />
   </div>

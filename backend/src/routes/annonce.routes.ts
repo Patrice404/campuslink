@@ -18,7 +18,8 @@ import {
   createProjet,
   supprimerAnnonce,
   modifierAnnonce,
-  toggleLike
+  toggleLike,
+  recherche
 } from '../controllers/annonce.controller';
 
 
@@ -35,7 +36,9 @@ const upload = multer({ storage, limits: { fileSize: 5 * 1024 * 1024 } });
 // ordre important : routes spécifiques avant /:id pour éviter toute capture ambiguë
 router.get('/', auth, lister);
 router.get('/mes', auth, mesAnnonces);
- 
+// Recherche à tags (type, matiere, annee, auteur, has, avant/apres, q) — avant /:id
+router.get('/recherche', auth, recherche);
+
 // Endpoints dédiés de création par type d'annonce
 router.post('/exercice', auth, uploadImageMiddleware, createExercice);
 router.post('/bonplan', auth, uploadImageMiddleware, createBonPlan);

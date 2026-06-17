@@ -17,7 +17,7 @@ defineProps({
   }
 })
 
-// ✨ MODIFICATION 1 : On déclare l'événement 'post-created' pour que le parent puisse l'écouter
+// MODIFICATION 1 : On déclare l'événement 'post-created' pour que le parent puisse l'écouter
 const emit = defineEmits(['close', 'post-created'])
 
 // --- Variables du formulaire ---
