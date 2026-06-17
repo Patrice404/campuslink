@@ -20,9 +20,11 @@ function serializeUser(user: any) {
 
 export async function getProfil(req: Request, res: Response): Promise<void> {
   try {
+    const targetId = BigInt(req.utilisateur!.id);
+
+    // ✨ CORRECTION : On utilise la même logique d'inclusion imbriquée que getProfilPublic
     const utilisateur = await prisma.utilisateur.findUnique({
-      where: { id: BigInt(req.utilisateur!.id) },
-      // On remonte la hiérarchie pour obtenir le campus via la formation
+      where: { id: targetId },
       include: { 
         formation: {
           include: {
@@ -41,17 +43,49 @@ export async function getProfil(req: Request, res: Response): Promise<void> {
       return;
     }
 
-    // Extraction sécurisée du campus
+    // Récupération et calcul des statistiques + agrégation des 4 types d'annonces
+    const [exCount, bpCount, tutCount, projCount, commentCount, totalLikesReceived, exercices, bonsplans, tutorats, projets] = await Promise.all([
+      prisma.annonceExercice.count({ where: { id_utilisateur: targetId } }),
+      prisma.annonceBonPlan.count({ where: { id_utilisateur: targetId } }),
+      prisma.annonceTutorat.count({ where: { id_utilisateur: targetId } }),
+      prisma.annonceProjet.count({ where: { id_utilisateur: targetId } }),
+      prisma.commentaire.count({ where: { id_utilisateur: targetId } }),
+      prisma.jaime.count({
+        where: {
+          OR: [
+            { exercice: { id_utilisateur: targetId } },
+            { bonplan: { id_utilisateur: targetId } },
+            { tutorat: { id_utilisateur: targetId } },
+            { projet: { id_utilisateur: targetId } },
+          ]
+        }
+      }),
+      prisma.annonceExercice.findMany({ where: { id_utilisateur: targetId } }),
+      prisma.annonceBonPlan.findMany({ where: { id_utilisateur: targetId } }),
+      prisma.annonceTutorat.findMany({ where: { id_utilisateur: targetId } }),
+      prisma.annonceProjet.findMany({ where: { id_utilisateur: targetId } }),
+    ]);
+
+    // Fusionner et formater toutes les annonces pour les lister dans "Activités récentes"
+    const postsArray = [
+      ...exercices.map(e => ({ id: e.id.toString(), type: 'EXERCICE', titre: `Exercice`, texte: e.description, datePublication: e.datePublication })),
+      ...bonsplans.map(b => ({ id: b.id.toString(), type: 'BON_PLAN', titre: b.titre, texte: b.description, datePublication: b.datePublication })),
+      ...tutorats.map(t => ({ id: t.id.toString(), type: 'TUTORAT', titre: `Demande de Tutorat`, texte: t.description, datePublication: t.datePublication })),
+      ...projets.map(p => ({ id: p.id.toString(), type: 'PROJET', titre: p.titre, texte: p.description, datePublication: p.datePublication })),
+    ].sort((a, b) => b.datePublication.getTime() - a.datePublication.getTime());
+
+    // ✨ CORRECTION : On extrait correctement le campus à partir de la formation
     const campus = utilisateur.formation?.departement?.campus;
 
     res.json({
       ...serializeUser(utilisateur),
-      // On peut aussi renvoyer les détails de la formation pour le frontend
-      formation: utilisateur.formation ? {
-        id: utilisateur.formation.id.toString(),
-        nom: utilisateur.formation.nom,
-        niveau: utilisateur.formation.niveau,
-      } : null,
+      stats: {
+        posts: exCount + bpCount + tutCount + projCount, 
+        commentaires: commentCount,
+        likes: totalLikesReceived
+      },
+      posts: postsArray,
+      // ✨ CORRECTION : On utilise la variable extraite en toute sécurité
       campus: campus
         ? {
             id: campus.id.toString(),
@@ -99,7 +133,6 @@ export async function getProfilPublic(req: Request, res: Response): Promise<void
 
     const utilisateur = await prisma.utilisateur.findUnique({
       where: { id: targetId },
-      // Même logique pour remonter jusqu'au campus
       include: { 
         formation: {
           include: {
@@ -107,7 +140,7 @@ export async function getProfilPublic(req: Request, res: Response): Promise<void
               include: {
                 campus: true
               }
-                }
+            }
           }
         } 
       },
@@ -118,7 +151,7 @@ export async function getProfilPublic(req: Request, res: Response): Promise<void
       return;
     }
 
-    // ✨ NOUVEAU : On cherche si un blocage existe entre l'utilisateur connecté et ce profil
+    // Vérification du blocage existant
     const dejaBloque = idConnected 
       ? await prisma.blocage.findUnique({
           where: {
@@ -129,6 +162,36 @@ export async function getProfilPublic(req: Request, res: Response): Promise<void
           },
         })
       : null;
+
+    // ✨ NOUVEAU : Récupération et calcul des statistiques pour le profil public
+    const [exCount, bpCount, tutCount, projCount, commentCount, totalLikesReceived, exercices, bonsplans, tutorats, projets] = await Promise.all([
+      prisma.annonceExercice.count({ where: { id_utilisateur: targetId } }),
+      prisma.annonceBonPlan.count({ where: { id_utilisateur: targetId } }),
+      prisma.annonceTutorat.count({ where: { id_utilisateur: targetId } }),
+      prisma.annonceProjet.count({ where: { id_utilisateur: targetId } }),
+      prisma.commentaire.count({ where: { id_utilisateur: targetId } }),
+      prisma.jaime.count({
+        where: {
+          OR: [
+            { exercice: { id_utilisateur: targetId } },
+            { bonplan: { id_utilisateur: targetId } },
+            { tutorat: { id_utilisateur: targetId } },
+            { projet: { id_utilisateur: targetId } },
+          ]
+        }
+      }),
+      prisma.annonceExercice.findMany({ where: { id_utilisateur: targetId } }),
+      prisma.annonceBonPlan.findMany({ where: { id_utilisateur: targetId } }),
+      prisma.annonceTutorat.findMany({ where: { id_utilisateur: targetId } }),
+      prisma.annonceProjet.findMany({ where: { id_utilisateur: targetId } }),
+    ]);
+
+    const postsArray = [
+      ...exercices.map(e => ({ id: e.id.toString(), type: 'EXERCICE', titre: `Exercice`, texte: e.description, datePublication: e.datePublication })),
+      ...bonsplans.map(b => ({ id: b.id.toString(), type: 'BON_PLAN', titre: b.titre, texte: b.description, datePublication: b.datePublication })),
+      ...tutorats.map(t => ({ id: t.id.toString(), type: 'TUTORAT', titre: `Demande de Tutorat`, texte: t.description, datePublication: t.datePublication })),
+      ...projets.map(p => ({ id: p.id.toString(), type: 'PROJET', titre: p.titre, texte: p.description, datePublication: p.datePublication })),
+    ].sort((a, b) => b.datePublication.getTime() - a.datePublication.getTime());
 
     const campus = utilisateur.formation?.departement?.campus;
 
@@ -141,7 +204,13 @@ export async function getProfilPublic(req: Request, res: Response): Promise<void
       dateInscription: utilisateur.dateInscription,
       bio: utilisateur.bio,
       centresInteret: utilisateur.centresInteret,
-      estBloque: !!dejaBloque, // ✨ NOUVEAU : Renvoie true si bloqué, false sinon
+      estBloque: !!dejaBloque,
+      stats: {
+        posts: exCount + bpCount + tutCount + projCount,
+        commentaires: commentCount,
+        likes: totalLikesReceived
+      },
+      posts: postsArray,
       formation: utilisateur.formation ? {
         id: utilisateur.formation.id.toString(),
         nom: utilisateur.formation.nom,
@@ -161,7 +230,6 @@ export async function getProfilPublic(req: Request, res: Response): Promise<void
     res.status(500).json({ message: 'Erreur serveur' });
   }
 }
-
 
 // 3. NOUVEAU : Fonction Toggle pour Bloquer / Débloquer un utilisateur
 export async function toggleBlocage(req: Request, res: Response): Promise<void> {
