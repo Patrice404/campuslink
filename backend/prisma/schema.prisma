@@ -165,6 +165,7 @@ model AnnonceTutorat {
   type              TypeAnnonce @default(TUTORAT)
   visibilite        Visibilite  @default(PUBLIQUE)
   datePublication   DateTime    @default(now())
+  nbJaime           Int         @default(0)
   nbCandidatsVoulus Int
   description       String
   image             String?
@@ -184,6 +185,7 @@ model AnnonceProjet {
   type            TypeAnnonce @default(PROJET)
   visibilite      Visibilite  @default(PUBLIQUE)
   datePublication DateTime    @default(now())
+  nbJaime           Int         @default(0)
   titre           String
   lien            String?
   image           String? 

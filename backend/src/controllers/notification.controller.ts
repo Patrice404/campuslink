@@ -2,7 +2,7 @@ import { Request, Response } from 'express';
 import { prisma } from '../lib/prismaClient';
 
 // 1. Lister les notifications de l'utilisateur connecté
-export const lister = async (req: Request, res: Response): Promise<void> => {
+/*export const lister = async (req: Request, res: Response): Promise<void> => {
   try {
     // Le middleware auth injecte l'utilisateur dans req.user
     // Attention : d'après notre schema, l'id est un BigInt
@@ -47,3 +47,4 @@ export const marquerLue = async (req: Request, res: Response): Promise<void> => 
     res.status(500).json({ error: 'Impossible de mettre à jour la notification' });
   }
 };
+*/

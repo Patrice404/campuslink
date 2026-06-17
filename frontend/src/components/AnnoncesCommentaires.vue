@@ -15,6 +15,18 @@ const nouveauCommentaire = ref('')
 const isLoading = ref(false)
 const isSubmitting = ref(false)
 
+// Fonction utilitaire pour s'assurer que le commentaire possède la clé "auteur" attendue par le template
+const formaterCommentaire = (com: any) => {
+  return {
+    ...com,
+    // Si le backend renvoie "utilisateur", on le convertit en "auteur" pour le template Vue
+    auteur: com.utilisateur || com.auteur || { 
+      prenom: authStore.user?.prenom || "Utilisateur", 
+      nom: authStore.user?.nom || "Inconnu" 
+    }
+  }
+}
+
 // 1. Récupérer les commentaires
 const fetchCommentaires = async () => {
   isLoading.value = true
@@ -28,14 +40,15 @@ const fetchCommentaires = async () => {
     if (typePrisma === 'AnnonceTutorat') typePrisma = 'TUTORAT'
     if (typePrisma === 'AnnonceProjet') typePrisma = 'PROJET'
 
-    // Route corrigée avec le point d'entrée global /api/commentaires
     const response = await fetch(`${apiUrl}/api/commentaires/annonce/${props.annonceId}?type=${typePrisma}`, {
       headers: {
         ...(authStore.token ? { Authorization: `Bearer ${authStore.token}` } : {})
       }
     })
     if (response.ok) {
-      commentaires.value = await response.json()
+      const rawData = await response.json()
+      // On s'assure que chaque commentaire récupéré est bien formaté avec la clé "auteur"
+      commentaires.value = Array.isArray(rawData) ? rawData.map(formaterCommentaire) : []
     }
   } catch (error) {
     console.error('Erreur chargement commentaires:', error)
@@ -58,7 +71,6 @@ const ajouterCommentaire = async () => {
     if (typePrisma === 'AnnonceTutorat') typePrisma = 'TUTORAT'
     if (typePrisma === 'AnnonceProjet') typePrisma = 'PROJET'
 
-    // Route POST /api/commentaires
     const response = await fetch(`${apiUrl}/api/commentaires`, {
       method: 'POST',
       headers: {
@@ -67,19 +79,22 @@ const ajouterCommentaire = async () => {
       },
       body: JSON.stringify({
         texte: nouveauCommentaire.value,
-        id_annonce: props.annonceId,
-        type: typePrisma // Transmet le bon type attendu par ton contrôleur !
+        id_annonce: Number(props.annonceId), // Sécurité conversion pour éviter les bugs de types BigInt/String
+        type: typePrisma
       })
     })
 
     if (response.ok) {
-      const nouveauCom = await response.json()
+      const nouveauComRaw = await response.json()
       
-      // Ajout dynamique en haut de la liste pour l'affichage instantané !
-      commentaires.value.unshift(nouveauCom)
+      // On applique le formatage à l'objet brut retourné par l'API
+      const nouveauComFormate = formaterCommentaire(nouveauComRaw)
+      
+      // Ajout dynamique immédiat en haut de la liste
+      commentaires.value.unshift(nouveauComFormate)
       
       nouveauCommentaire.value = ''
-      emit('comment-added') // Notifie le parent (AnnonceCard) pour +1 sur le compteur
+      emit('comment-added') // Déclenche le +1 réactif dans le parent (AnnonceCard)
     }
   } catch (error) {
     console.error('Erreur lors de l\'ajout du commentaire:', error)
@@ -87,6 +102,7 @@ const ajouterCommentaire = async () => {
     isSubmitting.value = false
   }
 }
+
 onMounted(() => {
   fetchCommentaires()
 })
@@ -105,10 +121,12 @@ onMounted(() => {
     <div v-else class="space-y-3 max-h-60 overflow-y-auto pr-2">
       <div v-for="com in commentaires" :key="com.id" class="flex gap-3 text-sm">
         <div class="w-7 h-7 rounded-full bg-gray-200 flex items-center justify-center font-bold text-xs text-gray-600 shrink-0">
-          {{ com.auteur.prenom[0] }}{{ com.auteur.nom[0] }}
+          {{ com.auteur?.prenom?.[0] || '' }}{{ com.auteur?.nom?.[0] || '' }}
         </div>
         <div class="bg-gray-100 rounded-xl px-3 py-2 flex-1">
-          <p class="font-bold text-gray-900 text-xs">{{ com.auteur.prenom }} {{ com.auteur.nom }}</p>
+          <p class="font-bold text-gray-900 text-xs">
+            {{ com.auteur?.prenom || 'Utilisateur' }} {{ com.auteur?.nom || '' }}
+          </p>
           <p class="text-gray-700 mt-0.5 whitespace-pre-line text-xs">{{ com.texte }}</p>
         </div>
       </div>
