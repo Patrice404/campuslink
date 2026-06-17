@@ -10,6 +10,7 @@ import annonceRoutes from './routes/annonce.routes';
 import matiereRoutes from './routes/matiere.routes';
 import commentaireRoutes from './routes/commentaire.routes';
 import entraideRoutes from './routes/entraide.routes';
+import projetRoutes from './routes/projet.routes';
 import academiqueRoutes from './routes/academique.routes';
 import notificationRoutes from './routes/notification.routes';
 import candidatureRoutes from './routes/candidature.routes'
@@ -54,6 +55,8 @@ app.use('/api/annonces', annonceRoutes);
 app.use('/api/matieres', matiereRoutes);
 app.use('/api/commentaires', commentaireRoutes);
 app.use('/api/entraide', entraideRoutes);
+app.use('/api/projets', projetRoutes);
+
 app.use('/api/campus-vie', campusVieRoutes);
 app.use('/api', academiqueRoutes);
 
