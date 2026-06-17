@@ -38,11 +38,13 @@ export async function lister(req: Request, res: Response): Promise<void> {
       id_utilisateur: { notIn: blockedUserIds }
     };
 
-    // Récupération en parallèle avec filtrage de blocage inclus
+   
     const [exercices, bonsPlans, tutorats, projets] = await Promise.all([
-      prisma.annonceExercice.findMany({ where: condition, include: { utilisateur: true } }),
+      // ✨ AJOUT : include utilisateur ET matiere
+      prisma.annonceExercice.findMany({ where: condition, include: { utilisateur: true, matiere: true } }), 
       prisma.annonceBonPlan.findMany({ where: condition, include: { utilisateur: true } }),
-      prisma.annonceTutorat.findMany({ where: condition, include: { utilisateur: true } }),
+      // ✨ AJOUT : include utilisateur ET matiere
+      prisma.annonceTutorat.findMany({ where: condition, include: { utilisateur: true, matiere: true } }), 
       prisma.annonceProjet.findMany({ where: condition, include: { utilisateur: true } }),
     ]);
 

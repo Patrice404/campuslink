@@ -311,7 +311,7 @@ const initials = computed(() => {
 
       <section v-if="isMyProfile" class="bg-red-50 rounded-2xl p-6 border border-red-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mt-12">
         <div>
-          <h3 class="text-red-800 font-bold text-lg">Zone de danger</h3>
+          <h3 class="text-red-800 font-bold text-lg">Avertissement</h3>
           <p class="text-red-600 text-sm mt-1">La suppression de votre compte effacera de manière irréversible toutes vos données de la plateforme.</p>
         </div>
         <button @click="handleDeleteAccount" class="bg-red-600 hover:bg-red-700 text-white font-semibold text-sm px-5 py-2.5 rounded-xl transition shadow-sm whitespace-nowrap">
