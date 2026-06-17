@@ -17,7 +17,6 @@ const isRecherche = ref(false);
 const isMobileMenuOpen = ref(false)
 const isCreateModalOpen = ref(false)
 
-<<<<<<< HEAD
 // --- DÉBUT INTEGRATION SYSTÈME NOTIFICATIONS ---
 const notifications = ref<any[]>([])
 const showNotifDropdown = ref(false)
@@ -81,12 +80,6 @@ const searchQuery = ref("");
 const filteredAnnonces = computed(() => {
   const query = searchQuery.value.toLowerCase().trim();
   if (!query) return annonces.value;
-=======
-// Pagination : affichage progressif par lots de 5
-const visibleCount = ref(5);
-const displayedAnnonces = computed(() => annonces.value.slice(0, visibleCount.value));
-const loadMore = () => { visibleCount.value += 5; };
->>>>>>> 160b20de483442cbda3430caff66a932825dc89e
 
 // Normalise une annonce de l'API pour l'affichage (type visuel + auteur)
 const mapAnnonce = (a: any) => {
@@ -122,32 +115,11 @@ const charger = async (url: string) => {
   }
 };
 
-<<<<<<< HEAD
 // Modification du hook de montage pour charger à la fois le fil et les notifications au départ
 onMounted(() => {
   fetchAnnonces();
   fetchNotifications();
 });
-=======
-// Flux complet
-const fetchAnnonces = () => charger(`${apiUrl}/api/annonces`);
-
-// Recherche à tags : appelée par SmartSearch
-const runSearch = (params: Record<string, string>) => {
-  const keys = Object.keys(params);
-  isRecherche.value = keys.length > 0;
-  visibleCount.value = 5; // on réinitialise la pagination à chaque recherche
-  if (keys.length === 0) {
-    fetchAnnonces();
-    return;
-  }
-  const qs = new URLSearchParams(params).toString();
-  charger(`${apiUrl}/api/annonces/recherche?${qs}`);
-};
-
-// On charge au démarrage initial de la page
-onMounted(fetchAnnonces);
->>>>>>> 160b20de483442cbda3430caff66a932825dc89e
 </script>
 
 <template>
