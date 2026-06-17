@@ -3,9 +3,13 @@ import { ref, computed, watch } from 'vue';
 import { useAuthStore } from '../stores/authStore';
 import AnnoncesCommentaires from './AnnoncesCommentaires.vue';
 
+
 const props = defineProps<{
   annonce: any
 }>();
+
+const emit = defineEmits(['deleted', 'edit']);
+const showDeleteConfirm = ref(false);
 
 const authStore = useAuthStore();
 const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:3000";
@@ -14,6 +18,36 @@ const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:3000";
 const nbJaimeLocal = ref(Number(props.annonce.nbJaime) || 0);
 const isLikedLocal = ref(props.annonce.isLikedByMe || false);
 const showCommentaires = ref(false);
+const showDropdown = ref(false);
+
+/**
+ * Vérifie si l'utilisateur connecté est le propriétaire de l'annonce.
+ * @returns {boolean} true si l'utilisateur est le propriétaire, false sinon.
+ */
+const isOwner = computed(() => {
+  const currentUserId = authStore.user?.id; 
+  const auteurId = props.annonce.auteur?.id;
+  if (!currentUserId || !auteurId) return false;
+  return String(currentUserId) === String(auteurId);
+});
+
+/**
+ * Déclenche l'ouverture du modal de confirmation de suppression.
+ * Ferme également le menu déroulant des actions.
+ */
+const triggerDeleteConfirmation = () => {
+  showDropdown.value = false; // Ferme le menu 3 points
+  showDeleteConfirm.value = true; // Ouvre le modal de confirmation
+};
+
+/**
+ * Déclenche l'action d'édition de l'annonce.
+ * Ferme le menu déroulant et émet un événement vers le parent.
+ */
+const handleEditClick = () => {
+  showDropdown.value = false; 
+  emit('edit', props.annonce); 
+};
 
 // Synchronisation si les props changent (ex: rafraîchissement global)
 watch(() => props.annonce, (newAnnonce) => {
@@ -89,12 +123,43 @@ const handleLikeToggle = async () => {
     nbJaimeLocal.value = isLikedLocal.value ? nbJaimeLocal.value + 1 : Math.max(0, nbJaimeLocal.value - 1);
   }
 };
+
+
+/**
+ * Supprime l'annonce après confirmation de l'utilisateur.
+ * Émet un événement 'deleted' pour informer le parent de la suppression.
+ * Ferme le modal de confirmation après l'action.
+ */
+const executeDelete = async () => {
+  let typeRoute = props.annonce.type.replace('Annonce', '').toLowerCase();
+
+  const annonceIdStr = String(props.annonce.id);
+  showDeleteConfirm.value = false; // Ferme le modal immédiatement
+
+  try {
+    const response = await fetch(`${apiUrl}/api/annonces/${typeRoute}/${annonceIdStr}`, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${authStore.token}`
+      }
+    });
+
+    if (response.ok) {
+      emit('deleted');
+    } else {
+      const errorData = await response.json().catch(() => ({}));
+      alert(errorData.message || "Impossible de supprimer l'annonce.");
+    }
+  } catch (error) {
+    console.error("Erreur réseau Delete:", error);
+  }
+};
 </script>
 
 <template>
   <article class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden hover:shadow-md transition duration-200">
     
-    <div class="p-5 pb-3 flex items-center justify-between">
+    <div class="p-5 pb-3 flex items-center justify-between relative">
       <router-link 
         v-if="annonce.auteur?.id" 
         :to="'/profil/' + annonce.auteur.id" 
@@ -113,15 +178,49 @@ const handleLikeToggle = async () => {
         </div>
       </router-link>
 
-      <span class="text-[10px] uppercase tracking-wider font-extrabold px-2.5 py-1 rounded-md"
-        :class="{
-          'bg-indigo-100 text-indigo-700': annonce.type === 'AnnonceProjet', 
-          'bg-emerald-100 text-emerald-700': annonce.type === 'AnnonceBonPlan',
-          'bg-orange-100 text-orange-700': annonce.type === 'AnnonceTutorat',
-          'bg-sky-100 text-sky-700': annonce.type === 'AnnonceExercice'
-        }">
-        {{ annonce.type ? annonce.type.replace('Annonce', '') : '' }}
-      </span>
+      <!-- Zone Droite : Badge + Menu Actions Propriétaire -->
+      <div class="flex items-center gap-2">
+        <span class="text-[10px] uppercase tracking-wider font-extrabold px-2.5 py-1 rounded-md"
+          :class="{
+            'bg-indigo-100 text-indigo-700': annonce.type === 'AnnonceProjet', 
+            'bg-emerald-100 text-emerald-700': annonce.type === 'AnnonceBonPlan',
+            'bg-orange-100 text-orange-700': annonce.type === 'AnnonceTutorat',
+            'bg-sky-100 text-sky-700': annonce.type === 'AnnonceExercice'
+          }">
+          {{ annonce.type ? annonce.type.replace('Annonce', '') : '' }}
+        </span>
+
+        <!-- ⚡️ MENU TRIS POINTS : S'affiche UNIQUEMENT si l'utilisateur est le propriétaire -->
+        <div v-if="isOwner" class="relative">
+          <button 
+            @click.stop="showDropdown = !showDropdown" 
+            class="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition cursor-pointer"
+          >
+            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M12 8a2 2 0 100-4 2 2 0 000 4zm0 6a2 2 0 100-4 2 2 0 000 4zm0 6a2 2 0 100-4 2 2 0 000 4z" />
+            </svg>
+          </button>
+
+          <!-- Le Dropdown Menu -->
+          <div 
+            v-if="showDropdown" 
+            class="absolute right-0 mt-1 w-36 bg-white border border-slate-100 rounded-xl shadow-lg py-1.5 z-10 animate-in fade-in slide-in-from-top-1 duration-150"
+          >
+            <button 
+              @click.stop="handleEditClick" 
+              class="w-full text-left px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 flex items-center gap-2 cursor-pointer"
+            >
+               Modifier
+            </button>
+            <button 
+              @click.stop="triggerDeleteConfirmation" 
+              class="w-full text-left px-3 py-2 text-xs font-semibold text-red-600 hover:bg-red-50 flex items-center gap-2 cursor-pointer"
+            >
+               Supprimer
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
 
     <div class="px-5 pb-4 space-y-3">
@@ -192,6 +291,33 @@ const handleLikeToggle = async () => {
     <div v-if="showCommentaires">
       <AnnoncesCommentaires :annonceId="annonce.id" :annonceType="annonce.type" />
     </div>
-
+    <div v-if="showDeleteConfirm" class="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div class="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" @click="showDeleteConfirm = false"></div>
+      
+      <div class="bg-white rounded-2xl max-w-sm w-full p-6 shadow-xl border border-slate-100 relative z-10 animate-in fade-in zoom-in-95 duration-150">
+        
+        <h3 class="text-base font-bold text-slate-900 mb-1">
+          Supprimer la publication ?
+        </h3>
+        <p class="text-slate-500 text-sm mb-6 leading-relaxed">
+          Cette action est irréversible. Votre annonce sera définitivement retirée du fil d'actualité du campus.
+        </p>
+        
+        <div class="flex gap-3 justify-end">
+          <button 
+            @click="showDeleteConfirm = false" 
+            class="px-4 py-2 text-sm font-semibold text-slate-500 hover:bg-slate-50 rounded-xl transition cursor-pointer"
+          >
+            Annuler
+          </button>
+          <button 
+            @click="executeDelete" 
+            class="px-4 py-2 text-sm font-semibold text-white bg-red-600 hover:bg-red-700 shadow-sm shadow-red-200 rounded-xl transition cursor-pointer"
+          >
+            Confirmer
+          </button>
+        </div>
+      </div>
+    </div>
   </article>
 </template>

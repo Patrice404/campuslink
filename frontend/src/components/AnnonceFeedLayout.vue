@@ -24,13 +24,27 @@ const isSidebarOpen = ref(false)
 const isCreateModalOpen = ref(false)
 const annonces = ref<any[]>([])
 
+
 const page = ref(1)
 const hasMore = ref(true)
 const isLoading = ref(true)       
 const isLoadingMore = ref(false)   
 const errorMessage = ref<string | null>(null)
 
-// ⚡️ ÉTAPE 1 : Références vers le conteneur de scroll ET le déclencheur bas de page
+const annonceToEdit = ref<any | null>(null)
+/*
+* Gère l'événement d'édition d'une annonce.
+* Ouvre le modal de création avec les données de l'annonce à éditer.
+*/
+const handleEditAnnonce = (annonce: any) => {
+  annonceToEdit.value = annonce
+  isCreateModalOpen.value = true
+}
+
+
+
+
+// ÉTAPE 1 : Références vers le conteneur de scroll ET le déclencheur bas de page
 const scrollContainer = useTemplateRef<HTMLElement>('scrollContainer')
 const loadMoreTrigger = useTemplateRef<HTMLElement>('loadMoreTrigger')
 let observer: IntersectionObserver | null = null
@@ -110,11 +124,14 @@ const setupIntersectionObserver = () => {
   }
 }
 
+
 const handleModalClose = async () => {
   isCreateModalOpen.value = false
+  annonceToEdit.value = null 
   await fetchAnnonces(true)
-  setupIntersectionObserver() // On réactive proprement après un reset
+  setupIntersectionObserver()
 }
+
 
 // ÉTAPE 3 : L'ordre d'exécution synchrone/asynchrone est corrigé ici
 onMounted(async () => {
@@ -164,6 +181,8 @@ onUnmounted(() => {
             v-for="item in annonces" 
             :key="item.id" 
             :annonce="item" 
+            @deleted="fetchAnnonces(true)"
+            @edit="handleEditAnnonce"
           />
 
           <div ref="loadMoreTrigger" class="w-full py-4 flex justify-center items-center">
@@ -178,6 +197,7 @@ onUnmounted(() => {
 
     <CreatePostModal 
       :is-open="isCreateModalOpen" 
+      :annonce-to-edit="annonceToEdit"
       @close="handleModalClose" 
     />
   </div>
