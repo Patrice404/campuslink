@@ -3,7 +3,7 @@ import CampusSelectView from '../views/CampusSelectView.vue' // <-- Nouvelle pag
 import LoginView from '../views/LoginView.vue'
 import HomeView from '../views/HomeView.vue'
 import ProjectsView from '../views/ProjectsView.vue'
-import UsersView from J'../views/UsersView.vue'
+//import UsersView from '../views/UsersView.vue'
 
 const router = createRouter({
   history: createWebHistory(),

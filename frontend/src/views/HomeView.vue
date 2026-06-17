@@ -13,6 +13,7 @@ const annonces = ref<any[]>([]);
 const loading = ref(true);
 const error = ref("");
 const isRecherche = ref(false);
+const visibleCount = ref(10); // Gestion de la pagination "Afficher plus"
 
 const isMobileMenuOpen = ref(false)
 const isCreateModalOpen = ref(false)
@@ -30,7 +31,6 @@ const unreadCount = computed(() => {
 const fetchNotifications = async () => {
   if (!authStore.token) return
   try {
-    const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:3000"
     const response = await fetch(`${apiUrl}/api/notifications`, {
       method: 'GET',
       headers: { 
@@ -57,7 +57,6 @@ const toggleNotifDropdown = () => {
 // Marquer une alerte comme lue lors du clic
 const markAsRead = async (notifId: string) => {
   try {
-    const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:3000"
     const response = await fetch(`${apiUrl}/api/notifications/${notifId}/lire`, {
       method: 'PUT',
       headers: { 
@@ -76,10 +75,35 @@ const markAsRead = async (notifId: string) => {
 }
 // --- FIN INTEGRATION SYSTÈME NOTIFICATIONS ---
 
+// Barre de recherche et filtrage local des annonces
 const searchQuery = ref("");
 const filteredAnnonces = computed(() => {
   const query = searchQuery.value.toLowerCase().trim();
   if (!query) return annonces.value;
+
+  return annonces.value.filter(annonce => {
+    const searchableText = [
+      annonce.titre,
+      annonce.texte,
+      annonce.description,
+      annonce.type,
+      annonce.sousType,
+      annonce.auteur?.prenom,
+      annonce.auteur?.nom
+    ].filter(Boolean).join(" ").toLowerCase();
+
+    return searchableText.includes(query);
+  });
+});
+
+// Annonces découpées pour la pagination "Afficher plus"
+const displayedAnnonces = computed(() => {
+  return filteredAnnonces.value.slice(0, visibleCount.value);
+});
+
+const loadMore = () => {
+  visibleCount.value += 10;
+};
 
 // Normalise une annonce de l'API pour l'affichage (type visuel + auteur)
 const mapAnnonce = (a: any) => {
@@ -99,6 +123,7 @@ const headers = () => ({
   Accept: 'application/json',
 });
 
+// Fonction générique de chargement d'URL
 const charger = async (url: string) => {
   loading.value = true;
   error.value = "";
@@ -107,6 +132,7 @@ const charger = async (url: string) => {
     if (!response.ok) throw new Error(`Erreur HTTP : ${response.status}`);
     const rawData = await response.json();
     annonces.value = rawData.map(mapAnnonce);
+    visibleCount.value = 10; // Reset la pagination au rechargement
   } catch (err) {
     console.error("Détail de l'erreur API :", err);
     error.value = "Impossible de charger les annonces depuis le serveur.";
@@ -115,7 +141,13 @@ const charger = async (url: string) => {
   }
 };
 
-// Modification du hook de montage pour charger à la fois le fil et les notifications au départ
+// Charge le flux par défaut initial
+const fetchAnnonces = async () => {
+  isRecherche.value = false;
+  await charger(`${apiUrl}/api/annonces`);
+};
+
+// Chargement initial au montage du composant
 onMounted(() => {
   fetchAnnonces();
   fetchNotifications();
@@ -212,7 +244,7 @@ onMounted(() => {
 
           <section v-else class="space-y-4">
 
-            <div v-if="annonces.length === 0" class="text-center py-10 text-gray-500 bg-white rounded-xl shadow-sm border border-gray-100">
+            <div v-if="filteredAnnonces.length === 0" class="text-center py-10 text-gray-500 bg-white rounded-xl shadow-sm border border-gray-100">
               <p class="text-lg"> {{ isRecherche ? 'Aucune annonce ne correspond à ta recherche.' : 'Aucune annonce pour le moment.' }}</p>
             </div>
 
@@ -222,7 +254,7 @@ onMounted(() => {
               :annonce="item"
             />
 
-            <div v-if="visibleCount < annonces.length" class="text-center pt-4">
+            <div v-if="visibleCount < filteredAnnonces.length" class="text-center pt-4">
               <button
                 @click="loadMore"
                 class="inline-flex items-center gap-2 px-6 py-2.5 bg-white hover:bg-indigo-50 text-indigo-600 border border-gray-200 hover:border-indigo-300 font-bold text-sm rounded-xl transition shadow-sm cursor-pointer"
