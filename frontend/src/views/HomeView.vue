@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import SidebarNav from '../components/SidebarNav.vue'
 import TopNav from '../components/TopNav.vue'
 import CreatePostModal from '../components/CreatePostModal.vue'
@@ -16,6 +16,11 @@ const isRecherche = ref(false);
 
 const isMobileMenuOpen = ref(false)
 const isCreateModalOpen = ref(false)
+
+// Pagination : affichage progressif par lots de 5
+const visibleCount = ref(5);
+const displayedAnnonces = computed(() => annonces.value.slice(0, visibleCount.value));
+const loadMore = () => { visibleCount.value += 5; };
 
 // Normalise une annonce de l'API pour l'affichage (type visuel + auteur)
 const mapAnnonce = (a: any) => {
@@ -58,6 +63,7 @@ const fetchAnnonces = () => charger(`${apiUrl}/api/annonces`);
 const runSearch = (params: Record<string, string>) => {
   const keys = Object.keys(params);
   isRecherche.value = keys.length > 0;
+  visibleCount.value = 5; // on réinitialise la pagination à chaque recherche
   if (keys.length === 0) {
     fetchAnnonces();
     return;
@@ -72,22 +78,22 @@ onMounted(fetchAnnonces);
 
 <template>
   <div class="flex min-h-screen bg-gray-50">
-    
-    <SidebarNav 
-      :is-open="isMobileMenuOpen" 
-      @close="isMobileMenuOpen = false" 
+
+    <SidebarNav
+      :is-open="isMobileMenuOpen"
+      @close="isMobileMenuOpen = false"
     />
 
     <main class="flex-1 flex flex-col min-w-0">
-      
-      <TopNav 
-        @open-menu="isMobileMenuOpen = true" 
-        @open-create-modal="isCreateModalOpen = true" 
+
+      <TopNav
+        @open-menu="isMobileMenuOpen = true"
+        @open-create-modal="isCreateModalOpen = true"
       />
 
       <div class="flex-1 p-4 sm:p-6 overflow-y-auto">
         <div class="max-w-2xl mx-auto space-y-6">
-          
+
           <section class="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
             <SmartSearch @search="runSearch" />
           </section>
@@ -100,25 +106,38 @@ onMounted(fetchAnnonces);
           </div>
 
           <section v-else class="space-y-4">
-            
+
             <div v-if="annonces.length === 0" class="text-center py-10 text-gray-500 bg-white rounded-xl shadow-sm border border-gray-100">
-              <p class="text-lg">😕 {{ isRecherche ? 'Aucune annonce ne correspond à ta recherche.' : 'Aucune annonce pour le moment.' }}</p>
+              <p class="text-lg"> {{ isRecherche ? 'Aucune annonce ne correspond à ta recherche.' : 'Aucune annonce pour le moment.' }}</p>
             </div>
 
             <AnnonceCard
-              v-for="item in annonces"
+              v-for="item in displayedAnnonces"
               :key="item.id"
               :annonce="item"
             />
+
+            <div v-if="visibleCount < annonces.length" class="text-center pt-4">
+              <button
+                @click="loadMore"
+                class="inline-flex items-center gap-2 px-6 py-2.5 bg-white hover:bg-indigo-50 text-indigo-600 border border-gray-200 hover:border-indigo-300 font-bold text-sm rounded-xl transition shadow-sm cursor-pointer"
+              >
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+                </svg>
+                Afficher plus de publications
+              </button>
+            </div>
+
           </section>
 
         </div>
       </div>
     </main>
 
-    <CreatePostModal 
-      :is-open="isCreateModalOpen" 
-      @close="isCreateModalOpen = false" 
+    <CreatePostModal
+      :is-open="isCreateModalOpen"
+      @close="isCreateModalOpen = false"
       @post-created="fetchAnnonces"
     />
   </div>
