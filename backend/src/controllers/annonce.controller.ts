@@ -5,6 +5,7 @@ import { ANNONCE_CONFIG, AnnonceType, findAnnonceById } from '../lib/annonces';
 import { SousTypeBonPlan } from '@prisma/client'; 
 import fs from 'fs';
 import path from 'path';
+import { verifierContenuAvecIA } from '../services/moderation.service';
 
 const TYPES: AnnonceType[] = ['EXERCICE', 'BON_PLAN', 'TUTORAT', 'PROJET'];
 
@@ -215,6 +216,14 @@ export async function createExercice(req: Request, res: Response): Promise<void>
       res.status(400).json({ message: 'Champs requis manquants : description, annee, id_matiere' });
       return;
     }
+
+    const verdict = await verifierContenuAvecIA(description, undefined, lien);
+
+    if (verdict === 'REJECT') {
+      res.status(400).json({ message: "Votre annonce a été rejetée par le système de modération." });
+      return;
+    }
+ 
  
     const annonce = await prisma.annonceExercice.create({
       data: {
@@ -255,6 +264,14 @@ export async function createBonPlan(req: Request, res: Response): Promise<void> 
       res.status(400).json({ message: `sousType invalide. Valeurs autorisées : ${sousTypesAutorises.join(', ')}` });
       return;
     }
+
+    // Appel du service de modération automatique
+    const verdict = await verifierContenuAvecIA(description, titre, lien);
+
+    if (verdict === 'REJECT') {
+      res.status(400).json({ message: "Votre annonce a été rejetée par le système de modération." });
+      return;
+    }
  
     const annonce = await prisma.annonceBonPlan.create({
       data: {
@@ -289,6 +306,14 @@ export async function createTutorat(req: Request, res: Response): Promise<void> 
       res.status(400).json({
         message: 'Champs requis manquants : description, annee, id_matiere, nbCandidatsVoulus',
       });
+      return;
+    }
+
+    // Appel du service de modération automatique
+    const verdict = await verifierContenuAvecIA(description, undefined, lien);
+
+    if (verdict === 'REJECT') {
+      res.status(400).json({ message: "Votre annonce a été rejetée par le système de modération." });
       return;
     }
  
@@ -330,6 +355,14 @@ export async function createProjet(req: Request, res: Response): Promise<void> {
  
     if (!titre || !description) {
       res.status(400).json({ message: 'Champs requis manquants : titre, description' });
+      return;
+    }
+
+    // Appel du service de modération automatique
+    const verdict = await verifierContenuAvecIA(description, titre, lien);
+
+    if (verdict === 'REJECT') {
+      res.status(400).json({ message: "Votre annonce a été rejetée par le système de modération." });
       return;
     }
  
@@ -518,6 +551,14 @@ export async function modifierAnnonce(req: Request, res: Response): Promise<void
 
     if (type === 'bonplan') {
       if (req.body.sousType) data.sousType = req.body.sousType;
+    }
+
+    // Appel du service de modération automatique
+    const verdict = await verifierContenuAvecIA(data.description , data.titre, data.lien);
+
+    if (verdict === 'REJECT') {
+      res.status(400).json({ message: "Votre annonce a été rejetée par le système de modération." });
+      return;
     }
 
     // 3. Exécuter la mise à jour

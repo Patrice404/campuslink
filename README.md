@@ -72,3 +72,6 @@ docker compose exec backend npx prisma db seed
 TypeScript: Restart TS server
 
 npx prisma generate
+sudo usermod -aG docker $USER
+
+docker inspect --format '{{.State.Pid}}'

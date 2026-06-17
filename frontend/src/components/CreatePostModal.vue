@@ -172,20 +172,20 @@ const handleSubmit = async () => {
     })
 
     if (!response.ok) {
-      throw new Error(`Erreur ${response.status} lors de la publication`)
+      const errorData = await response.json().catch(() => ({}));
+      
+      // Si le backend a fourni un message (ex: "Votre annonce a été rejetée..."), on l'utilise.
+      // Sinon, on met un message d'erreur HTTP générique par défaut.
+      const messageErreur = errorData.message || `Erreur ${response.status} lors de la publication.`;
+      
+      throw new Error(messageErreur);
     }
 
     emit('close')
     resetForm()
 } catch (error: any) {
     console.error("Erreur complète :", error);
-    // Si l'erreur provient de notre Backend (ex: format invalide)
-    if (error.response && error.response.data && error.response.data.message) {
-      submitError.value = error.response.data.message;
-    } else {
-      // Erreur réseau ou autre
-      submitError.value = "Une erreur est survenue lors de la publication. Veuillez réessayer.";
-    }
+    submitError.value = error.message;
   } finally {
     isSubmitting.value = false
   }

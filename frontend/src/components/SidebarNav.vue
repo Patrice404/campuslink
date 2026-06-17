@@ -1,5 +1,9 @@
 <script setup lang="ts">
-import { RouterLink } from 'vue-router'
+import { RouterLink, useRouter } from 'vue-router' 
+import { useAuthStore } from '../stores/authStore'
+
+const router = useRouter()
+const authStore = useAuthStore()
 
 // On reçoit l'état d'ouverture depuis HomeView
 defineProps({
@@ -14,6 +18,9 @@ defineEmits(['close'])
 
 const handleLogout = () => {
   console.log("Déconnexion")
+  authStore.logout()
+  router.push('/')
+
 }
 </script>
 

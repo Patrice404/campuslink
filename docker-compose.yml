@@ -46,6 +46,7 @@ services:
       - campus_net
     depends_on:
       - database # Attendre que la DB soit prête avant de lancer l'API
+      
     volumes:
       - ./backend:/app
       - uploads_data:/app/uploads  
@@ -75,8 +76,18 @@ services:
       - /app/node_modules
       - /etc/localtime:/etc/localtime:ro
       - /etc/timezone:/etc/timezone:ro
-
+  ai-moderation:
+    image: ollama/ollama:latest
+    container_name: campuslink-ai
+    restart: unless-stopped
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama # Pour ne pas retélécharger le modèle à chaque redémarrage
+    networks:
+      - campus_net
 # Déclaration du volume persistant pour la base de données
 volumes:
   pg_data:
   uploads_data:
+  ollama_data:
