@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, watch } from 'vue'
+import { ref, onMounted, watch, computed } from 'vue'
 import BaseButton from './BaseButton.vue'
 import { useAuthStore } from '../stores/authStore'
 import type { Matiere } from '../types'
@@ -9,21 +9,28 @@ const matieresLoading = ref(true)
 const matieresError = ref<string | null>(null)
 
 const authStore = useAuthStore()
+const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:3000"
 
-defineProps({
+//  MODIFICATION : On ajoute la prop annonceToEdit
+const props = defineProps({
   isOpen: {
     type: Boolean,
     default: false
+  },
+  annonceToEdit: {
+    type: Object,
+    default: null
   }
 })
 
-// MODIFICATION 1 : On déclare l'événement 'post-created' pour que le parent puisse l'écouter
 const emit = defineEmits(['close', 'post-created'])
 
-// --- Variables du formulaire ---
+// ⚡️ CALCUL DU MODE UTILISATION
+const isEditMode = computed(() => !!props.annonceToEdit)
 
+// --- Variables du formulaire ---
 const typeAnnonce = ref('EXERCICE')
-const visibilite = ref('PUBLIQUE') // NOUVEAU : Visibilité par défaut
+const visibilite = ref('PUBLIQUE')
 
 // Communes
 const imageFile = ref<File | null>(null)
@@ -42,7 +49,8 @@ const handleFileChange = (event: Event) => {
   const file = target.files?.[0] ?? null
   imageFile.value = file
 
-  if (imagePreview.value) {
+  // Si on est en train de téléverser une nouvelle image, on révoque l'ancien aperçu local
+  if (imagePreview.value && !imagePreview.value.startsWith(apiUrl)) {
     URL.revokeObjectURL(imagePreview.value)
   }
   imagePreview.value = file ? URL.createObjectURL(file) : null
@@ -50,10 +58,11 @@ const handleFileChange = (event: Event) => {
 
 const removeImage = () => {
   imageFile.value = null
-  if (imagePreview.value) {
+  // On ne nettoie l'aperçu par URL que si c'était un fichier local temporaire
+  if (imagePreview.value && !imagePreview.value.startsWith(apiUrl)) {
     URL.revokeObjectURL(imagePreview.value)
-    imagePreview.value = null
   }
+  imagePreview.value = null
   if (fileInput.value) fileInput.value.value = ''
 }
 
@@ -77,6 +86,36 @@ const resetForm = () => {
   nbCandidatsVoulus.value = 1
 }
 
+//  OBSERVATEUR DYNAMIQUE : Remplit le formulaire si annonceToEdit est fourni
+watch(() => props.annonceToEdit, (newAnnonce) => {
+  if (newAnnonce) {
+    // Conversion sûre du type (Ex: AnnonceBonPlan -> BON_PLAN)
+    let cleanType = newAnnonce.type.replace('Annonce', '')
+    if (cleanType === 'BonPlan') cleanType = 'BON_PLAN'
+    typeAnnonce.value = cleanType.toUpperCase()
+
+    visibilite.value = newAnnonce.visibilite || 'PUBLIQUE'
+    description.value = newAnnonce.description || newAnnonce.texte || ''
+    lien.value = newAnnonce.lien || ''
+    titre.value = newAnnonce.titre || ''
+    annee.value = newAnnonce.annee || 'L1'
+    id_matiere.value = newAnnonce.id_matiere ? String(newAnnonce.id_matiere) : ''
+    sousType.value = newAnnonce.sousType || 'JOB_ETUDIANT'
+    nbCandidatsVoulus.value = newAnnonce.nbCandidatsVoulus || 1
+
+    // Gestion de l'image existante s'il y en a une sur la BDD
+    const existingFile = newAnnonce.image || newAnnonce.photo
+    if (existingFile) {
+      imagePreview.value = `${apiUrl}/uploads/${existingFile}`
+    } else {
+      imagePreview.value = null
+    }
+    imageFile.value = null
+  } else {
+    resetForm()
+  }
+}, { immediate: true })
+
 // État de la soumission
 const isSubmitting = ref(false)
 const submitError = ref<string | null>(null)
@@ -88,14 +127,10 @@ const ENDPOINTS: Record<string, string> = {
   PROJET: 'projet',
 }
 
-// NOUVEAU : Récupération des matières filtrées par la formation de l'utilisateur
 const fetchMatieres = async () => {
   matieresLoading.value = true
   matieresError.value = null
   try {
-    const apiUrl = import.meta.env.VITE_API_URL || ''
-    
-    // On passe l'id_formation en paramètre de requête si l'utilisateur en a un
     const formationId = authStore.user?.id_formation
     const url = formationId 
       ? `${apiUrl}/api/matieres?formationId=${formationId}` 
@@ -114,10 +149,8 @@ const fetchMatieres = async () => {
     const data: Matiere[] = await response.json()
     matieres.value = data
  
-    if (data.length > 0) {
+    if (data.length > 0 && !isEditMode.value) {
       id_matiere.value = String(data[0].id)
-    } else {
-      id_matiere.value = ''
     }
   } catch (error) {
     console.error('Erreur lors de la récupération des matières :', error)
@@ -131,15 +164,18 @@ const handleSubmit = async () => {
   submitError.value = null
   const formData = new FormData()
 
-  // Champs communs à toutes les annonces
+  // Si l'utilisateur charge un nouveau fichier, on l'envoie
   if (imageFile.value) formData.append('image', imageFile.value)
-  if (lien.value) formData.append('lien', lien.value)
   
-  // Ces champs sont communs à toutes les annonces
+  // ⚡️ STRATÉGIE SI IMAGE SUPPRIMÉE : On signale au serveur si l'image pré-existante a été retirée
+  if (isEditMode.value && !imagePreview.value) {
+    formData.append('deleteImage', 'true')
+  }
+
+  if (lien.value) formData.append('lien', lien.value)
   formData.append('description', description.value)
   formData.append('visibilite', visibilite.value) 
 
-  // Champs spécifiques
   switch (typeAnnonce.value) {
     case 'EXERCICE':
       formData.append('annee', annee.value)
@@ -160,12 +196,18 @@ const handleSubmit = async () => {
   }
 
   const endpoint = ENDPOINTS[typeAnnonce.value]
-  const apiUrl = import.meta.env.VITE_API_URL || ''
+  
+  // ⚡️ ADAPTATION DYNAMIQUE DE LA ROUTE REST
+  const targetUrl = isEditMode.value
+    ? `${apiUrl}/api/annonces/${endpoint}/${props.annonceToEdit.id}`
+    : `${apiUrl}/api/annonces/${endpoint}`
+
+  const targetMethod = isEditMode.value ? 'PUT' : 'POST'
 
   isSubmitting.value = true
   try {
-    const response = await fetch(`${apiUrl}/api/annonces/${endpoint}`, {
-      method: 'POST',
+    const response = await fetch(targetUrl, {
+      method: targetMethod,
       headers: {
         ...(authStore.token ? { Authorization: `Bearer ${authStore.token}` } : {}),
       },
@@ -174,11 +216,10 @@ const handleSubmit = async () => {
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      const messageErreur = errorData.message || `Erreur ${response.status} lors de la publication.`;
+      const messageErreur = errorData.message || "Une erreur est survenue lors de l'enregistrement.";
       throw new Error(messageErreur);
     }
 
-    // ✨ MODIFICATION 2 : On émet l'événement juste avant de fermer, pour rafraîchir l'accueil en arrière-plan !
     emit('post-created')
     emit('close')
     resetForm()
@@ -202,7 +243,10 @@ onMounted(() => {
     <div class="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh]">
       
       <div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-gray-50">
-        <h3 class="text-lg font-bold text-gray-900">Créer une publication</h3>
+        <!--  TITRE DYNAMIQUE -->
+        <h3 class="text-lg font-bold text-gray-900">
+          {{ isEditMode ? 'Modifier la publication' : 'Créer une publication' }}
+        </h3>
         <button @click="$emit('close')" class="text-gray-400 hover:text-gray-600 transition-colors">
           <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
             <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -216,7 +260,8 @@ onMounted(() => {
           <div class="flex gap-4">
             <div class="flex-1">
               <label class="block text-sm font-medium text-gray-700 mb-1">Type de publication</label>
-              <select v-model="typeAnnonce" class="w-full py-2.5 px-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-secondary focus:border-secondary outline-none bg-white">
+              <!--  DÉSACTIVÉ EN MODE ÉDITION (Sécurité intégrité BDD) -->
+              <select :disabled="isEditMode" v-model="typeAnnonce" class="w-full py-2.5 px-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-secondary focus:border-secondary outline-none bg-white disabled:bg-gray-100 disabled:text-gray-500">
                 <option value="EXERCICE">Aide & Exercices</option>
                 <option value="BON_PLAN">Bon Plan</option>
                 <option value="TUTORAT">Tutorat</option>
@@ -325,11 +370,12 @@ onMounted(() => {
 
       <div class="px-6 py-4 border-t border-gray-100 bg-white">
         <p v-if="submitError" class="text-sm text-red-600 mb-2">{{ submitError }}</p>
+        <!-- LIBELLÉ BOUTON DYNAMIQUE -->
         <BaseButton form="postForm" type="submit" variant="primary" :disabled="isSubmitting">
-          {{ isSubmitting ? 'Publication en cours...' : 'Publier' }}
+          {{ isSubmitting ? 'Enregistrement...' : (isEditMode ? 'Enregistrer les modifications' : 'Publier') }}
         </BaseButton>
       </div>
 
     </div>
   </div>
-</template>
+</template> 
