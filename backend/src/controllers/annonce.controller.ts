@@ -9,6 +9,89 @@ import { verifierContenuAvecIA } from '../services/moderation.service';
 
 const TYPES: AnnonceType[] = ['EXERCICE', 'BON_PLAN', 'TUTORAT', 'PROJET'];
 
+// GET /recherche : recherche à tags
+// Filtres (query) : type, matiere, annee, auteur, has(image|lien), avant, apres, q (texte libre)
+// Exemple : /api/annonces/recherche?type=exercice&matiere=Algo&annee=L1&q=récursivité
+export async function recherche(req: Request, res: Response): Promise<void> {
+  try {
+    const { type, matiere, annee, auteur, has, date, avant, apres, q } = req.query as Record<
+      string,
+      string | undefined
+    >;
+
+    // Filtres communs à tous les types d'annonce
+    const base: any = {};
+    if (auteur) {
+      base.utilisateur = {
+        OR: [
+          { nom: { contains: auteur, mode: 'insensitive' } },
+          { prenom: { contains: auteur, mode: 'insensitive' } },
+        ],
+      };
+    }
+    if (has === 'image') base.image = { not: null };
+    if (has === 'lien') base.lien = { not: null };
+    if (date) {
+      // Jour précis : du début du jour au début du lendemain
+      const debut = new Date(date);
+      const lendemain = new Date(debut);
+      lendemain.setDate(lendemain.getDate() + 1);
+      base.datePublication = { gte: debut, lt: lendemain };
+    } else if (avant || apres) {
+      base.datePublication = {};
+      if (apres) base.datePublication.gte = new Date(apres);
+      if (avant) base.datePublication.lte = new Date(avant);
+    }
+
+    const typeMap: Record<string, AnnonceType> = {
+      exercice: 'EXERCICE',
+      bonplan: 'BON_PLAN',
+      tutorat: 'TUTORAT',
+      projet: 'PROJET',
+    };
+    const typeKey = type ? typeMap[type.toLowerCase()] : undefined;
+    // matiere & annee n'existent que sur Exercice et Tutorat
+    const filtreMatiereOuAnnee = !!(matiere || annee);
+
+    // where pour les tables qui ont matiere/annee (Exercice, Tutorat)
+    const whereMat: any = { ...base };
+    if (annee) whereMat.annee = annee;
+    if (matiere) whereMat.matiere = { titre: { contains: matiere, mode: 'insensitive' } };
+    if (q) whereMat.description = { contains: q, mode: 'insensitive' };
+
+    // where pour les tables qui ont un titre (BonPlan, Projet)
+    const whereTitre: any = { ...base };
+    if (q) {
+      whereTitre.OR = [
+        { titre: { contains: q, mode: 'insensitive' } },
+        { description: { contains: q, mode: 'insensitive' } },
+      ];
+    }
+
+    const auteurSelect = { select: { id: true, nom: true, prenom: true, photoProfil: true } };
+    const incMat = { utilisateur: auteurSelect, matiere: true };
+    const inc = { utilisateur: auteurSelect };
+
+    const tasks: Promise<any[]>[] = [];
+    if (!typeKey || typeKey === 'EXERCICE')
+      tasks.push(prisma.annonceExercice.findMany({ where: whereMat, include: incMat }));
+    if (!typeKey || typeKey === 'TUTORAT')
+      tasks.push(prisma.annonceTutorat.findMany({ where: whereMat, include: incMat }));
+    if ((!typeKey || typeKey === 'BON_PLAN') && !filtreMatiereOuAnnee)
+      tasks.push(prisma.annonceBonPlan.findMany({ where: whereTitre, include: inc }));
+    if ((!typeKey || typeKey === 'PROJET') && !filtreMatiereOuAnnee)
+      tasks.push(prisma.annonceProjet.findMany({ where: whereTitre, include: inc }));
+
+    const resultats = (await Promise.all(tasks)).flat();
+    resultats.sort((a, b) => b.datePublication.getTime() - a.datePublication.getTime());
+
+    res.json(toJSON(resultats));
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Erreur serveur' });
+  }
+}
+
 // GET / : liste toutes les annonces (les 4 types fusionnés, plus récentes d'abord)
 /*export async function lister(req: Request, res: Response): Promise<void> {
   try {

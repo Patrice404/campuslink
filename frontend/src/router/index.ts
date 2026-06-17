@@ -3,11 +3,11 @@ import CampusSelectView from '../views/CampusSelectView.vue' // <-- Nouvelle pag
 import LoginView from '../views/LoginView.vue'
 import HomeView from '../views/HomeView.vue'
 import ProjectsView from '../views/ProjectsView.vue'
-import RegisterView from '../views/RegisterView.vue' 
+import RegisterView from '../views/RegisterView.vue'
 import ProfileView from '../views/ProfileView.vue'
 import EntraideView from '../views/EntraideView.vue'
 import CampusView from '../views/CampusView.vue'
-
+import OpportunitesView from '../views/OpportunitesView.vue'
 
 const router = createRouter({
   history: createWebHistory(),
@@ -17,7 +17,7 @@ const router = createRouter({
       path: '/',
       name: 'campus-select',
       component: CampusSelectView,
-      meta: { hideNavbar: true } 
+      meta: { hideNavbar: true }
     },
     // 2. La page de connexion
     {
@@ -43,9 +43,9 @@ const router = createRouter({
       name: 'projects',
       component: ProjectsView
     },
-    // La page profile utilisateur
+    // La page profile utilisateur (id optionnel pour consulter un autre profil)
     {
-      path: '/profil/:id?', // <-- 'profil' en FR, et ajout de '/:id?'
+      path: '/profil/:id?',
       name: 'profil',
       component: ProfileView
     },
@@ -53,14 +53,19 @@ const router = createRouter({
     {
       path: '/entraide',
       name: 'entraide',
-      component: EntraideView,
-      // Optionnel : meta: { requiresAuth: true } si tu as un guard de connexion
+      component: EntraideView
     },
     {
       path: '/campus',
       name: 'campus',
       component: CampusView
     },
+    {
+      path: '/opportunites',
+      name: 'opportunites',
+      component: OpportunitesView
+    },
   ]
 })
+
 export default router

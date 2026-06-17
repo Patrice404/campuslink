@@ -6,6 +6,7 @@ import { ANNONCE_CONFIG, AnnonceType, findAnnonceById } from '../lib/annonces';
 export async function toggle(req: Request, res: Response): Promise<void> {
   try {
     const type = req.query.type as AnnonceType | undefined;
+    console.log("Type d'annonce reçu :", type);
     const found = await findAnnonceById(BigInt(req.params.id), type);
     if (!found) {
       res.status(404).json({ message: 'Annonce introuvable' });

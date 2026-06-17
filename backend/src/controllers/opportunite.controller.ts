@@ -7,7 +7,7 @@ const LEVEL_RANKS: Record<string, number> = {
   '1A': 1, '2A': 2, '3A': 3, '4A': 4, '5A': 5
 };
 
-export const getCampusAnnonces = async (req: Request, res: Response): Promise<void> => {
+export const getOpportunites = async (req: Request, res: Response): Promise<void> => {
   try {
     const idConnected = req.utilisateur ? BigInt(req.utilisateur.id) : null;
     const idConnectedStr = req.utilisateur ? String(req.utilisateur.id) : null;
@@ -57,12 +57,12 @@ export const getCampusAnnonces = async (req: Request, res: Response): Promise<vo
       }
     }
 
-    // 2. Application de la condition croisée (Sécurité + Catégories Vie Campus)
+   // 2. Application de la condition croisée (Sécurité + Restriction de catégories)
     const condition = {
       id_utilisateur: { notIn: excludedUserIds },
       
-      // 🛠️ LA CORRECTION : On ajoute "as any" pour valider l'Enum Prisma
-      sousType: { in: ['FETE', 'EVENEMENT', 'HACKATHON'] as any }, 
+      // 🛠️ LA CORRECTION : On ajoute également "as any" ici
+      sousType: { notIn: ['FETE', 'EVENEMENT', 'HACKATHON'] as any }, 
       
       OR: [
         ...(idConnected ? [{ id_utilisateur: idConnected }] : []),
@@ -82,24 +82,24 @@ export const getCampusAnnonces = async (req: Request, res: Response): Promise<vo
       ]
     };
 
-    const bonsPlans = await prisma.annonceBonPlan.findMany({
+    const opportunites = await prisma.annonceBonPlan.findMany({
       where: condition,
       include: {
-        utilisateur: true // Utilisation de l'inclusion globale recommandée pour éviter les bugs d'affichage
+        utilisateur: true
       },
       orderBy: {
         datePublication: 'desc'
       }
     });
 
-    const formatAnnonces = bonsPlans.map(bp => ({
-      ...bp,
-      nbJaime: bp.nbJaime || 0
+    const formatAnnonces = opportunites.map(op => ({
+      ...op,
+      nbJaime: op.nbJaime || 0
     }));
 
     res.status(200).json(toJSON(formatAnnonces));
   } catch (error) {
-    console.error("Erreur lors de la récupération des annonces campus :", error);
-    res.status(500).json({ error: "Une erreur est survenue lors de la récupération des actualités du campus." });
+    console.error("Erreur lors de la récupération des opportunités :", error);
+    res.status(500).json({ error: "Une erreur est survenue lors de la récupération des opportunités." });
   }
 };
