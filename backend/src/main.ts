@@ -56,7 +56,7 @@ app.use('/api/commentaires', commentaireRoutes);
 app.use('/api/entraide', entraideRoutes);
 app.use('/api/campus-vie', campusVieRoutes);
 app.use('/api', academiqueRoutes);
-
+app.use('/api/notifications', notificationRoutes);
 // Routes à brancher une fois leurs controllers implémentés :
 //app.use('/api/candidatures', candidatureRoutes);
 //app.use('/api/notifications', notificationRoutes);
