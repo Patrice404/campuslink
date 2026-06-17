@@ -230,6 +230,11 @@ model Commentaire {
   tutorat        AnnonceTutorat?  @relation(fields: [id_tutorat], references: [id], onDelete: Cascade)
   id_projet      BigInt?
   projet         AnnonceProjet?   @relation(fields: [id_projet], references: [id], onDelete: Cascade)
+
+  // Réponses (threads façon Instagram) : un commentaire peut répondre à un autre
+  id_parent      BigInt?
+  parent         Commentaire?     @relation("Reponses", fields: [id_parent], references: [id], onDelete: Cascade)
+  reponses       Commentaire[]    @relation("Reponses")
 }
 
 model Jaime {

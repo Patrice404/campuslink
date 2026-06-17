@@ -147,6 +147,18 @@ const fetchAnnonces = async () => {
   await charger(`${apiUrl}/api/annonces`);
 };
 
+// Recherche à tags (émise par SmartSearch) : interroge l'endpoint backend
+const runSearch = (params: Record<string, string>) => {
+  const keys = Object.keys(params);
+  isRecherche.value = keys.length > 0;
+  if (keys.length === 0) {
+    fetchAnnonces();
+    return;
+  }
+  const qs = new URLSearchParams(params).toString();
+  charger(`${apiUrl}/api/annonces/recherche?${qs}`);
+};
+
 // Chargement initial au montage du composant
 onMounted(() => {
   fetchAnnonces();
@@ -173,17 +185,8 @@ onMounted(() => {
         <div class="max-w-2xl mx-auto space-y-6">
           
           <section class="bg-white rounded-xl shadow-sm p-4 border border-gray-100 flex items-center gap-3">
-            <div class="relative flex-1">
-              <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <svg class="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                  <path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd"/>
-                </svg>
-              </div>
-              <input 
-                v-model="searchQuery"
-                type="search" 
-                class="w-full bg-gray-50 rounded-lg pl-10 pr-4 py-3 border border-transparent focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition outline-none" 
-                placeholder="Rechercher par mots-clés, auteur, catégorie...">
+            <div class="flex-1">
+              <SmartSearch @search="runSearch" />
             </div>
 
             <div class="relative shrink-0">
