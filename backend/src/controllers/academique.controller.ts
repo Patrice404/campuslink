@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { prisma } from '../lib/prismaClient';
 import { toJSON } from '../lib/serialize';
 
+// GET /api/campus/:campusId/departements
 export async function getDepartementsByCampus(req: Request, res: Response): Promise<void> {
   try {
     const campusId = BigInt(req.params.campusId);
@@ -17,6 +18,7 @@ export async function getDepartementsByCampus(req: Request, res: Response): Prom
   }
 }
 
+// GET /api/departements/:departementId/formations
 export async function getFormationsByDepartement(req: Request, res: Response): Promise<void> {
   try {
     const departementId = BigInt(req.params.departementId);

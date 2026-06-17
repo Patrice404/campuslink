@@ -60,11 +60,11 @@ router.get('/:id/commentaires', auth, listerParAnnonce);
 
 //Ancien code (avant la refonte pour les types d'annonces spécifiques)
 // ordre important : /mes avant /:id pour éviter que "mes" soit capturé comme id
-router.get('/', lister);
-router.get('/mes', auth, mesAnnonces);
-router.get('/:id', detail);
-router.post('/', auth, upload.single('image'), creer);
-router.put('/:id', auth, upload.single('image'), modifier);
-router.delete('/:id', auth, supprimer);
-router.post('/:id/jaime', auth, toggle);
+//router.get('/', lister);
+//router.get('/mes', auth, mesAnnonces);
+//router.get('/:id', detail);
+///router.post('/', auth, upload.single('image'), creer);
+//router.put('/:id', auth, upload.single('image'), modifier);
+//router.delete('/:id', auth, supprimer);
+//router.post('/:id/jaime', auth, toggle);
 export default router;
