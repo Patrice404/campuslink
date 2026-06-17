@@ -14,11 +14,19 @@ export async function listerParAnnonce(req: Request, res: Response): Promise<voi
     }
 
     const fk = ANNONCE_CONFIG[found.type].fk; // ex: id_exercice
+    const auteurSelect = { select: { id: true, nom: true, prenom: true, photoProfil: true } };
+
+    // On ne récupère que les commentaires racine (id_parent = null) ;
+    // leurs réponses sont imbriquées dans `reponses` (plus anciennes d'abord).
     const commentaires = await prisma.commentaire.findMany({
-      where: { [fk]: found.record.id },
+      where: { [fk]: found.record.id, id_parent: null },
       orderBy: { dateCreation: 'desc' },
       include: {
-        utilisateur: { select: { id: true, nom: true, prenom: true, photoProfil: true } },
+        utilisateur: auteurSelect,
+        reponses: {
+          orderBy: { dateCreation: 'asc' },
+          include: { utilisateur: auteurSelect },
+        },
       },
     });
 
@@ -121,10 +129,10 @@ export async function listerParAnnonce(req: Request, res: Response): Promise<voi
   }
 }*/
 
-// POST / : ajoute un commentaire sur une annonce + GESTION MENTIONS TEXTUELLES (@Prenomnom)
+// POST / : ajoute un commentaire (ou une réponse via id_parent) + GESTION MENTIONS TEXTUELLES
 export async function creer(req: Request, res: Response): Promise<void> {
   try {
-    const { texte, type, id_annonce } = req.body;
+    const { texte, type, id_annonce, id_parent } = req.body;
     if (!texte || !type || !id_annonce) {
       res.status(400).json({ message: 'texte, type et id_annonce sont requis' });
       return;
@@ -140,16 +148,28 @@ export async function creer(req: Request, res: Response): Promise<void> {
     }
 
     const fk = ANNONCE_CONFIG[found.type].fk;
-    
-    // 1. Création du commentaire
+
+    // Si c'est une réponse, on vérifie que le commentaire parent existe
+    let parentId: bigint | undefined;
+    if (id_parent) {
+      const parent = await prisma.commentaire.findUnique({ where: { id: BigInt(id_parent) } });
+      if (!parent) {
+        res.status(404).json({ message: 'Commentaire parent introuvable' });
+        return;
+      }
+      parentId = parent.id;
+    }
+
+    // 1. Création du commentaire (ou de la réponse)
     const commentaire = await prisma.commentaire.create({
-      data: { 
-        texte, 
-        id_utilisateur: auteurIdBigInt, 
-        [fk]: found.record.id 
+      data: {
+        texte,
+        id_utilisateur: auteurIdBigInt,
+        [fk]: found.record.id,
+        ...(parentId ? { id_parent: parentId } : {}),
       },
       include: {
-        utilisateur: { select: { nom: true, prenom: true } }
+        utilisateur: { select: { id: true, nom: true, prenom: true, photoProfil: true } }
       }
     });
 
