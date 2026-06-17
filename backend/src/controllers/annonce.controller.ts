@@ -10,9 +10,9 @@ import { verifierContenuAvecIA } from '../services/moderation.service';
 const TYPES: AnnonceType[] = ['EXERCICE', 'BON_PLAN', 'TUTORAT', 'PROJET'];
 
 // GET / : liste toutes les annonces (les 4 types fusionnés, plus récentes d'abord)
-export async function lister(req: Request, res: Response): Promise<void> {
+/*export async function lister(req: Request, res: Response): Promise<void> {
   try {
-    // On regarde si l'utilisateur est connecté (le middleware auth n'est pas obligatoire sur le GET global mais permet de récupérer le req.utilisateur si présent)
+    // On regarde si l'utilisateur est connecté
     const idConnected = req.utilisateur ? BigInt(req.utilisateur.id) : null;
     
     let blockedUserIds: bigint[] = [];
@@ -39,33 +39,151 @@ export async function lister(req: Request, res: Response): Promise<void> {
       id_utilisateur: { notIn: blockedUserIds }
     };
 
-   
+    // ✨ AJOUT : On inclut les relations jaimes et commentaires pour calculer l'état réel
     const [exercices, bonsPlans, tutorats, projets] = await Promise.all([
-      // ✨ AJOUT : include utilisateur ET matiere
-      prisma.annonceExercice.findMany({ where: condition, include: { utilisateur: true, matiere: true } }), 
-      prisma.annonceBonPlan.findMany({ where: condition, include: { utilisateur: true } }),
-      // ✨ AJOUT : include utilisateur ET matiere
-      prisma.annonceTutorat.findMany({ where: condition, include: { utilisateur: true, matiere: true } }), 
-      prisma.annonceProjet.findMany({ where: condition, include: { utilisateur: true } }),
+      prisma.annonceExercice.findMany({ 
+        where: condition, 
+        include: { utilisateur: true, matiere: true, jaimes: true, commentaires: true } 
+      }), 
+      prisma.annonceBonPlan.findMany({ 
+        where: condition, 
+        include: { utilisateur: true, jaimes: true, commentaires: true } 
+      }),
+      prisma.annonceTutorat.findMany({ 
+        where: condition, 
+        include: { utilisateur: true, matiere: true, jaimes: true, commentaires: true } 
+      }), 
+      prisma.annonceProjet.findMany({ 
+        where: condition, 
+        include: { utilisateur: true, jaimes: true, commentaires: true } 
+      }),
     ]);
 
-    let toutes = [...exercices, ...bonsPlans, ...tutorats, ...projets];
+    let toutesRaw = [...exercices, ...bonsPlans, ...tutorats, ...projets];
 
     // 3. Filtrer en fonction des préférences de l'utilisateur (si définies)
     if (preferences.length > 0) {
-      toutes = toutes.filter(annonce => {
+      toutesRaw = toutesRaw.filter(annonce => {
         if (annonce.type === 'PROJET' && preferences.includes('PROJET')) return true;
         if (annonce.type === 'EXERCICE' && preferences.includes('EXERCICE')) return true;
         if (annonce.type === 'BON_PLAN' && preferences.includes('BON_PLAN')) return true;
-        // Si l'utilisateur aime l'ENTRAIDE ou la MATIERE, on lui propose le TUTORAT
         if (annonce.type === 'TUTORAT' && (preferences.includes('ENTRAIDE') || preferences.includes('MATIERE'))) return true;
         return false;
       });
     }
 
+    // ✨ AJOUT : On mappe les annonces pour injecter 'isLikedByMe' et 'nbCommentaires' requis par le Front
+    const toutes = toutesRaw.map((annonce: any) => {
+      const jaimesArray = annonce.jaimes || [];
+      const commentairesArray = annonce.commentaires || [];
+      
+      return {
+        ...annonce,
+        // On calcule si l'utilisateur connecté a aimé l'annonce
+        isLikedByMe: idConnected 
+          ? jaimesArray.some((j: any) => j.id_utilisateur === idConnected) 
+          : false,
+        // On renvoie la longueur exacte du tableau des commentaires
+        nbCommentaires: commentairesArray.length
+      };
+    });
+
     // Tri par date décroissante
     toutes.sort((a, b) => b.datePublication.getTime() - a.datePublication.getTime());
 
+    res.json(toJSON(toutes));
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Erreur serveur' });
+  }
+}*/
+
+// GET / : liste toutes les annonces (les 4 types fusionnés, plus récentes d'abord)
+export async function lister(req: Request, res: Response): Promise<void> {
+  try {
+    // On regarde si l'utilisateur est connecté
+    const idConnected = req.utilisateur ? BigInt(req.utilisateur.id) : null;
+    const idConnectedStr = req.utilisateur ? String(req.utilisateur.id) : null;
+    
+    let blockedUserIds: bigint[] = [];
+    let preferences: string[] = [];
+
+    if (idConnected) {
+      // 1. Récupérer la liste des IDs des personnes bloquées par l'utilisateur
+      const blocages = await prisma.blocage.findMany({
+        where: { id_utilisateur_bloquant: idConnected },
+        select: { id_utilisateur_bloque: true }
+      });
+      blockedUserIds = blocages.map(b => b.id_utilisateur_bloque);
+
+      // 2. Récupérer les préférences (centres d'intérêt) de l'utilisateur
+      const user = await prisma.utilisateur.findUnique({
+        where: { id: idConnected },
+        select: { centresInteret: true }
+      });
+      preferences = user?.centresInteret || [];
+    }
+
+    // Filtre de base : Exclure les annonces des utilisateurs bloqués
+    const condition = {
+      id_utilisateur: { notIn: blockedUserIds }
+    };
+
+    // On inclut obligatoirement les relations jaimes et commentaires pour calculer l'état réel
+    const [exercices, bonsPlans, tutorats, projets] = await Promise.all([
+      prisma.annonceExercice.findMany({ 
+        where: condition, 
+        include: { utilisateur: true, matiere: true, jaimes: true, commentaires: true } 
+      }), 
+      prisma.annonceBonPlan.findMany({ 
+        where: condition, 
+        include: { utilisateur: true, jaimes: true, commentaires: true } 
+      }),
+      prisma.annonceTutorat.findMany({ 
+        where: condition, 
+        include: { utilisateur: true, matiere: true, jaimes: true, commentaires: true } 
+      }), 
+      prisma.annonceProjet.findMany({ 
+        where: condition, 
+        include: { utilisateur: true, jaimes: true, commentaires: true } 
+      }),
+    ]);
+
+    let toutesRaw = [...exercices, ...bonsPlans, ...tutorats, ...projets];
+
+    // 3. Filtrer en fonction des préférences de l'utilisateur (si définies)
+    if (preferences.length > 0) {
+      toutesRaw = toutesRaw.filter(annonce => {
+        if (annonce.type === 'PROJET' && preferences.includes('PROJET')) return true;
+        if (annonce.type === 'EXERCICE' && preferences.includes('EXERCICE')) return true;
+        if (annonce.type === 'BON_PLAN' && preferences.includes('BON_PLAN')) return true;
+        if (annonce.type === 'TUTORAT' && (preferences.includes('ENTRAIDE') || preferences.includes('MATIERE'))) return true;
+        return false;
+      });
+    }
+
+    // On mappe les annonces pour injecter 'isLikedByMe' et 'nbCommentaires' requis par le Front
+    // ATTENTION : Conversion de id_utilisateur en String pour valider fidèlement la comparaison BigInt
+    const toutes = toutesRaw.map((annonce: any) => {
+      const jaimesArray = annonce.jaimes || [];
+      const commentairesArray = annonce.commentaires || [];
+      
+      // Sécurisation de la comparaison BigInt en passant par le type String
+      const isLikedByMe = idConnectedStr 
+        ? jaimesArray.some((j: any) => String(j.id_utilisateur) === idConnectedStr) 
+        : false;
+
+      return {
+        ...annonce,
+        isLikedByMe,
+        nbCommentaires: commentairesArray.length
+      };
+    });
+
+    // Tri par date décroissante
+    toutes.sort((a, b) => b.datePublication.getTime() - a.datePublication.getTime());
+
+    // Envoi au sérialiseur d'origine pour préserver le traitement des images
     res.json(toJSON(toutes));
   } catch (err) {
     console.error(err);
@@ -243,7 +361,6 @@ export async function createExercice(req: Request, res: Response): Promise<void>
       return;
     }
  
- 
     const annonce = await prisma.annonceExercice.create({
       data: {
         description,
@@ -284,7 +401,6 @@ export async function createBonPlan(req: Request, res: Response): Promise<void> 
       return;
     }
 
-    // Appel du service de modération automatique
     const verdict = await verifierContenuAvecIA(description, titre, lien);
 
     if (verdict === 'REJECT') {
@@ -328,7 +444,6 @@ export async function createTutorat(req: Request, res: Response): Promise<void> 
       return;
     }
 
-    // Appel du service de modération automatique
     const verdict = await verifierContenuAvecIA(description, undefined, lien);
 
     if (verdict === 'REJECT') {
@@ -377,7 +492,6 @@ export async function createProjet(req: Request, res: Response): Promise<void> {
       return;
     }
 
-    // Appel du service de modération automatique
     const verdict = await verifierContenuAvecIA(description, titre, lien);
 
     if (verdict === 'REJECT') {
@@ -404,27 +518,23 @@ export async function createProjet(req: Request, res: Response): Promise<void> {
 }
  
 //---------------------------------------------------------------------
-// DELETE /api/annonces/:type/:id : supprime une annonce selon son type (l'auteur uniquement)
+// DELETE /api/annonces/:type/:id
 //---------------------------------------------------------------------
-
-
 export async function supprimerAnnonce(req: Request, res: Response): Promise<void> {
   try {
     const { type, id } = req.params;
     
-    // Vérification de sécurité pour éviter que BigInt() ne plante sur des lettres
     if (isNaN(Number(id))) {
       res.status(400).json({ message: "L'ID fourni est invalide." });
       return;
     }
 
     const idAnnonce = BigInt(id);
-    const idUtilisateur = BigInt(req.utilisateur!.id); // On suppose que auth peuple req.utilisateur
+    const idUtilisateur = BigInt(req.utilisateur!.id);
 
     let annonce;
     let actionSuppression;
 
-    // 1. Déterminer la cible selon le paramètre URL (:type)
     switch (type.toLowerCase()) {
       case 'exercice':
         annonce = await prisma.annonceExercice.findUnique({ where: { id: idAnnonce } });
@@ -447,35 +557,28 @@ export async function supprimerAnnonce(req: Request, res: Response): Promise<voi
         return;
     }
 
-    // 2. Vérifier si l'annonce existe
     if (!annonce) {
       res.status(404).json({ message: "Annonce introuvable." });
       return;
     }
 
-    // 3. Vérifier les permissions (Seul l'auteur peut la supprimer)
     if (annonce.id_utilisateur !== idUtilisateur) {
       res.status(403).json({ message: "Action non autorisée. Vous n'êtes pas l'auteur de cette publication." });
       return;
     }
 
-    // 4. Nettoyage du disque : Supprimer l'image associée si elle existe
     if (annonce.image) {
       const imagePath = path.join(process.cwd(), 'uploads', annonce.image);
-      // fs.existsSync vérifie que le fichier est bien là avant d'essayer de le supprimer
       if (fs.existsSync(imagePath)) {
         try {
-          fs.unlinkSync(imagePath); // Suppression physique du fichier
+          fs.unlinkSync(imagePath);
         } catch (fileErr) {
           console.error(`Impossible de supprimer l'image physique : ${imagePath}`, fileErr);
-          // On ne bloque pas la suppression en BDD si l'image physique a un problème
         }
       }
     }
 
-    // 5. Suppression en base de données
     await actionSuppression();
-
     res.status(200).json({ message: "Publication supprimée avec succès." });
 
   } catch (error) {
@@ -484,7 +587,7 @@ export async function supprimerAnnonce(req: Request, res: Response): Promise<voi
   }
 }
 
-// Fonction utilitaire pour éviter la répétition de la conversion BigInt -> String
+// Fonction utilitaire pour sérialiser
 const serializeAnnonce = (annonce: any) => {
   return {
     ...annonce,
@@ -506,7 +609,6 @@ export async function modifierAnnonce(req: Request, res: Response): Promise<void
     const idAnnonce = BigInt(id);
     const idUtilisateur = BigInt(req.utilisateur!.id);
 
-    // 1. Récupérer l'annonce existante pour vérifier les droits et l'ancienne image
     let annonceExistante;
     switch (type.toLowerCase()) {
       case 'exercice': annonceExistante = await prisma.annonceExercice.findUnique({ where: { id: idAnnonce } }); break;
@@ -529,58 +631,35 @@ export async function modifierAnnonce(req: Request, res: Response): Promise<void
       return;
     }
 
-    // 2. Construire l'objet de données à mettre à jour dynamiquement
     const data: any = {};
-
-    // Champs communs
     if (req.body.description !== undefined) data.description = req.body.description;
     if (req.body.lien !== undefined) data.lien = req.body.lien;
     if (req.body.visibilite !== undefined) data.visibilite = req.body.visibilite;
 
-    // Gestion de l'image
     if (req.file) {
-      data.image = req.file.filename; // Nouvelle image
-
-      // Nettoyage : supprimer l'ancienne image du disque
+      data.image = req.file.filename;
       if (annonceExistante.image) {
         const oldImagePath = path.join(process.cwd(), 'uploads', annonceExistante.image);
         if (fs.existsSync(oldImagePath)) {
-          try {
-            fs.unlinkSync(oldImagePath);
-          } catch (err) {
-            console.error("Erreur lors de la suppression de l'ancienne image :", err);
-          }
+          try { fs.unlinkSync(oldImagePath); } catch (err) { console.error(err); }
         }
       }
     }
 
-    // Champs spécifiques selon le type
     if (type === 'exercice' || type === 'tutorat') {
       if (req.body.annee) data.annee = req.body.annee;
       if (req.body.id_matiere) data.id_matiere = BigInt(req.body.id_matiere);
     }
-    
-    if (type === 'tutorat') {
-      if (req.body.nbCandidatsVoulus) data.nbCandidatsVoulus = Number(req.body.nbCandidatsVoulus);
-    }
+    if (type === 'tutorat' && req.body.nbCandidatsVoulus) data.nbCandidatsVoulus = Number(req.body.nbCandidatsVoulus);
+    if (type === 'bonplan' || type === 'projet') if (req.body.titre) data.titre = req.body.titre;
+    if (type === 'bonplan' && req.body.sousType) data.sousType = req.body.sousType;
 
-    if (type === 'bonplan' || type === 'projet') {
-      if (req.body.titre) data.titre = req.body.titre;
-    }
-
-    if (type === 'bonplan') {
-      if (req.body.sousType) data.sousType = req.body.sousType;
-    }
-
-    // Appel du service de modération automatique
     const verdict = await verifierContenuAvecIA(data.description , data.titre, data.lien);
-
     if (verdict === 'REJECT') {
       res.status(400).json({ message: "Votre annonce a été rejetée par le système de modération." });
       return;
     }
 
-    // 3. Exécuter la mise à jour
     let annonceMiseAJour;
     switch (type.toLowerCase()) {
       case 'exercice': annonceMiseAJour = await prisma.annonceExercice.update({ where: { id: idAnnonce }, data }); break;
@@ -589,11 +668,9 @@ export async function modifierAnnonce(req: Request, res: Response): Promise<void
       case 'projet':   annonceMiseAJour = await prisma.annonceProjet.update({ where: { id: idAnnonce }, data }); break;
     }
 
-    // 4. Réponse
     res.status(200).json(serializeAnnonce(annonceMiseAJour));
-
   } catch (error) {
-    console.error("Erreur lors de la modification de l'annonce :", error);
+    console.error(error);
     res.status(500).json({ message: "Erreur serveur lors de la modification." });
   }
 }
@@ -610,79 +687,44 @@ export async function toggleLike(req: Request, res: Response): Promise<void> {
     const idAnnonce = BigInt(id);
     const idUtilisateur = BigInt(req.utilisateur!.id);
 
-    // 1. Mappage dynamique selon le type d'annonce
     let champIdType: string;
     let modelAnnonce: any;
 
     switch (type.toLowerCase()) {
-      case 'exercice': 
-        champIdType = 'id_exercice'; 
-        modelAnnonce = prisma.annonceExercice; 
-        break;
-      case 'bonplan':  
-        champIdType = 'id_bonplan';  
-        modelAnnonce = prisma.annonceBonPlan;  
-        break;
-      case 'tutorat':  
-        champIdType = 'id_tutorat';  
-        modelAnnonce = prisma.annonceTutorat;  
-        break;
-      case 'projet':   
-        champIdType = 'id_projet';   
-        modelAnnonce = prisma.annonceProjet;   
-        break;
+      case 'exercice': champIdType = 'id_exercice'; modelAnnonce = prisma.annonceExercice; break;
+      case 'bonplan':  champIdType = 'id_bonplan';  modelAnnonce = prisma.annonceBonPlan;  break;
+      case 'tutorat':  champIdType = 'id_tutorat';  modelAnnonce = prisma.annonceTutorat;  break;
+      case 'projet':   champIdType = 'id_projet';   modelAnnonce = prisma.annonceProjet;   break;
       default: 
         res.status(400).json({ message: "Type d'annonce inconnu." });
         return;
     }
 
-    // 2. Vérifier si l'annonce existe
     const annonce = await modelAnnonce.findUnique({ where: { id: idAnnonce } });
     if (!annonce) {
       res.status(404).json({ message: "Annonce introuvable." });
       return;
     }
 
-    // 3. Chercher si le "J'aime" existe déjà pour cet utilisateur et cette annonce
     const likeExistant = await prisma.jaime.findFirst({
-      where: {
-        id_utilisateur: idUtilisateur,
-        [champIdType]: idAnnonce, // Utilisation de la clé dynamique (ex: id_exercice: 12)
-      },
+      where: { id_utilisateur: idUtilisateur, [champIdType]: idAnnonce },
     });
 
-    // 4. Utilisation d'une Transaction pour garantir la cohérence des données
     if (likeExistant) {
-      // Cas A : Il a déjà aimé -> On retire le like et on décrémente le compteur
       await prisma.$transaction([
         prisma.jaime.delete({ where: { id: likeExistant.id } }),
-        modelAnnonce.update({
-          where: { id: idAnnonce },
-          data: { nbJaime: { decrement: 1 } },
-        }),
+        modelAnnonce.update({ where: { id: idAnnonce }, data: { nbJaime: { decrement: 1 } } }),
       ]);
-      
       res.status(200).json({ message: "Like retiré.", liked: false });
     } else {
-      // Cas B : Il n'a pas encore aimé -> On ajoute le like et on incrémente le compteur
       await prisma.$transaction([
-        prisma.jaime.create({
-          data: {
-            id_utilisateur: idUtilisateur,
-            [champIdType]: idAnnonce,
-          },
-        }),
-        modelAnnonce.update({
-          where: { id: idAnnonce },
-          data: { nbJaime: { increment: 1 } },
-        }),
+        prisma.jaime.create({ data: { id_utilisateur: idUtilisateur, [champIdType]: idAnnonce } }),
+        modelAnnonce.update({ where: { id: idAnnonce }, data: { nbJaime: { increment: 1 } } }),
       ]);
-
       res.status(200).json({ message: "Annonce likée.", liked: true });
     }
-
   } catch (error) {
-    console.error("Erreur lors du toggle du like :", error);
-    res.status(500).json({ message: "Erreur serveur lors de l'action." });
+    console.error(error);
+    res.status(500).json({ message: "Erreur serveur lors du toggle du like." });
   }
 }
