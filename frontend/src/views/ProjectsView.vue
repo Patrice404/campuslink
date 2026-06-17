@@ -6,7 +6,7 @@ import AnnonceFeedLayout from '../components/AnnonceFeedLayout.vue'
   <AnnonceFeedLayout 
     page-title="Projets Étudiants"
     page-subtitle="Rejoins une équipe ou partage tes idées de projets pour collaborer."
-    api-endpoint="projet"
+    api-endpoint="projets"
     card-type="AnnonceProjet"
     fallback-card-title="Nouveau Projet"
     empty-state-emoji="💡"

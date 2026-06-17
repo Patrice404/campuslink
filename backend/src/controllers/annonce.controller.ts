@@ -9,70 +9,188 @@ import { verifierContenuAvecIA } from '../services/moderation.service';
 
 const TYPES: AnnonceType[] = ['EXERCICE', 'BON_PLAN', 'TUTORAT', 'PROJET'];
 
-// GET / : liste toutes les annonces (les 4 types fusionnés, plus récentes d'abord)
+// Configuration de la hiérarchie des niveaux pour la visibilité PROMO_SUPERIEUR
+const ENTRAIDE_LEVEL_RANKS: Record<string, number> = {
+  '1A': 1,
+  '2A': 2,
+  '3A': 3,
+  '4A': 4,
+  '5A': 5
+};
+
 export async function lister(req: Request, res: Response): Promise<void> {
   try {
-    // On regarde si l'utilisateur est connecté (le middleware auth n'est pas obligatoire sur le GET global mais permet de récupérer le req.utilisateur si présent)
     const idConnected = req.utilisateur ? BigInt(req.utilisateur.id) : null;
-    
-    let blockedUserIds: bigint[] = [];
+
+    let excludedUserIds: bigint[] = [];
+    let allowedVisibilities: string[] = ['PUBLIQUE'];
+    let userFormationId: bigint | null = null;
+    let allowedAuthorNiveaux: string[] = [];
     let preferences: string[] = [];
 
+    // ---------------------------------------------------------------------
+    // 1. ANCHOR : ANALYSE DU CONTEXTE UTILISATEUR COMPLÈT
+    // ---------------------------------------------------------------------
     if (idConnected) {
-      // 1. Récupérer la liste des IDs des personnes bloquées par l'utilisateur
+      // A. Récupération des blocages réciproques (Tranchée Sanitaire)
       const blocages = await prisma.blocage.findMany({
-        where: { id_utilisateur_bloquant: idConnected },
-        select: { id_utilisateur_bloque: true }
+        where: {
+          OR: [
+            { id_utilisateur_bloquant: idConnected },
+            { id_utilisateur_bloque: idConnected }
+          ]
+        },
+        select: { id_utilisateur_bloquant: true, id_utilisateur_bloque: true }
       });
-      blockedUserIds = blocages.map(b => b.id_utilisateur_bloque);
 
-      // 2. Récupérer les préférences (centres d'intérêt) de l'utilisateur
-      const user = await prisma.utilisateur.findUnique({
-        where: { id: idConnected },
-        select: { centresInteret: true }
+      // Extraire tous les IDs uniques à bannir du flux
+      const excludedSet = new Set<bigint>();
+      blocages.forEach(b => {
+        if (b.id_utilisateur_bloquant !== idConnected) excludedSet.add(b.id_utilisateur_bloquant);
+        if (b.id_utilisateur_bloque !== idConnected) excludedSet.add(b.id_utilisateur_bloque);
       });
-      preferences = user?.centresInteret || [];
+      excludedUserIds = Array.from(excludedSet);
+
+      // B. Récupération du profil du lecteur pour calculer ses droits de visibilité
+      const infoUtilisateur = await prisma.utilisateur.findUnique({
+        where: { id: idConnected },
+        include: { formation: true }
+      });
+
+      if (infoUtilisateur) {
+        preferences = infoUtilisateur.centresInteret || [];
+        userFormationId = infoUtilisateur.id_formation;
+
+        // Filtre Statique : Autoriser la visibilité liée à son rôle (ETUDIANT / PROFESSEUR)
+        allowedVisibilities.push(infoUtilisateur.role);
+
+        // Filtre Relationnel : Calcul des niveaux pour PROMO_SUPERIEUR
+        if (infoUtilisateur.formation) {
+          const currentNiveau = infoUtilisateur.formation.niveau;
+          const currentRank = ENTRAIDE_LEVEL_RANKS[currentNiveau] || 0;
+
+          // Un lecteur de rang X peut voir les posts PROMO_SUPERIEUR des auteurs de rang <= X
+          allowedAuthorNiveaux = Object.keys(ENTRAIDE_LEVEL_RANKS).filter(
+            niv => ENTRAIDE_LEVEL_RANKS[niv] <= currentRank
+          );
+        }
+      }
     }
 
-    // Filtre de base : Exclure les annonces des utilisateurs bloqués
-    const condition = {
-      id_utilisateur: { notIn: blockedUserIds }
+    // ---------------------------------------------------------------------
+    // 2. ANCHOR : CONSTRUCTION DE LA CLAUSE WHERE DE VISIBILITÉ GÉNÉRIQUE
+    // ---------------------------------------------------------------------
+    const baseVisibilityWhere = {
+      // Règle 1 : L'auteur ne doit pas faire partie des profils bloqués/bloquants
+      id_utilisateur: { notIn: excludedUserIds },
+      
+      // Règle 2 : Algorithme des droits d'accès
+      OR: [
+        // Option A : C'est mon propre post (je le vois toujours)
+        ...(idConnected ? [{ id_utilisateur: idConnected }] : []),
+        
+        // Option B : Visibilités générales (PUBLIQUE, ou mon rôle exact)
+        { visibilite: { in: allowedVisibilities as any } },
+        
+        // Option C : Visibilité PROMOTION (Même ID de formation)
+        ...(userFormationId ? [{
+          AND: [
+            { visibilite: 'PROMOTION' as const },
+            { utilisateur: { id_formation: userFormationId } }
+          ]
+        }] : []),
+        
+        // Option D : Visibilité PROMO_SUPERIEUR (L'auteur est d'un niveau inférieur ou égal)
+        ...(allowedAuthorNiveaux.length > 0 ? [{
+          AND: [
+            { visibilite: 'PROMO_SUPERIEUR' as const },
+            { utilisateur: { formation: { niveau: { in: allowedAuthorNiveaux } } } }
+          ]
+        }] : [])
+      ]
     };
 
-   
-    const [exercices, bonsPlans, tutorats, projets] = await Promise.all([
-      // ✨ AJOUT : include utilisateur ET matiere
-      prisma.annonceExercice.findMany({ where: condition, include: { utilisateur: true, matiere: true } }), 
-      prisma.annonceBonPlan.findMany({ where: condition, include: { utilisateur: true } }),
-      // ✨ AJOUT : include utilisateur ET matiere
-      prisma.annonceTutorat.findMany({ where: condition, include: { utilisateur: true, matiere: true } }), 
-      prisma.annonceProjet.findMany({ where: condition, include: { utilisateur: true } }),
-    ]);
+    // ---------------------------------------------------------------------
+    // 3. ANCHOR : EXÉCUTION CIBLÉE DES REQUÊTES (Filtre au niveau de la BDD)
+    // ---------------------------------------------------------------------
+    const activeQueries: Promise<any[]>[] = [];
+    const hasPrefs = preferences.length > 0;
 
-    let toutes = [...exercices, ...bonsPlans, ...tutorats, ...projets];
+    // Définition de la sélection sécurisée de l'utilisateur (on cache le mot de passe !)
+    const safeUserInclude = {
+      select: { id: true, nom: true, prenom: true, photoProfil: true, role: true }
+    };
 
-    // 3. Filtrer en fonction des préférences de l'utilisateur (si définies)
-    if (preferences.length > 0) {
-      toutes = toutes.filter(annonce => {
-        if (annonce.type === 'PROJET' && preferences.includes('PROJET')) return true;
-        if (annonce.type === 'EXERCICE' && preferences.includes('EXERCICE')) return true;
-        if (annonce.type === 'BON_PLAN' && preferences.includes('BON_PLAN')) return true;
-        // Si l'utilisateur aime l'ENTRAIDE ou la MATIERE, on lui propose le TUTORAT
-        if (annonce.type === 'TUTORAT' && (preferences.includes('ENTRAIDE') || preferences.includes('MATIERE'))) return true;
-        return false;
-      });
+    // On n'ajoute la promesse que si la catégorie matche avec les préférences de l'utilisateur
+    if (!hasPrefs || preferences.includes('EXERCICE')) {
+      activeQueries.push(prisma.annonceExercice.findMany({
+        where: baseVisibilityWhere,
+        include: { utilisateur: safeUserInclude, matiere: true },
+        orderBy: { datePublication: 'desc' },
+        take: 25
+      }));
     }
 
-    // Tri par date décroissante
-    toutes.sort((a, b) => b.datePublication.getTime() - a.datePublication.getTime());
+    if (!hasPrefs || preferences.includes('BON_PLAN')) {
+      activeQueries.push(prisma.annonceBonPlan.findMany({
+        where: baseVisibilityWhere,
+        include: { utilisateur: safeUserInclude },
+        orderBy: { datePublication: 'desc' },
+        take: 25
+      }));
+    }
 
-    res.json(toJSON(toutes));
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: 'Erreur serveur' });
+    if (!hasPrefs || preferences.includes('PROJET')) {
+      activeQueries.push(prisma.annonceProjet.findMany({
+        where: baseVisibilityWhere,
+        include: { utilisateur: safeUserInclude },
+        orderBy: { datePublication: 'desc' },
+        take: 25
+      }));
+    }
+
+    if (!hasPrefs || preferences.includes('ENTRAIDE') || preferences.includes('MATIERE')) {
+      activeQueries.push(prisma.annonceTutorat.findMany({
+        where: baseVisibilityWhere,
+        include: { utilisateur: safeUserInclude, matiere: true },
+        orderBy: { datePublication: 'desc' },
+        take: 25
+      }));
+    }
+
+    // Lancement simultané des requêtes requises uniquement
+    const queryResults = await Promise.all(activeQueries);
+    const toutesLesAnnonces = queryResults.flat();
+
+    // ---------------------------------------------------------------------
+    // 4. ANCHOR : TRI DE FUSION FINAL & SÉRIALISATION DES BIGINT
+    // ---------------------------------------------------------------------
+    // Tri chronologique global (du plus récent au plus ancien)
+    toutesLesAnnonces.sort((a, b) => b.datePublication.getTime() - a.datePublication.getTime());
+
+    // Fonction récursive pour transformer tous les BigInt du payload en String (Évite le crash JSON)
+    const deepSerializeBigInt = (obj: any): any => {
+      if (!obj || typeof obj !== 'object') return obj;
+      if (Array.isArray(obj)) return obj.map(deepSerializeBigInt);
+      
+      const newObj = { ...obj };
+      for (const key in newObj) {
+        if (typeof newObj[key] === 'bigint') {
+          newObj[key] = newObj[key].toString();
+        } else if (typeof newObj[key] === 'object') {
+          newObj[key] = deepSerializeBigInt(newObj[key]);
+        }
+      }
+      return newObj;
+    };
+
+    res.status(200).json(deepSerializeBigInt(toutesLesAnnonces));
+
+  } catch (error) {
+    console.error("❌ Erreur critique dans le contrôleur de flux :", error);
+    res.status(500).json({ message: "Erreur serveur lors de la génération du fil d'actualité." });
   }
 }
-
 
 // GET /mes : annonces de l'utilisateur connecté
 export async function mesAnnonces(req: Request, res: Response): Promise<void> {
