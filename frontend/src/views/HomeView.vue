@@ -167,7 +167,6 @@ onMounted(fetchAnnonces);
 
       <div class="flex-1 p-4 sm:p-6 overflow-y-auto">
         <div class="max-w-2xl mx-auto space-y-6">
-<<<<<<< HEAD
           
           <section class="bg-white rounded-xl shadow-sm p-4 border border-gray-100 flex items-center gap-3">
             <div class="relative flex-1">
@@ -230,11 +229,6 @@ onMounted(fetchAnnonces);
                 </div>
               </div>
             </div>
-=======
-
-          <section class="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
-            <SmartSearch @search="runSearch" />
->>>>>>> 160b20de483442cbda3430caff66a932825dc89e
           </section>
 
           <div v-if="loading" class="text-center py-10 text-gray-500 animate-pulse">
