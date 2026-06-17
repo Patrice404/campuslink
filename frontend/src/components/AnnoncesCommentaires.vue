@@ -3,7 +3,7 @@ import { ref, onMounted } from 'vue'
 import { useAuthStore } from '../stores/authStore'
 
 const props = defineProps<{
-  annonceId: number 
+  annonceId: any 
   annonceType: string
 }>()
 
@@ -15,11 +15,9 @@ const nouveauCommentaire = ref('')
 const isLoading = ref(false)
 const isSubmitting = ref(false)
 
-// Fonction utilitaire pour s'assurer que le commentaire possède la clé "auteur" attendue par le template
 const formaterCommentaire = (com: any) => {
   return {
     ...com,
-    // Si le backend renvoie "utilisateur", on le convertit en "auteur" pour le template Vue
     auteur: com.utilisateur || com.auteur || { 
       prenom: authStore.user?.prenom || "Utilisateur", 
       nom: authStore.user?.nom || "Inconnu" 
@@ -27,27 +25,25 @@ const formaterCommentaire = (com: any) => {
   }
 }
 
-// 1. Récupérer les commentaires
+// 1. Récupération via la route liée à l'annonce (GET /api/annonces/:id/commentaires)
 const fetchCommentaires = async () => {
   isLoading.value = true
   try {
     const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000'
     
-    // Traduction du type visuel vers le type Prisma
     let typePrisma = props.annonceType
     if (typePrisma === 'AnnonceExercice') typePrisma = 'EXERCICE'
     if (typePrisma === 'AnnonceBonPlan') typePrisma = 'BON_PLAN'
     if (typePrisma === 'AnnonceTutorat') typePrisma = 'TUTORAT'
     if (typePrisma === 'AnnonceProjet') typePrisma = 'PROJET'
 
-    const response = await fetch(`${apiUrl}/api/commentaires/annonce/${props.annonceId}?type=${typePrisma}`, {
+    const response = await fetch(`${apiUrl}/api/annonces/${String(props.annonceId)}/commentaires?type=${typePrisma}`, {
       headers: {
         ...(authStore.token ? { Authorization: `Bearer ${authStore.token}` } : {})
       }
     })
     if (response.ok) {
       const rawData = await response.json()
-      // On s'assure que chaque commentaire récupéré est bien formaté avec la clé "auteur"
       commentaires.value = Array.isArray(rawData) ? rawData.map(formaterCommentaire) : []
     }
   } catch (error) {
@@ -57,7 +53,7 @@ const fetchCommentaires = async () => {
   }
 }
 
-// 2. Ajouter un commentaire
+// 2. Envoi via la route globale des commentaires (POST /api/commentaires)
 const ajouterCommentaire = async () => {
   if (!nouveauCommentaire.value.trim() || isSubmitting.value) return
 
@@ -78,28 +74,27 @@ const ajouterCommentaire = async () => {
         'Authorization': `Bearer ${authStore.token}`
       },
       body: JSON.stringify({
-        texte: nouveauCommentaire.value,
-        id_annonce: Number(props.annonceId), // Sécurité conversion pour éviter les bugs de types BigInt/String
+        texte: nouveauCommentaire.value.trim(),
+        id_annonce: String(props.annonceId), // ID en String pour ne pas casser la précision BigInt
         type: typePrisma
       })
     })
 
     if (response.ok) {
       const nouveauComRaw = await response.json()
-      
-      // On applique le formatage à l'objet brut retourné par l'API
       const nouveauComFormate = formaterCommentaire(nouveauComRaw)
       
-      // Ajout dynamique immédiat en haut de la liste
       commentaires.value.unshift(nouveauComFormate)
-      
       nouveauCommentaire.value = ''
-      emit('comment-added') // Déclenche le +1 réactif dans le parent (AnnonceCard)
+      emit('comment-added')
+    } else {
+      const errData = await response.json()
+      alert(errData.message || "Erreur lors de l'envoi du commentaire.")
     }
   } catch (error) {
     console.error('Erreur lors de l\'ajout du commentaire:', error)
   } finally {
-    isSubmitting.value = false
+    isSubmitting.value = false 
   }
 }
 
@@ -142,8 +137,8 @@ onMounted(() => {
       />
       <button 
         type="submit" 
-        :disabled="isSubmitting"
-        class="bg-blue-600 hover:bg-blue-700 text-white font-bold px-3 py-1.5 rounded-lg text-xs transition disabled:opacity-50"
+        :disabled="isSubmitting || !nouveauCommentaire.trim()"
+        class="bg-blue-600 hover:bg-blue-700 text-white font-bold px-3 py-1.5 rounded-lg text-xs transition disabled:opacity-50 cursor-pointer"
       >
         {{ isSubmitting ? '...' : 'Envoyer' }}
       </button>

@@ -6,6 +6,7 @@ import ProjectsView from '../views/ProjectsView.vue'
 import RegisterView from '../views/RegisterView.vue' 
 import ProfileView from '../views/ProfileView.vue'
 import EntraideView from '../views/EntraideView.vue'
+import CampusView from '../views/CampusView.vue'
 
 
 const router = createRouter({
@@ -54,7 +55,12 @@ const router = createRouter({
       name: 'entraide',
       component: EntraideView,
       // Optionnel : meta: { requiresAuth: true } si tu as un guard de connexion
-    }
+    },
+    {
+      path: '/campus',
+      name: 'campus',
+      component: CampusView
+    },
   ]
 })
 export default router
