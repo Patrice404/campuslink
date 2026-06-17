@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import SidebarNav from '../components/SidebarNav.vue'
 import TopNav from '../components/TopNav.vue'
 import CreatePostModal from '../components/CreatePostModal.vue'
-import AnnonceCard from '../components/AnnonceCard.vue' // <-- Réimport du composant réactif
+import AnnonceCard from '../components/AnnonceCard.vue'   
 import { useAuthStore } from '../stores/authStore'
 
 const authStore = useAuthStore()
@@ -11,43 +11,49 @@ const authStore = useAuthStore()
 // États de la vue
 const isSidebarOpen = ref(false)
 const isCreateModalOpen = ref(false)
-const exercices = ref<any[]>([])
+const annoncesToutes = ref<any[]>([]) // Stocke toutes les annonces de l'API unifiée
 const isLoading = ref(true)
 const errorMessage = ref<string | null>(null)
 
-// Récupération des données depuis l'API
+// Filtrer uniquement les exercices côté Front-end tout en conservant les métadonnées (Likes, Commentaires)
+const exercices = computed(() => {
+  return annoncesToutes.value.filter((annonce: any) => {
+    // Gère le cas où le type est déjà mappé ou sous format Enum Prisma d'origine
+    return annonce.type === 'EXERCICE' || annonce.type === 'AnnonceExercice'
+  }).map((item: any) => {
+    return {
+      ...item,
+      // On garde 'AnnonceExercice' pour que AnnonceCard applique le style visuel adéquat
+      type: 'AnnonceExercice',
+      // On s'assure d'associer la structure de l'auteur requise
+      auteur: item.utilisateur || item.auteur || { prenom: "Utilisateur", nom: "Inconnu", id: 0 },
+      titre: item.titre || item.matiere?.titre || "Exercice d'entraide",
+      texte: item.texte || item.description
+    }
+  })
+})
+
+// Récupération des données depuis la route globale unifiée et robuste
 const fetchExercices = async () => {
   isLoading.value = true
   errorMessage.value = null
   try {
     const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000'
-    const response = await fetch(`${apiUrl}/api/entraide`, {
+    // Utilisation de la route synchronisée globale pour récupérer l'état exact des likes
+    const response = await fetch(`${apiUrl}/api/annonces`, {
       method: 'GET',
       headers: {
-        ...(authStore.token ? { Authorization: `Bearer ${authStore.token}` } : {})
+        ...(authStore.token ? { Authorization: `Bearer ${authStore.token}` } : {}),
+        'Accept': 'application/json'
       }
     })
+    
     if (!response.ok) {
       throw new Error(`Erreur HTTP : ${response.status}`)
     }
 
     const data = await response.json()
-    console.log('Exercices reçus:', data, 'count =', data.length)
-    
-    // On mappe les données reçues pour s'assurer qu'elles correspondent à ce qu'attend AnnonceCard
-    exercices.value = data.map((item: any) => {
-      return {
-        ...item,
-        // Forcer le type visuel pour que AnnonceCard mette la bonne couleur/icône
-        type: 'AnnonceExercice',
-        // AnnonceCard s'attend à recevoir la propriété "auteur" plutôt que "utilisateur"
-        auteur: item.utilisateur || { prenom: "Utilisateur", nom: "Inconnu", id: 0 },
-        // Si le titre n'existe pas directement au premier niveau, on utilise celui de la matière ou une valeur par défaut
-        titre: item.titre || item.matiere?.titre || 'Exercice d\'entraide',
-        // Assure que le texte principal est lié à la description ou au texte
-        texte: item.texte || item.description
-      }
-    })
+    annoncesToutes.value = data
   } catch (error) {
     console.error('Erreur entraide:', error)
     errorMessage.value = "Impossible de charger le fil d'entraide. Vérifie ta connexion."

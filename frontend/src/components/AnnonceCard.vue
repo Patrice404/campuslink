@@ -1,20 +1,31 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { ref, computed, watch } from 'vue';
+import { useAuthStore } from '../stores/authStore';
+import AnnoncesCommentaires from './AnnoncesCommentaires.vue';
 
 const props = defineProps<{
   annonce: any
 }>();
 
+const authStore = useAuthStore();
 const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:3000";
+
+// --- ÉTATS LOCAUX (Likes & Commentaires) ---
+const nbJaimeLocal = ref(Number(props.annonce.nbJaime) || 0);
+const isLikedLocal = ref(props.annonce.isLikedByMe || false);
+const showCommentaires = ref(false);
+
+// Synchronisation si les props changent (ex: rafraîchissement global)
+watch(() => props.annonce, (newAnnonce) => {
+  nbJaimeLocal.value = Number(newAnnonce.nbJaime) || 0;
+  isLikedLocal.value = newAnnonce.isLikedByMe || false;
+}, { deep: true });
 
 // Formater la date proprement
 const dateAffichee = computed(() => {
   if (!props.annonce.datePublication) return "Récemment";
   return new Date(props.annonce.datePublication).toLocaleDateString('fr-FR', {
-    day: 'numeric',
-    month: 'short',
-    hour: '2-digit',
-    minute: '2-digit'
+    day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit'
   });
 });
 
@@ -24,13 +35,66 @@ const initials = computed(() => {
   if (!auteur) return "?";
   return `${auteur.prenom?.[0] || ""}${auteur.nom?.[0] || ""}`.toUpperCase();
 });
+
+// --- DÉTECTION INTELLIGENTE DU FICHIER IMAGE (Sécurise le champ 'image' ou 'photo' de Prisma) ---
+const imageSource = computed(() => {
+  const fileField = props.annonce.image || props.annonce.photo;
+  if (!fileField) return null;
+  return `${apiUrl}/uploads/${fileField}`;
+});
+
+// --- LOGIQUE DU LIKE SYNCHRONISÉ ---
+const handleLikeToggle = async () => {
+  if (!authStore.token) {
+    alert("Vous devez être connecté pour aimer une annonce.");
+    return;
+  }
+
+  let typePrisma = props.annonce.type;
+  if (typePrisma === 'AnnonceExercice') typePrisma = 'EXERCICE';
+  if (typePrisma === 'AnnonceBonPlan') typePrisma = 'BON_PLAN';
+  if (typePrisma === 'AnnonceTutorat') typePrisma = 'TUTORAT';
+  if (typePrisma === 'AnnonceProjet') typePrisma = 'PROJET';
+
+  const annonceIdStr = String(props.annonce.id);
+
+  // Changement optimiste de l'UI
+  if (isLikedLocal.value) {
+    nbJaimeLocal.value = Math.max(0, nbJaimeLocal.value - 1);
+    isLikedLocal.value = false;
+  } else {
+    nbJaimeLocal.value++;
+    isLikedLocal.value = true;
+  }
+
+  try {
+    const response = await fetch(`${apiUrl}/api/annonces/${annonceIdStr}/jaime?type=${typePrisma}`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${authStore.token}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    if (response.ok) {
+      const data = await response.json();
+      isLikedLocal.value = data.jaime;
+    } else {
+      isLikedLocal.value = !isLikedLocal.value;
+      nbJaimeLocal.value = isLikedLocal.value ? nbJaimeLocal.value + 1 : Math.max(0, nbJaimeLocal.value - 1);
+    }
+  } catch (error) {
+    console.error("Erreur réseau Like:", error);
+    isLikedLocal.value = !isLikedLocal.value;
+    nbJaimeLocal.value = isLikedLocal.value ? nbJaimeLocal.value + 1 : Math.max(0, nbJaimeLocal.value - 1);
+  }
+};
 </script>
 
 <template>
   <article class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden hover:shadow-md transition duration-200">
     
     <div class="p-5 pb-3 flex items-center justify-between">
-      
       <router-link 
         v-if="annonce.auteur?.id" 
         :to="'/profil/' + annonce.auteur.id" 
@@ -84,12 +148,12 @@ const initials = computed(() => {
       </div>
 
       <p class="text-slate-600 text-sm leading-relaxed whitespace-pre-line">
-        {{ annonce.description }}
+        {{ annonce.description || annonce.texte }}
       </p>
 
-      <div v-if="annonce.image" class="mt-3 rounded-xl overflow-hidden border border-slate-100 max-h-72 bg-slate-50">
+      <div v-if="imageSource" class="mt-3 rounded-xl overflow-hidden border border-slate-100 max-h-72 bg-slate-50">
         <img 
-          :src="`${apiUrl}/uploads/${annonce.image}`" 
+          :src="imageSource" 
           alt="Illustration annonce" 
           class="w-full h-full object-cover hover:scale-[1.01] transition duration-300"
         />
@@ -112,14 +176,21 @@ const initials = computed(() => {
     </div>
 
     <div class="px-5 py-3.5 bg-slate-50/50 border-t border-slate-50 flex gap-6 text-slate-500 text-sm font-medium">
-      <button class="flex items-center gap-1.5 hover:text-red-500 transition cursor-pointer">
-        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"></path></svg>
-        <span>{{ annonce.nbJaime || 0 }}</span>
+      <button @click="handleLikeToggle" class="flex items-center gap-1.5 transition cursor-pointer group" :class="isLikedLocal ? 'text-red-500 font-bold' : 'hover:text-red-500'">
+        <svg class="w-4 h-4 transition duration-150" :fill="isLikedLocal ? 'currentColor' : 'none'" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"></path>
+        </svg>
+        <span>{{ nbJaimeLocal }}</span>
       </button>
-      <button class="flex items-center gap-1.5 hover:text-indigo-600 transition cursor-pointer">
+      
+      <button @click="showCommentaires = !showCommentaires" class="flex items-center gap-1.5 hover:text-indigo-600 transition cursor-pointer" :class="{ 'text-indigo-600 font-bold': showCommentaires }">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path></svg>
         <span>Commenter</span>
       </button>
+    </div>
+
+    <div v-if="showCommentaires">
+      <AnnoncesCommentaires :annonceId="annonce.id" :annonceType="annonce.type" />
     </div>
 
   </article>
