@@ -8,6 +8,7 @@ import ProfileView from '../views/ProfileView.vue'
 import EntraideView from '../views/EntraideView.vue'
 import CampusView from '../views/CampusView.vue'
 import OpportunitesView from '../views/OpportunitesView.vue'
+import SettingsView from '../views/SettingsView.vue'
 
 const router = createRouter({
   history: createWebHistory(),
@@ -64,6 +65,11 @@ const router = createRouter({
       path: '/opportunites',
       name: 'opportunites',
       component: OpportunitesView
+    },
+    {
+      path: '/settings',
+      name: 'settings',
+      component: SettingsView
     },
   ]
 })
