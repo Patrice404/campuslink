@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue' // <-- N'oublie pas l'import de onMounted ici
+import { ref, onMounted, computed } from 'vue' 
 import SidebarNav from '../components/SidebarNav.vue'
 import TopNav from '../components/TopNav.vue'
 import CreatePostModal from '../components/CreatePostModal.vue' 
@@ -7,26 +7,19 @@ import AnnonceCard from '../components/AnnonceCard.vue'
 import { useAuthStore } from '../stores/authStore'
 const authStore = useAuthStore()
 
-// États du Feed
 const annonces = ref<any[]>([]); 
 const loading = ref(true);
 const error = ref("");
 
-// État du menu mobile
 const isMobileMenuOpen = ref(false)
 const isCreateModalOpen = ref(false) 
 
-// Logique de recherche
 const searchQuery = ref("");
 const filteredAnnonces = computed(() => {
   const query = searchQuery.value.toLowerCase().trim();
-  
-  // Si la barre de recherche est vide, on retourne toutes les annonces
   if (!query) return annonces.value;
 
-  // Sinon, on filtre
   return annonces.value.filter(annonce => {
-    // On rassemble tous les textes pertinents de l'annonce pour chercher partout d'un coup
     const searchableText = [
       annonce.titre,
       annonce.texte,
@@ -35,41 +28,33 @@ const filteredAnnonces = computed(() => {
       annonce.sousType,
       annonce.auteur?.prenom,
       annonce.auteur?.nom
-    ].filter(Boolean).join(" ").toLowerCase(); // On enlève les vides et on met en minuscules
+    ].filter(Boolean).join(" ").toLowerCase();
 
     return searchableText.includes(query);
   });
 });
 
-onMounted(async () => {
+// Fonction nommée réutilisable pour charger le flux d'actualités
+const fetchAnnonces = async () => {
   loading.value = true;
   error.value = "";
 
   try {
-    // 1. Récupération de l'URL de base et du token de connexion
     const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:3000";
-    const token = authStore.token; // Récupération du token depuis le store Pinia
+    const token = authStore.token;
 
-    // 2. Appel à l'API (On suppose que ta route est /api/annonces)
     const response = await fetch(`${apiUrl}/api/annonces`, {
       method: 'GET',
       headers: {
-        // On envoie le token pour prouver que l'utilisateur est connecté
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
         'Accept': 'application/json'
       }
     });
 
-    // 3. Gestion des erreurs HTTP (ex: 401 Non autorisé, 500 Erreur serveur)
-    if (!response.ok) {
-      throw new Error(`Erreur HTTP : ${response.status}`);
-    }
+    if (!response.ok) throw new Error(`Erreur HTTP : ${response.status}`);
 
-    // 4. On injecte les vraies données dans notre variable réactive
     const rawData = await response.json();
     annonces.value = rawData.map((annonce: any) => {
-      
-      // 1. Traduire les ENUMS Prisma pour que les couleurs de tes badges fonctionnent
       let typeVisuel = annonce.type;
       if (annonce.type === 'BON_PLAN') typeVisuel = 'AnnonceBonPlan';
       if (annonce.type === 'TUTORAT') typeVisuel = 'AnnonceTutorat';
@@ -78,8 +63,7 @@ onMounted(async () => {
 
       return {
         ...annonce,
-        type: typeVisuel, // Remplace 'BON_PLAN' par 'AnnonceBonPlan'
-        // 2. Prisma utilise "utilisateur", mais AnnonceCard s'attend à "auteur"
+        type: typeVisuel, 
         auteur: annonce.utilisateur || { prenom: "Utilisateur", nom: "Inconnu", id: 0 }
       };
     });
@@ -90,8 +74,10 @@ onMounted(async () => {
   } finally {
     loading.value = false;
   }
-});
- 
+};
+
+// On charge au démarrage initial de la page
+onMounted(fetchAnnonces);
 </script>
 
 <template>
@@ -154,6 +140,7 @@ onMounted(async () => {
     <CreatePostModal 
       :is-open="isCreateModalOpen" 
       @close="isCreateModalOpen = false" 
+      @post-created="fetchAnnonces"
     />
   </div>
 </template>
