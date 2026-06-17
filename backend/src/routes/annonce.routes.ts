@@ -6,7 +6,7 @@ import { listerParAnnonce } from '../controllers/commentaire.controller';
 import { auth } from '../middlewares/auth.middleware';
 import { uploadImageMiddleware } from '../middlewares/file_upload.middlewares';
 import {
-  //lister,
+  lister,
   detail,
   mesAnnonces,
   creer,
@@ -33,7 +33,7 @@ const upload = multer({ storage, limits: { fileSize: 5 * 1024 * 1024 } });
 
  
 // ordre important : routes spécifiques avant /:id pour éviter toute capture ambiguë
-//router.get('/', auth, lister);
+router.get('/', auth, lister);
 router.get('/mes', auth, mesAnnonces);
  
 // Endpoints dédiés de création par type d'annonce

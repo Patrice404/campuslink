@@ -11,47 +11,66 @@ const TYPES: AnnonceType[] = ['EXERCICE', 'BON_PLAN', 'TUTORAT', 'PROJET'];
 // GET / : liste toutes les annonces (les 4 types fusionnés, plus récentes d'abord)
 export async function lister(req: Request, res: Response): Promise<void> {
   try {
-    const id_utilisateur = BigInt(req.utilisateur!.id);
- 
-    // On récupère le campus de l'utilisateur connecté
-    const utilisateur = await prisma.utilisateur.findUnique({
-      where: { id: id_utilisateur },
-      select: { id_campus: true },
-    });
- 
-    if (!utilisateur) {
-      res.status(404).json({ message: 'Utilisateur introuvable' });
-      return;
+    // On regarde si l'utilisateur est connecté (le middleware auth n'est pas obligatoire sur le GET global mais permet de récupérer le req.utilisateur si présent)
+    const idConnected = req.utilisateur ? BigInt(req.utilisateur.id) : null;
+    
+    let blockedUserIds: bigint[] = [];
+    let preferences: string[] = [];
+
+    if (idConnected) {
+      // 1. Récupérer la liste des IDs des personnes bloquées par l'utilisateur
+      const blocages = await prisma.blocage.findMany({
+        where: { id_utilisateur_bloquant: idConnected },
+        select: { id_utilisateur_bloque: true }
+      });
+      blockedUserIds = blocages.map(b => b.id_utilisateur_bloque);
+
+      // 2. Récupérer les préférences (centres d'intérêt) de l'utilisateur
+      const user = await prisma.utilisateur.findUnique({
+        where: { id: idConnected },
+        select: { centresInteret: true }
+      });
+      preferences = user?.centresInteret || [];
     }
- 
-    // Si l'utilisateur n'a pas de campus défini, on ne renvoie rien
-    // (à adapter si vous voulez plutôt renvoyer toutes les annonces dans ce cas)
-    if (utilisateur.id_campus === null) {
-      res.json([]);
-      return;
-    }
- 
-    const where = { utilisateur: { id_campus: utilisateur.id_campus } };
- 
+
+    // Filtre de base : Exclure les annonces des utilisateurs bloqués
+    const condition = {
+      id_utilisateur: { notIn: blockedUserIds }
+    };
+
+   
     const [exercices, bonsPlans, tutorats, projets] = await Promise.all([
-      prisma.annonceExercice.findMany({ where, include: { utilisateur: true } }),
-      prisma.annonceBonPlan.findMany({ where, include: { utilisateur: true } }),
-      prisma.annonceTutorat.findMany({ where, include: { utilisateur: true } }),
-      prisma.annonceProjet.findMany({ where, include: { utilisateur: true } }),
+      // ✨ AJOUT : include utilisateur ET matiere
+      prisma.annonceExercice.findMany({ where: condition, include: { utilisateur: true, matiere: true } }), 
+      prisma.annonceBonPlan.findMany({ where: condition, include: { utilisateur: true } }),
+      // ✨ AJOUT : include utilisateur ET matiere
+      prisma.annonceTutorat.findMany({ where: condition, include: { utilisateur: true, matiere: true } }), 
+      prisma.annonceProjet.findMany({ where: condition, include: { utilisateur: true } }),
     ]);
- 
-    const toutes = [...exercices, ...bonsPlans, ...tutorats, ...projets].sort(
-      (a, b) => b.datePublication.getTime() - a.datePublication.getTime()
-    );
- 
+
+    let toutes = [...exercices, ...bonsPlans, ...tutorats, ...projets];
+
+    // 3. Filtrer en fonction des préférences de l'utilisateur (si définies)
+    if (preferences.length > 0) {
+      toutes = toutes.filter(annonce => {
+        if (annonce.type === 'PROJET' && preferences.includes('PROJET')) return true;
+        if (annonce.type === 'EXERCICE' && preferences.includes('EXERCICE')) return true;
+        if (annonce.type === 'BON_PLAN' && preferences.includes('BON_PLAN')) return true;
+        // Si l'utilisateur aime l'ENTRAIDE ou la MATIERE, on lui propose le TUTORAT
+        if (annonce.type === 'TUTORAT' && (preferences.includes('ENTRAIDE') || preferences.includes('MATIERE'))) return true;
+        return false;
+      });
+    }
+
+    // Tri par date décroissante
+    toutes.sort((a, b) => b.datePublication.getTime() - a.datePublication.getTime());
+
     res.json(toJSON(toutes));
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Erreur serveur' });
   }
 }
- 
-
 
 
 // GET /mes : annonces de l'utilisateur connecté
