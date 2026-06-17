@@ -13,6 +13,7 @@ import entraideRoutes from './routes/entraide.routes';
 import academiqueRoutes from './routes/academique.routes';
 import notificationRoutes from './routes/notification.routes';
 import candidatureRoutes from './routes/candidature.routes'
+import campusVieRoutes from './routes/campusvie.routes';
 
 
 dotenv.config();
@@ -53,6 +54,7 @@ app.use('/api/annonces', annonceRoutes);
 app.use('/api/matieres', matiereRoutes);
 //app.use('/api/commentaires', commentaireRoutes);
 app.use('/api/entraide', entraideRoutes);
+app.use('/api/campus-vie', campusVieRoutes);
 app.use('/api', academiqueRoutes);
 
 // Routes à brancher une fois leurs controllers implémentés :

@@ -84,7 +84,7 @@ const initials = computed(() => {
       </div>
 
       <p class="text-slate-600 text-sm leading-relaxed whitespace-pre-line">
-        {{ annonce.description }}
+        {{ annonce.description || annonce.description }}
       </p>
 
       <div v-if="annonce.image" class="mt-3 rounded-xl overflow-hidden border border-slate-100 max-h-72 bg-slate-50">
