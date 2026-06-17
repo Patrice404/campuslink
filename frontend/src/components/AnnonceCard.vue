@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useAuthStore } from '../stores/authStore'
-import AnnonceCommentaires from './AnnoncesCommentaires.vue' // Import du nouveau composant
+import AnnonceCommentaires from './AnnoncesCommentaires.vue'
 
-// Interfaces restent intactes
+// Interfaces 
 interface Utilisateur { id: number; prenom: string; nom: string; photoProfil?: string; }
 interface Annonce { 
   id: number; type: string; datePublication: string; nbJaime: number; 
@@ -15,10 +15,10 @@ interface Annonce {
 const props = defineProps<{ annonce: Annonce; }>()
 const authStore = useAuthStore()
 
-// États locaux réactifs
-const localNbJaime = ref(props.annonce.nbJaime)
+// États locaux réactifs (Sécurisés avec Number() pour contrer les décalages de types/BigInt)
+const localNbJaime = ref(Number(props.annonce.nbJaime || 0))
 const isLiked = ref(props.annonce.likedByMe || false)
-const localNbCommentaires = ref(props.annonce.nbCommentaires)
+const localNbCommentaires = ref(Number(props.annonce.nbCommentaires || 0))
 
 const showCommentaires = ref(false)
 const isLikeSubmitting = ref(false)
@@ -26,26 +26,34 @@ const isLikeSubmitting = ref(false)
 // Fonctions utilitaires
 const getInitials = (prenom?: string, nom?: string) => `${prenom?.[0] || ""}${nom?.[0] || ""}`.toUpperCase();
 const formatDate = (dateString: string) => {
+  if (!dateString) return "Date inconnue";
   return new Date(dateString).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' });
 };
 
-// Logique du Like / Dislike (Parfaitement imbriquée)
+// Logique du Like / Dislike alignée sur le nouveau standard (:type/:id/like)
 const toggleLike = async () => {
   if (isLikeSubmitting.value) return
   isLikeSubmitting.value = true
 
+  // 1. Sauvegarde stricte de l'état d'origine avant toute action
+  const wasLiked = isLiked.value
+  const initialNbJaime = localNbJaime.value
+
   try {
+    // 2. Mise à jour optimiste immédiate : l'interface change instantanément pour l'utilisateur
+    isLiked.value = !wasLiked
+    localNbJaime.value = !wasLiked ? initialNbJaime + 1 : Math.max(0, initialNbJaime - 1)
+
     const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000'
     
-    // On nettoie le type si jamais il a été transformé pour le visuel
     let typeRequete = props.annonce.type
     if (typeRequete === 'AnnonceExercice') typeRequete = 'EXERCICE'
     if (typeRequete === 'AnnonceBonPlan') typeRequete = 'BON_PLAN'
     if (typeRequete === 'AnnonceTutorat') typeRequete = 'TUTORAT'
     if (typeRequete === 'AnnonceProjet') typeRequete = 'PROJET'
 
-    // ON CORRIGE L'URL : /jaime?type=... au lieu de /like
-    const response = await fetch(`${apiUrl}/api/annonces/${props.annonce.id}/jaime?type=${typeRequete}`, {
+    // Requête alignée sur ton nouveau système d'URL : /api/annonces/:type/:id/like
+    const response = await fetch(`${apiUrl}/api/annonces/${typeRequete}/${props.annonce.id}/like`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${authStore.token}`,
@@ -53,14 +61,35 @@ const toggleLike = async () => {
       }
     })
 
-    if (response.ok) {
+    /*if (response.ok) {
       const data = await response.json()
-      // On met à jour l'état local avec ce que le serveur valide
-      isLiked.value = data.jaime
-      localNbJaime.value = data.jaime ? localNbJaime.value + 1 : localNbJaime.value - 1
+      
+      // 3. Synchronisation finale et sécurisée avec la clé exacte du contrôleur backend : data.jaime
+      if (data && typeof data.jaime === 'boolean') {
+        isLiked.value = data.jaime
+        // On recalcule à partir du compteur initial d'origine pour éviter les cumuls ou les glissements infinis
+        localNbJaime.value = data.jaime ? initialNbJaime + (wasLiked ? 0 : 1) : Math.max(0, initialNbJaime - (wasLiked ? 1 : 0))
+      }
+    }*/
+    if (response.ok) {
+        const data = await response.json()
+        
+        // Correction ici : data.liked au lieu de data.jaime suite à votre refonte backend
+        if (data && typeof data.liked === 'boolean') {
+          isLiked.value = data.liked
+          localNbJaime.value = data.liked ? initialNbJaime + (wasLiked ? 0 : 1) : Math.max(0, initialNbJaime - (wasLiked ? 1 : 0))
+        }
+      } else {
+      // Annulation et retour à l'état d'origine si le backend refuse (ex: Token expiré)
+      console.error(`Erreur serveur lors du like (Statut: ${response.status})`)
+      isLiked.value = wasLiked
+      localNbJaime.value = initialNbJaime
     }
   } catch (error) {
-    console.error('Erreur lors du like:', error)
+    console.error('Erreur réseau lors du like:', error)
+    // Réversion en cas de coupure réseau
+    isLiked.value = wasLiked
+    localNbJaime.value = initialNbJaime
   } finally {
     isLikeSubmitting.value = false
   }
@@ -71,7 +100,7 @@ const toggleLike = async () => {
   <article class="bg-white rounded-xl shadow-sm hover:shadow transition duration-200 overflow-hidden">
     <div class="p-5">
       <div class="flex justify-between items-start mb-4">
-        <router-link :to="`/profil/${annonce.auteur.id}`" class="flex items-center gap-3 hover:opacity-75 transition">
+        <router-link :to="`/profil/${annonce.auteur?.id}`" class="flex items-center gap-3 hover:opacity-75 transition" v-if="annonce.auteur">
           <div class="w-10 h-10 rounded-full bg-gray-200 border border-gray-300 flex items-center justify-center font-bold text-gray-600">
             {{ getInitials(annonce.auteur.prenom, annonce.auteur.nom) }}
           </div>
@@ -82,12 +111,20 @@ const toggleLike = async () => {
             <p class="text-xs text-gray-500">{{ formatDate(annonce.datePublication) }}</p>
           </div>
         </router-link>
+        
+        <div class="flex items-center gap-3" v-else>
+          <div class="w-10 h-10 rounded-full bg-gray-200 animate-pulse"></div>
+          <div class="h-4 w-24 bg-gray-200 rounded animate-pulse"></div>
+        </div>
+
         <span class="text-xs font-bold px-3 py-1 rounded-full" :class="{
-          'bg-green-100 text-green-700': annonce.type === 'AnnonceBonPlan',
-          'bg-purple-100 text-purple-700': annonce.type === 'AnnonceTutorat',
-          'bg-blue-100 text-blue-700': annonce.type === 'AnnonceProjet',
-          'bg-orange-100 text-orange-700': annonce.type === 'AnnonceExercice'
-        }">{{ annonce.type.replace('Annonce', '') }}</span>
+          'bg-green-100 text-green-700': annonce.type === 'AnnonceBonPlan' || annonce.type === 'BON_PLAN',
+          'bg-purple-100 text-purple-700': annonce.type === 'AnnonceTutorat' || annonce.type === 'TUTORAT',
+          'bg-blue-100 text-blue-700': annonce.type === 'AnnonceProjet' || annonce.type === 'PROJET',
+          'bg-orange-100 text-orange-700': annonce.type === 'AnnonceExercice' || annonce.type === 'EXERCICE'
+        }">
+          {{ annonce.type.replace('Annonce', '') }}
+        </span>
       </div>
 
       <div class="mt-2">
@@ -127,7 +164,6 @@ const toggleLike = async () => {
       :annonce-id="annonce.id" 
       :annonceType="annonce.type" 
       @comment-added="localNbCommentaires++"
-     
     />
   </article>
 </template>

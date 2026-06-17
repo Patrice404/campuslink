@@ -3,6 +3,7 @@ import { ref, onMounted } from 'vue'
 import SidebarNav from '../components/SidebarNav.vue'
 import TopNav from '../components/TopNav.vue'
 import CreatePostModal from '../components/CreatePostModal.vue'
+import AnnonceCard from '../components/AnnonceCard.vue' // <-- Réimport du composant réactif
 import { useAuthStore } from '../stores/authStore'
 
 const authStore = useAuthStore()
@@ -14,9 +15,6 @@ const exercices = ref<any[]>([])
 const isLoading = ref(true)
 const errorMessage = ref<string | null>(null)
 
-// Filtres locaux facultatifs (par année par exemple)
-const filtreAnnee = ref('TOUS')
-
 // Récupération des données depuis l'API
 const fetchExercices = async () => {
   isLoading.value = true
@@ -26,7 +24,6 @@ const fetchExercices = async () => {
     const response = await fetch(`${apiUrl}/api/entraide`, {
       method: 'GET',
       headers: {
-    
         ...(authStore.token ? { Authorization: `Bearer ${authStore.token}` } : {})
       }
     })
@@ -36,7 +33,21 @@ const fetchExercices = async () => {
 
     const data = await response.json()
     console.log('Exercices reçus:', data, 'count =', data.length)
-    exercices.value = data
+    
+    // On mappe les données reçues pour s'assurer qu'elles correspondent à ce qu'attend AnnonceCard
+    exercices.value = data.map((item: any) => {
+      return {
+        ...item,
+        // Forcer le type visuel pour que AnnonceCard mette la bonne couleur/icône
+        type: 'AnnonceExercice',
+        // AnnonceCard s'attend à recevoir la propriété "auteur" plutôt que "utilisateur"
+        auteur: item.utilisateur || { prenom: "Utilisateur", nom: "Inconnu", id: 0 },
+        // Si le titre n'existe pas directement au premier niveau, on utilise celui de la matière ou une valeur par défaut
+        titre: item.titre || item.matiere?.titre || 'Exercice d\'entraide',
+        // Assure que le texte principal est lié à la description ou au texte
+        texte: item.texte || item.description
+      }
+    })
   } catch (error) {
     console.error('Erreur entraide:', error)
     errorMessage.value = "Impossible de charger le fil d'entraide. Vérifie ta connexion."
@@ -68,18 +79,9 @@ onMounted(() => {
 
       <main class="flex-1 overflow-y-auto p-4 md:p-6 max-w-4xl w-full mx-auto">
         
-        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-          <div>
-            <h2 class="text-2xl font-black text-gray-900 tracking-tight">Espace Entraide & Devoirs</h2>
-            <p class="text-sm text-gray-500">Trouve de l'aide ou propose tes compétences sur les exercices bloquants.</p>
-          </div>
-          
-          <button 
-            @click="isCreateModalOpen = true"
-            class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 px-4 rounded-xl transition active:scale-95 flex items-center gap-2 shadow-sm"
-          >
-            <span>🙋‍♂️</span> Demander de l'aide
-          </button>
+        <div class="mb-6">
+          <h2 class="text-2xl font-black text-gray-900 tracking-tight">Espace Entraide & Devoirs</h2>
+          <p class="text-sm text-gray-500">Trouve de l'aide ou propose tes compétences sur les exercices bloquants.</p>
         </div>
 
         <div v-if="isLoading" class="flex flex-col items-center justify-center py-12">
@@ -98,36 +100,11 @@ onMounted(() => {
         </div>
 
         <div v-else class="space-y-4">
-          <article
-            v-for="item in exercices"
-            :key="item.id"
-            class="bg-white rounded-2xl p-5 border border-gray-200 shadow-sm hover:shadow-md transition"
-          >
-            <div class="flex items-center justify-between mb-3">
-              <div class="flex items-center gap-2">
-                <span class="text-xs font-semibold bg-blue-50 text-blue-600 px-2.5 py-1 rounded-full">
-                  {{ item.matiere?.titre || 'Exercice' }}
-                </span>
-                <span class="text-xs text-gray-400">{{ item.annee }}</span>
-              </div>
-              <span class="text-xs text-gray-400">❤️ {{ item.nbJaime }}</span>
-            </div>
-
-            <p class="text-gray-800 whitespace-pre-line">{{ item.description }}</p>
-
-            <a
-              v-if="item.lien"
-              :href="item.lien"
-              target="_blank"
-              class="inline-block mt-2 text-sm text-blue-600 hover:underline"
-            >
-              Voir le lien
-            </a>
-
-            <p class="text-xs text-gray-400 mt-4">
-              Par {{ item.utilisateur?.prenom }} {{ item.utilisateur?.nom }}
-            </p>
-          </article>
+          <AnnonceCard 
+            v-for="item in exercices" 
+            :key="item.id" 
+            :annonce="item" 
+          />
         </div>
       </main>
     </div>
