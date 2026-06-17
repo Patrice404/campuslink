@@ -7,6 +7,7 @@ import RegisterView from '../views/RegisterView.vue'
 import ProfileView from '../views/ProfileView.vue'
 import EntraideView from '../views/EntraideView.vue'
 import CampusView from '../views/CampusView.vue'
+import OpportunitesView from '../views/OpportunitesView.vue'
 
 
 const router = createRouter({
@@ -60,6 +61,11 @@ const router = createRouter({
       path: '/campus',
       name: 'campus',
       component: CampusView
+    },
+    {
+      path: '/opportunites',
+      name: 'opportunites',
+      component: OpportunitesView
     },
   ]
 })
