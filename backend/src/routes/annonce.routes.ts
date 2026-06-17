@@ -9,9 +9,6 @@ import {
   lister,
   detail,
   mesAnnonces,
-  creer,
-  modifier,
-  supprimer,
   createExercice,
   createBonPlan,
   createTutorat,
@@ -57,7 +54,7 @@ router.post('/:type/:id/like', auth, toggleLike);
 // Endpoint générique (conservé)
  
 router.get('/:id', detail);
-router.put('/:id', auth, upload.single('image'), modifier);
+//router.put('/:id', auth, upload.single('image'), modifier);
 router.post('/:id/jaime', auth, toggle);
 // Commentaires d'une annonce (param ?type= recommandé)
 router.get('/:id/commentaires', auth, listerParAnnonce);

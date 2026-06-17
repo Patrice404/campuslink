@@ -481,291 +481,231 @@ export async function detail(req: Request, res: Response): Promise<void> {
   }
 }
 
-// POST / : crée une annonce selon le `type` envoyé dans le body
-export async function creer(req: Request, res: Response): Promise<void> {
-  try {
-    const { type } = req.body;
-    if (!TYPES.includes(type)) {
-      res.status(400).json({ message: 'type invalide (EXERCICE, BON_PLAN, TUTORAT ou PROJET)' });
-      return;
-    }
 
-    const id_utilisateur = BigInt(req.utilisateur!.id);
-    const image = req.file ? req.file.filename : null;
-    const lien = req.body.lien ?? null;
-    const b = req.body;
-    let annonce;
 
-    switch (type as AnnonceType) {
-      case 'EXERCICE':
-        annonce = await prisma.annonceExercice.create({
-          data: { annee: b.annee, description: b.description, id_matiere: BigInt(b.id_matiere), id_utilisateur, image, lien },
-        });
-        break;
-      case 'BON_PLAN':
-        annonce = await prisma.annonceBonPlan.create({
-          data: { titre: b.titre, description: b.description, sousType: b.sousType, id_utilisateur, image, lien },
-        });
-        break;
-      case 'TUTORAT':
-        annonce = await prisma.annonceTutorat.create({
-          data: {
-            nbCandidatsVoulus: Number(b.nbCandidatsVoulus),
-            annee: b.annee,
-            description: b.description,
-            id_matiere: BigInt(b.id_matiere),
-            id_utilisateur,
-            image,
-            lien,
-          },
-        });
-        break;
-      case 'PROJET':
-        annonce = await prisma.annonceProjet.create({
-          data: { titre: b.titre, description: b.description, id_utilisateur, image, lien },
-        });
-        break;
-    }
 
-    res.status(201).json(toJSON(annonce));
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: 'Erreur serveur' });
-  }
-}
+// Fonction utilitaire pour sérialiser
+const serializeAnnonce = (annonce: any) => {
+    return {
+        ...annonce,
+        id: annonce.id.toString(),
+        id_utilisateur: annonce.id_utilisateur.toString(),
+        id_matiere: annonce.id_matiere ? annonce.id_matiere.toString() : undefined,
+    };
+};
 
-// PUT /:id : modifie une annonce (l'auteur uniquement)
-export async function modifier(req: Request, res: Response): Promise<void> {
-  try {
-    const type = (req.body.type ?? req.query.type) as AnnonceType | undefined;
-    const found = await findAnnonceById(BigInt(req.params.id), type);
-    if (!found) {
-      res.status(404).json({ message: 'Annonce introuvable' });
-      return;
-    }
-    if (found.record.id_utilisateur.toString() !== req.utilisateur!.id) {
-      res.status(403).json({ message: 'Action non autorisée' });
-      return;
-    }
-
-    // On ne met à jour que les champs fournis et autorisés
-    const data: Record<string, unknown> = {};
-    for (const champ of ['titre', 'description', 'annee', 'lien', 'sousType']) {
-      if (req.body[champ] !== undefined) data[champ] = req.body[champ];
-    }
-    if (req.body.nbCandidatsVoulus !== undefined) data.nbCandidatsVoulus = Number(req.body.nbCandidatsVoulus);
-    if (req.file) data.image = req.file.filename;
-
-    const annonce = await ANNONCE_CONFIG[found.type].delegate.update({
-      where: { id: found.record.id },
-      data,
-    });
-
-    res.json(toJSON(annonce));
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: 'Erreur serveur' });
-  }
-}
-
-// DELETE /:id : supprime une annonce (l'auteur uniquement)
-export async function supprimer(req: Request, res: Response): Promise<void> {
-  try {
-    const type = req.query.type as AnnonceType | undefined;
-    const found = await findAnnonceById(BigInt(req.params.id), type);
-    if (!found) {
-      res.status(404).json({ message: 'Annonce introuvable' });
-      return;
-    }
-    if (found.record.id_utilisateur.toString() !== req.utilisateur!.id) {
-      res.status(403).json({ message: 'Action non autorisée' });
-      return;
-    }
-
-    await ANNONCE_CONFIG[found.type].delegate.delete({ where: { id: found.record.id } });
-    res.json({ message: 'Annonce supprimée' });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: 'Erreur serveur' });
-  }
-}
-
-// ---------------------------------------------------------------------
 // POST /api/annonces/exercice
-// ---------------------------------------------------------------------
 export async function createExercice(req: Request, res: Response): Promise<void> {
-  try {
-    const id_utilisateur = BigInt(req.utilisateur!.id);
-    const { annee, id_matiere, description, visibilite } = req.body;
-    const lien = req.body.lien || null;
-    const image = req.file ? req.file.filename : null;
- 
-    if (!description || !annee || !id_matiere) {
-      res.status(400).json({ message: 'Champs requis manquants : description, annee, id_matiere' });
-      return;
-    }
+    try {
+        const id_utilisateur = BigInt(req.utilisateur!.id);
+        const { annee, id_matiere, description, visibilite } = req.body;
+        const lien = req.body.lien || null;
+        const image = req.file ? req.file.filename : null;
 
-    const verdict = await verifierContenuAvecIA(description, undefined, lien);
+        if (!description || !annee || !id_matiere) {
+            res.status(400).json({ message: 'Champs requis manquants : description, annee, id_matiere' });
+            return;
+        }
 
-    if (verdict === 'REJECT') {
-      res.status(400).json({ message: "Votre annonce a été rejetée par le système de modération." });
-      return;
+        const verdict = await verifierContenuAvecIA(description, undefined, lien, image ? [image] : []);
+
+        if (verdict === 'REJECT') {
+            if (image) fs.unlinkSync(path.join(process.cwd(), 'uploads', image));
+            res.status(400).json({ message: "Votre annonce a été rejetée par le système de modération." });
+            return;
+        }
+
+        const annonce = await prisma.annonceExercice.create({
+            data: { description, annee, visibilite, id_matiere: BigInt(id_matiere), id_utilisateur, image, lien },
+        });
+
+        res.status(201).json(toJSON(annonce));
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: 'Erreur serveur' });
     }
- 
-    const annonce = await prisma.annonceExercice.create({
-      data: {
-        description,
-        annee,
-        visibilite,
-        id_matiere: BigInt(id_matiere),
-        id_utilisateur,
-        image,
-        lien,
-      },
-    });
- 
-    res.status(201).json(toJSON(annonce));
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: 'Erreur serveur' });
-  }
 }
- 
-// ---------------------------------------------------------------------
+
 // POST /api/annonces/bonplan
-// ---------------------------------------------------------------------
 export async function createBonPlan(req: Request, res: Response): Promise<void> {
-  try {
-    const id_utilisateur = BigInt(req.utilisateur!.id);
-    const { titre, description, sousType, visibilite } = req.body;
-    const lien = req.body.lien || null;
-    const image = req.file ? req.file.filename : null;
- 
-    const sousTypesAutorises = Object.values(SousTypeBonPlan);
- 
-    if (!titre || !description || !sousType) {
-      res.status(400).json({ message: 'Champs requis manquants : titre, description, sousType' });
-      return;
-    }
-    if (!sousTypesAutorises.includes(sousType)) {
-      res.status(400).json({ message: `sousType invalide. Valeurs autorisées : ${sousTypesAutorises.join(', ')}` });
-      return;
-    }
+    try {
+        const id_utilisateur = BigInt(req.utilisateur!.id);
+        const { titre, description, sousType, visibilite } = req.body;
+        const lien = req.body.lien || null;
+        const image = req.file ? req.file.filename : null;
 
-    const verdict = await verifierContenuAvecIA(description, titre, lien);
+        const sousTypesAutorises = Object.values(SousTypeBonPlan);
 
-    if (verdict === 'REJECT') {
-      res.status(400).json({ message: "Votre annonce a été rejetée par le système de modération." });
-      return;
+        if (!titre || !description || !sousType) {
+            res.status(400).json({ message: 'Champs requis manquants : titre, description, sousType' });
+            return;
+        }
+        if (!sousTypesAutorises.includes(sousType)) {
+            res.status(400).json({ message: `sousType invalide. Valeurs autorisées : ${sousTypesAutorises.join(', ')}` });
+            return;
+        }
+
+        const verdict = await verifierContenuAvecIA(description, titre, lien, image ? [image] : []);
+
+        if (verdict === 'REJECT') {
+            if (image) fs.unlinkSync(path.join(process.cwd(), 'uploads', image));
+            res.status(400).json({ message: "Votre annonce a été rejetée par le système de modération." });
+            return;
+        }
+
+        const annonce = await prisma.annonceBonPlan.create({
+            data: { titre, description, visibilite, sousType, id_utilisateur, image, lien },
+        });
+
+        res.status(201).json(toJSON(annonce));
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: 'Erreur serveur' });
     }
- 
-    const annonce = await prisma.annonceBonPlan.create({
-      data: {
-        titre,
-        description,
-        visibilite,
-        sousType,
-        id_utilisateur,
-        image,
-        lien,
-      },
-    });
- 
-    res.status(201).json(toJSON(annonce));
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: 'Erreur serveur' });
-  }
 }
- 
-// ---------------------------------------------------------------------
+
 // POST /api/annonces/tutorat
-// ---------------------------------------------------------------------
 export async function createTutorat(req: Request, res: Response): Promise<void> {
-  try {
-    const id_utilisateur = BigInt(req.utilisateur!.id);
-    const { description, annee, id_matiere, nbCandidatsVoulus, visibilite } = req.body;
-    const lien = req.body.lien || null;
-    const image = req.file ? req.file.filename : null;
- 
-    if (!description || !annee || !id_matiere || nbCandidatsVoulus === undefined) {
-      res.status(400).json({
-        message: 'Champs requis manquants : description, annee, id_matiere, nbCandidatsVoulus',
-      });
-      return;
-    }
+    try {
+        const id_utilisateur = BigInt(req.utilisateur!.id);
+        const { description, annee, id_matiere, nbCandidatsVoulus, visibilite } = req.body;
+        const lien = req.body.lien || null;
+        const image = req.file ? req.file.filename : null;
 
-    const verdict = await verifierContenuAvecIA(description, undefined, lien);
+        if (!description || !annee || !id_matiere || nbCandidatsVoulus === undefined) {
+            res.status(400).json({ message: 'Champs requis manquants : description, annee, id_matiere, nbCandidatsVoulus' });
+            return;
+        }
 
-    if (verdict === 'REJECT') {
-      res.status(400).json({ message: "Votre annonce a été rejetée par le système de modération." });
-      return;
+        const nb = Number(nbCandidatsVoulus);
+        if (!Number.isInteger(nb) || nb < 1) {
+            res.status(400).json({ message: 'nbCandidatsVoulus doit être un entier >= 1' });
+            return;
+        }
+
+        const verdict = await verifierContenuAvecIA(description, undefined, lien, image ? [image] : []);
+
+        if (verdict === 'REJECT') {
+            if (image) fs.unlinkSync(path.join(process.cwd(), 'uploads', image));
+            res.status(400).json({ message: "Votre annonce a été rejetée par le système de modération." });
+            return;
+        }
+
+        const annonce = await prisma.annonceTutorat.create({
+            data: { description, annee, visibilite, id_matiere: BigInt(id_matiere), nbCandidatsVoulus: nb, id_utilisateur, image, lien },
+        });
+
+        res.status(201).json(toJSON(annonce));
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: 'Erreur serveur' });
     }
- 
-    const nb = Number(nbCandidatsVoulus);
-    if (!Number.isInteger(nb) || nb < 1) {
-      res.status(400).json({ message: 'nbCandidatsVoulus doit être un entier >= 1' });
-      return;
-    }
- 
-    const annonce = await prisma.annonceTutorat.create({
-      data: {
-        description,
-        annee,
-        visibilite,
-        id_matiere: BigInt(id_matiere),
-        nbCandidatsVoulus: nb,
-        id_utilisateur,
-        image,
-        lien,
-      },
-    });
- 
-    res.status(201).json(toJSON(annonce));
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: 'Erreur serveur' });
-  }
 }
- 
-// ---------------------------------------------------------------------
+
 // POST /api/annonces/projet
-// ---------------------------------------------------------------------
 export async function createProjet(req: Request, res: Response): Promise<void> {
-  try {
-    const id_utilisateur = BigInt(req.utilisateur!.id);
-    const { titre, description, visibilite } = req.body;
-    const lien = req.body.lien || null;
-    const image = req.file ? req.file.filename : null;
- 
-    if (!titre || !description) {
-      res.status(400).json({ message: 'Champs requis manquants : titre, description' });
-      return;
-    }
+    try {
+        const id_utilisateur = BigInt(req.utilisateur!.id);
+        const { titre, description, visibilite } = req.body;
+        const lien = req.body.lien || null;
+        const image = req.file ? req.file.filename : null;
 
-    const verdict = await verifierContenuAvecIA(description, titre, lien);
+        if (!titre || !description) {
+            res.status(400).json({ message: 'Champs requis manquants : titre, description' });
+            return;
+        }
 
-    if (verdict === 'REJECT') {
-      res.status(400).json({ message: "Votre annonce a été rejetée par le système de modération." });
-      return;
+        const verdict = await verifierContenuAvecIA(description, titre, lien, image ? [image] : []);
+
+        if (verdict === 'REJECT') {
+            if (image) fs.unlinkSync(path.join(process.cwd(), 'uploads', image));
+            res.status(400).json({ message: "Votre annonce a été rejetée par le système de modération." });
+            return;
+        }
+
+        const annonce = await prisma.annonceProjet.create({
+            data: { titre, description, visibilite, id_utilisateur, image, lien },
+        });
+
+        res.status(201).json(toJSON(annonce));
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: 'Erreur serveur' });
     }
- 
-    const annonce = await prisma.annonceProjet.create({
-      data: {
-        titre,
-        description,
-        visibilite,
-        id_utilisateur,
-        image,
-        lien,
-      },
-    });
- 
-    res.status(201).json(toJSON(annonce));
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: 'Erreur serveur' });
-  }
+}
+
+// PUT /api/annonces/:type/:id
+export async function modifierAnnonce(req: Request, res: Response): Promise<void> {
+    try {
+        const { type, id } = req.params;
+
+        if (isNaN(Number(id))) {
+            res.status(400).json({ message: "L'ID fourni est invalide." });
+            return;
+        }
+
+        const idAnnonce = BigInt(id);
+        const idUtilisateur = BigInt(req.utilisateur!.id);
+
+        let annonceExistante: any;
+        switch (type.toLowerCase()) {
+            case 'exercice': annonceExistante = await prisma.annonceExercice.findUnique({ where: { id: idAnnonce } }); break;
+            case 'bonplan':  annonceExistante = await prisma.annonceBonPlan.findUnique({ where: { id: idAnnonce } }); break;
+            case 'tutorat':  annonceExistante = await prisma.annonceTutorat.findUnique({ where: { id: idAnnonce } }); break;
+            case 'projet':   annonceExistante = await prisma.annonceProjet.findUnique({ where: { id: idAnnonce } }); break;
+            default: { res.status(400).json({ message: "Type d'annonce inconnu." }); return; }
+        }
+
+        if (!annonceExistante) { res.status(404).json({ message: "Annonce introuvable." }); return; }
+        if (annonceExistante.id_utilisateur !== idUtilisateur) {
+            res.status(403).json({ message: "Action non autorisée." });
+            return;
+        }
+
+        const data: any = {};
+        if (req.body.description !== undefined) data.description = req.body.description;
+        if (req.body.lien !== undefined) data.lien = req.body.lien;
+        if (req.body.visibilite !== undefined) data.visibilite = req.body.visibilite;
+
+        if (req.file) {
+            data.image = req.file.filename;
+            if (annonceExistante.image) {
+                const oldImagePath = path.join(process.cwd(), 'uploads', annonceExistante.image);
+                if (fs.existsSync(oldImagePath)) {
+                    try { fs.unlinkSync(oldImagePath); } catch (err) { console.error(err); }
+                }
+            }
+        }
+
+        if (type === 'exercice' || type === 'tutorat') {
+            if (req.body.annee) data.annee = req.body.annee;
+            if (req.body.id_matiere) data.id_matiere = BigInt(req.body.id_matiere);
+        }
+        if (type === 'tutorat' && req.body.nbCandidatsVoulus) data.nbCandidatsVoulus = Number(req.body.nbCandidatsVoulus);
+        if (type === 'bonplan' || type === 'projet') if (req.body.titre) data.titre = req.body.titre;
+        if (type === 'bonplan' && req.body.sousType) data.sousType = req.body.sousType;
+
+        const verdict = await verifierContenuAvecIA(data.description, data.titre, data.lien, data.image ? [data.image] : []);
+
+        if (verdict === 'REJECT') {
+            if (data.image) fs.unlinkSync(path.join(process.cwd(), 'uploads', data.image));
+            res.status(400).json({ message: "Votre annonce a été rejetée par le système de modération." });
+            return;
+        }
+
+        let annonceMiseAJour: any;
+        switch (type.toLowerCase()) {
+            case 'exercice': annonceMiseAJour = await prisma.annonceExercice.update({ where: { id: idAnnonce }, data }); break;
+            case 'bonplan':  annonceMiseAJour = await prisma.annonceBonPlan.update({ where: { id: idAnnonce }, data }); break;
+            case 'tutorat':  annonceMiseAJour = await prisma.annonceTutorat.update({ where: { id: idAnnonce }, data }); break;
+            case 'projet':   annonceMiseAJour = await prisma.annonceProjet.update({ where: { id: idAnnonce }, data }); break;
+        }
+
+        res.status(200).json(serializeAnnonce(annonceMiseAJour));
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: "Erreur serveur lors de la modification." });
+    }
 }
  
 //---------------------------------------------------------------------
@@ -838,93 +778,7 @@ export async function supprimerAnnonce(req: Request, res: Response): Promise<voi
   }
 }
 
-// Fonction utilitaire pour sérialiser
-const serializeAnnonce = (annonce: any) => {
-  return {
-    ...annonce,
-    id: annonce.id.toString(),
-    id_utilisateur: annonce.id_utilisateur.toString(),
-    id_matiere: annonce.id_matiere ? annonce.id_matiere.toString() : undefined,
-  };
-};
 
-export async function modifierAnnonce(req: Request, res: Response): Promise<void> {
-  try {
-    const { type, id } = req.params;
-    
-    if (isNaN(Number(id))) {
-      res.status(400).json({ message: "L'ID fourni est invalide." });
-      return;
-    }
-
-    const idAnnonce = BigInt(id);
-    const idUtilisateur = BigInt(req.utilisateur!.id);
-
-    let annonceExistante;
-    switch (type.toLowerCase()) {
-      case 'exercice': annonceExistante = await prisma.annonceExercice.findUnique({ where: { id: idAnnonce } }); break;
-      case 'bonplan':  annonceExistante = await prisma.annonceBonPlan.findUnique({ where: { id: idAnnonce } }); break;
-      case 'tutorat':  annonceExistante = await prisma.annonceTutorat.findUnique({ where: { id: idAnnonce } }); break;
-      case 'projet':   annonceExistante = await prisma.annonceProjet.findUnique({ where: { id: idAnnonce } }); break;
-      default: {
-        res.status(400).json({ message: "Type d'annonce inconnu." });
-        return;
-      }
-    }
-
-    if (!annonceExistante) {
-      res.status(404).json({ message: "Annonce introuvable." });
-      return;
-    }
-
-    if (annonceExistante.id_utilisateur !== idUtilisateur) {
-      res.status(403).json({ message: "Action non autorisée. Seul l'auteur peut modifier cette publication." });
-      return;
-    }
-
-    const data: any = {};
-    if (req.body.description !== undefined) data.description = req.body.description;
-    if (req.body.lien !== undefined) data.lien = req.body.lien;
-    if (req.body.visibilite !== undefined) data.visibilite = req.body.visibilite;
-
-    if (req.file) {
-      data.image = req.file.filename;
-      if (annonceExistante.image) {
-        const oldImagePath = path.join(process.cwd(), 'uploads', annonceExistante.image);
-        if (fs.existsSync(oldImagePath)) {
-          try { fs.unlinkSync(oldImagePath); } catch (err) { console.error(err); }
-        }
-      }
-    }
-
-    if (type === 'exercice' || type === 'tutorat') {
-      if (req.body.annee) data.annee = req.body.annee;
-      if (req.body.id_matiere) data.id_matiere = BigInt(req.body.id_matiere);
-    }
-    if (type === 'tutorat' && req.body.nbCandidatsVoulus) data.nbCandidatsVoulus = Number(req.body.nbCandidatsVoulus);
-    if (type === 'bonplan' || type === 'projet') if (req.body.titre) data.titre = req.body.titre;
-    if (type === 'bonplan' && req.body.sousType) data.sousType = req.body.sousType;
-
-    const verdict = await verifierContenuAvecIA(data.description , data.titre, data.lien);
-    if (verdict === 'REJECT') {
-      res.status(400).json({ message: "Votre annonce a été rejetée par le système de modération." });
-      return;
-    }
-
-    let annonceMiseAJour;
-    switch (type.toLowerCase()) {
-      case 'exercice': annonceMiseAJour = await prisma.annonceExercice.update({ where: { id: idAnnonce }, data }); break;
-      case 'bonplan':  annonceMiseAJour = await prisma.annonceBonPlan.update({ where: { id: idAnnonce }, data }); break;
-      case 'tutorat':  annonceMiseAJour = await prisma.annonceTutorat.update({ where: { id: idAnnonce }, data }); break;
-      case 'projet':   annonceMiseAJour = await prisma.annonceProjet.update({ where: { id: idAnnonce }, data }); break;
-    }
-
-    res.status(200).json(serializeAnnonce(annonceMiseAJour));
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: "Erreur serveur lors de la modification." });
-  }
-}
 
 export async function toggleLike(req: Request, res: Response): Promise<void> {
   try {
