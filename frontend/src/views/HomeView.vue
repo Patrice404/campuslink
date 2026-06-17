@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue' 
+import { ref, onMounted, computed, watch } from 'vue' 
 import SidebarNav from '../components/SidebarNav.vue'
 import TopNav from '../components/TopNav.vue'
 import CreatePostModal from '../components/CreatePostModal.vue' 
@@ -14,7 +14,12 @@ const error = ref("");
 const isMobileMenuOpen = ref(false)
 const isCreateModalOpen = ref(false) 
 
+// Logique de recherche
 const searchQuery = ref("");
+
+// ✨ NOUVEAU : Limite initiale d'affichage (charge progressive)
+const visibleCount = ref(5);
+
 const filteredAnnonces = computed(() => {
   const query = searchQuery.value.toLowerCase().trim();
   if (!query) return annonces.value;
@@ -34,7 +39,21 @@ const filteredAnnonces = computed(() => {
   });
 });
 
-// Fonction nommée réutilisable pour charger le flux d'actualités
+// ✨ NOUVEAU : Tronquer la liste pour n'afficher que ce qui est chargé
+const displayedAnnonces = computed(() => {
+  return filteredAnnonces.value.slice(0, visibleCount.value);
+});
+
+// ✨ NOUVEAU : Charger le lot suivant (5 de plus)
+const loadMore = () => {
+  visibleCount.value += 5;
+};
+
+// Réinitialiser la pagination si une nouvelle recherche est tapée
+watch(searchQuery, () => {
+  visibleCount.value = 5;
+});
+
 const fetchAnnonces = async () => {
   loading.value = true;
   error.value = "";
@@ -76,7 +95,6 @@ const fetchAnnonces = async () => {
   }
 };
 
-// On charge au démarrage initial de la page
 onMounted(fetchAnnonces);
 </script>
 
@@ -108,8 +126,8 @@ onMounted(fetchAnnonces);
               <input 
                 v-model="searchQuery"
                 type="search" 
-                class="w-full bg-gray-50 rounded-lg pl-10 pr-4 py-3 border border-transparent focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition outline-none" 
-                placeholder="Rechercher par mots-clés, auteur, catégorie...">
+                class="w-full bg-gray-50 rounded-lg pl-10 pr-4 py-3 border border-transparent focus:bg-white focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 transition outline-none" 
+                placeholder="Rechercher sur tout le fil d'actualité...">
             </div>
           </section>
 
@@ -127,10 +145,23 @@ onMounted(fetchAnnonces);
             </div>
 
             <AnnonceCard 
-              v-for="item in filteredAnnonces" 
+              v-for="item in displayedAnnonces" 
               :key="item.id" 
               :annonce="item" 
             />
+
+            <div v-if="visibleCount < filteredAnnonces.length" class="text-center pt-4">
+              <button 
+                @click="loadMore"
+                class="inline-flex items-center gap-2 px-6 py-2.5 bg-white hover:bg-indigo-50 text-indigo-600 border border-gray-200 hover:border-indigo-300 font-bold text-sm rounded-xl transition shadow-sm cursor-pointer"
+              >
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+                </svg>
+                Afficher plus de publications
+              </button>
+            </div>
+
           </section>
 
         </div>
