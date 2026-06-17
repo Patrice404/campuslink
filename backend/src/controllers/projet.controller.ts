@@ -10,7 +10,7 @@ export async function getProjets(req: Request, res: Response): Promise<void> {
         const idConnected = req.utilisateur ? BigInt(req.utilisateur.id) : null;
 
         // 1. GESTION DE LA PAGINATION
-        const LIMIT = 10; // Nombre d'annonces par page
+        const LIMIT = 4; // Nombre d'annonces par page
         const queryPage = Number(req.query.page);
 
         // Si la page est absente, négative ou n'est pas un nombre, on force la page 1

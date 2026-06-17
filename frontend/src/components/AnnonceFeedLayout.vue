@@ -7,7 +7,8 @@ import AnnonceCard from './AnnonceCard.vue'
 import { useAuthStore } from '../stores/authStore'
 
 const authStore = useAuthStore()
-const MAX_ANNONCES_PER_PAGE = 10 // Nombre d'annonces à charger par page (pour la pagination)
+const MAX_ANNONCES_PER_PAGE = 4 // Ta limite de test
+
 const props = defineProps({
   pageTitle: { type: String, required: true },
   pageSubtitle: { type: String, required: true },
@@ -19,19 +20,18 @@ const props = defineProps({
   emptyStateSubtitle: { type: String, default: 'Le fil est vide pour le moment.' }
 })
 
-// États de la vue
 const isSidebarOpen = ref(false)
 const isCreateModalOpen = ref(false)
 const annonces = ref<any[]>([])
 
-// NOUVEAUX ÉTATS POUR LA PAGINATION
 const page = ref(1)
 const hasMore = ref(true)
-const isLoading = ref(true)       // Uniquement pour le TOUT PREMIER chargement
-const isLoadingMore = ref(false)   // Pour les chargements au scroll en bas de page
+const isLoading = ref(true)       
+const isLoadingMore = ref(false)   
 const errorMessage = ref<string | null>(null)
 
-// Référence vers l'élément HTML tout en bas de la page
+// ⚡️ ÉTAPE 1 : Références vers le conteneur de scroll ET le déclencheur bas de page
+const scrollContainer = useTemplateRef<HTMLElement>('scrollContainer')
 const loadMoreTrigger = useTemplateRef<HTMLElement>('loadMoreTrigger')
 let observer: IntersectionObserver | null = null
 
@@ -48,8 +48,6 @@ const fetchAnnonces = async (isRefresh = false) => {
   
   try {
     const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000'
-    
-    // AJOUT : On passe la page actuelle dans la requête URL
     const response = await fetch(`${apiUrl}/api/${props.apiEndpoint}?page=${page.value}`, {
       method: 'GET',
       headers: {
@@ -63,7 +61,6 @@ const fetchAnnonces = async (isRefresh = false) => {
 
     const data = await response.json()
     
-    // Formatage classique des nouvelles lignes
     const nouvellesAnnonces = data.map((item: any) => ({
       ...item,
       type: props.cardType,
@@ -72,14 +69,13 @@ const fetchAnnonces = async (isRefresh = false) => {
       texte: item.texte || item.description
     }))
 
-    // STRATÉGIE DE FUSION :
     if (isRefresh) {
-      annonces.value = nouvellesAnnonces // Si reset (ex: pull to refresh / publication), on écrase tout
+      annonces.value = nouvellesAnnonces 
     } else {
-      annonces.value.push(...nouvellesAnnonces) // Sinon au scroll, on AJOUTE à la suite
+      annonces.value.push(...nouvellesAnnonces) 
     }
 
-    // Si le backend renvoie moins de 10 éléments, c'est qu'il n'y a plus rien après
+    // CORRECTION : Si on reçoit moins que la limite demandée, c'est la fin !
     if (data.length < MAX_ANNONCES_PER_PAGE) {
       hasMore.value = false
     }
@@ -93,18 +89,20 @@ const fetchAnnonces = async (isRefresh = false) => {
   }
 }
 
-// Configuration du détecteur de bas de page (IntersectionObserver)
 const setupIntersectionObserver = () => {
+  if (observer) observer.disconnect()
+
   observer = new IntersectionObserver(async (entries) => {
     const trigger = entries[0]
     
-    // Si la balise invisible entre dans l'écran ET qu'il reste des choses à charger
     if (trigger.isIntersecting && hasMore.value && !isLoading.value && !isLoadingMore.value) {
-      page.value++ // On passe à la page suivante
-      await fetchAnnonces() // On charge
+      page.value++ 
+      await fetchAnnonces() 
     }
   }, {
-    rootMargin: '200px' // Déclenche le chargement 200px AVANT que l'utilisateur ne touche le vrai fond (plus fluide !)
+    // ÉTAPE 2 : On dit à l'observer de surveiller le scroll du <main> et non de la page entière
+    root: scrollContainer.value, 
+    rootMargin: '100px' 
   })
 
   if (loadMoreTrigger.value) {
@@ -112,19 +110,20 @@ const setupIntersectionObserver = () => {
   }
 }
 
-// Quand l'utilisateur publie une annonce depuis la modale, on rafraîchit à zéro
-const handleModalClose = () => {
+const handleModalClose = async () => {
   isCreateModalOpen.value = false
-  fetchAnnonces(true) 
+  await fetchAnnonces(true)
+  setupIntersectionObserver() // On réactive proprement après un reset
 }
 
-onMounted(() => {
-  fetchAnnonces(true) // Premier chargement (page 1)
-  setupIntersectionObserver()
+// ÉTAPE 3 : L'ordre d'exécution synchrone/asynchrone est corrigé ici
+onMounted(async () => {
+  await fetchAnnonces(true)     // 1. On attend la fin complète du premier chargement
+  setupIntersectionObserver()  // 2. On active l'observer seulement quand les cartes sont là
 })
 
 onUnmounted(() => {
-  if (observer) observer.disconnect() // Nettoyage de la mémoire quand on quitte la page
+  if (observer) observer.disconnect()
 })
 </script>
 
@@ -138,7 +137,7 @@ onUnmounted(() => {
         @open-create-modal="isCreateModalOpen = true" 
       />
 
-      <main class="flex-1 overflow-y-auto p-4 md:p-6 max-w-4xl w-full mx-auto">
+      <main ref="scrollContainer" class="flex-1 overflow-y-auto p-4 md:p-6 max-w-4xl w-full mx-auto">
         
         <div class="mb-6">
           <h2 class="text-2xl font-black text-gray-900 tracking-tight">{{ pageTitle }}</h2>
