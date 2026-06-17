@@ -1,10 +1,16 @@
 <script setup lang="ts">
-// Code de la page projets à venir plus tard
+import AnnonceFeedLayout from '../components/AnnonceFeedLayout.vue'
 </script>
 
 <template>
-  <div>
-    <h1> Les Projets Tutorés</h1>
-    <p>C'est ici que nous afficherons les projets de la base de données !</p>
-  </div>
+  <AnnonceFeedLayout 
+    page-title="Projets Étudiants"
+    page-subtitle="Rejoins une équipe ou partage tes idées de projets pour collaborer."
+    api-endpoint="projet"
+    card-type="AnnonceProjet"
+    fallback-card-title="Nouveau Projet"
+    empty-state-emoji="💡"
+    empty-state-title="Aucun projet en cours"
+    empty-state-subtitle="Tu as une idée de startup ou de hackathon ? Lance-toi et cherche tes équipiers !"
+  />
 </template>

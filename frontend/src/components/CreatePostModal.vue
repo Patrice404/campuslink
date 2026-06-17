@@ -17,7 +17,8 @@ defineProps({
   }
 })
 
-const emit = defineEmits(['close'])
+// ✨ MODIFICATION 1 : On déclare l'événement 'post-created' pour que le parent puisse l'écouter
+const emit = defineEmits(['close', 'post-created'])
 
 // --- Variables du formulaire ---
 
@@ -173,17 +174,15 @@ const handleSubmit = async () => {
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      
-      // Si le backend a fourni un message (ex: "Votre annonce a été rejetée..."), on l'utilise.
-      // Sinon, on met un message d'erreur HTTP générique par défaut.
       const messageErreur = errorData.message || `Erreur ${response.status} lors de la publication.`;
-      
       throw new Error(messageErreur);
     }
 
+    // ✨ MODIFICATION 2 : On émet l'événement juste avant de fermer, pour rafraîchir l'accueil en arrière-plan !
+    emit('post-created')
     emit('close')
     resetForm()
-} catch (error: any) {
+  } catch (error: any) {
     console.error("Erreur complète :", error);
     submitError.value = error.message;
   } finally {
@@ -192,7 +191,6 @@ const handleSubmit = async () => {
 }
 
 onMounted(() => {
-  // On ne charge les matières que si l'utilisateur est bien connecté
   if (authStore.isAuthenticated) {
     fetchMatieres()
   }

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+<<<<<<< HEAD
 import { ref, onMounted, computed } from 'vue'
 import SidebarNav from '../components/SidebarNav.vue'
 import TopNav from '../components/TopNav.vue'
@@ -71,53 +72,20 @@ const handleModalClose = () => {
 onMounted(() => {
   fetchExercices()
 })
+=======
+import AnnonceFeedLayout from '../components/AnnonceFeedLayout.vue'
+>>>>>>> f3a76efcf9f66a1808073d62118c151b1a9b381d
 </script>
 
 <template>
-  <div class="flex h-screen bg-gray-100 overflow-hidden">
-    <SidebarNav :is-open="isSidebarOpen" @close="isSidebarOpen = false" />
-
-    <div class="flex-1 flex flex-col overflow-hidden">
-      <TopNav 
-        @open-menu="isSidebarOpen = true" 
-        @open-create-modal="isCreateModalOpen = true" 
-      />
-
-      <main class="flex-1 overflow-y-auto p-4 md:p-6 max-w-4xl w-full mx-auto">
-        
-        <div class="mb-6">
-          <h2 class="text-2xl font-black text-gray-900 tracking-tight">Espace Entraide & Devoirs</h2>
-          <p class="text-sm text-gray-500">Trouve de l'aide ou propose tes compétences sur les exercices bloquants.</p>
-        </div>
-
-        <div v-if="isLoading" class="flex flex-col items-center justify-center py-12">
-          <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600 mb-3"></div>
-          <p class="text-gray-500 text-sm">Chargement des exercices en cours...</p>
-        </div>
-
-        <div v-else-if="errorMessage" class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl text-sm">
-          {{ errorMessage }}
-        </div>
-
-        <div v-else-if="exercices.length === 0" class="bg-white rounded-2xl p-8 text-center border border-gray-200 shadow-sm">
-          <span class="text-4xl">🎉</span>
-          <h3 class="text-lg font-bold text-gray-800 mt-2">Aucun exercice en souffrance !</h3>
-          <p class="text-gray-500 text-sm mt-1">Tout le monde est à jour, ou c'est le moment idéal pour poser ta première question.</p>
-        </div>
-
-        <div v-else class="space-y-4">
-          <AnnonceCard 
-            v-for="item in exercices" 
-            :key="item.id" 
-            :annonce="item" 
-          />
-        </div>
-      </main>
-    </div>
-
-    <CreatePostModal 
-      :is-open="isCreateModalOpen" 
-      @close="handleModalClose" 
-    />
-  </div>
+  <AnnonceFeedLayout 
+    page-title="Espace Entraide & Devoirs"
+    page-subtitle="Trouve de l'aide ou propose tes compétences sur les exercices bloquants."
+    api-endpoint="entraide"
+    card-type="AnnonceExercice"
+    fallback-card-title="Exercice d'entraide"
+    empty-state-emoji="🎉"
+    empty-state-title="Aucun exercice en souffrance !"
+    empty-state-subtitle="Tout le monde est à jour, ou c'est le moment idéal pour poser ta première question."
+  />
 </template>
