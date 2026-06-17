@@ -1,5 +1,4 @@
 <script setup lang="ts">
-<<<<<<< HEAD
 import { ref, onMounted, computed } from 'vue'
 import SidebarNav from '../components/SidebarNav.vue'
 import TopNav from '../components/TopNav.vue'
@@ -72,9 +71,6 @@ const handleModalClose = () => {
 onMounted(() => {
   fetchExercices()
 })
-=======
-import AnnonceFeedLayout from '../components/AnnonceFeedLayout.vue'
->>>>>>> f3a76efcf9f66a1808073d62118c151b1a9b381d
 </script>
 
 <template>
