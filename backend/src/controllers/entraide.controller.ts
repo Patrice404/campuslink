@@ -33,7 +33,7 @@ export const getExercices = async (req: Request, res: Response): Promise<void> =
     let allowedVisibilities: string[] = ['PUBLIQUE'];
     let userFormationId: bigint | null = null;
     let allowedAuthorNiveaux: string[] = [];
-    let isAdminUser = false; // ✨ Drapeau pour identifier le rôle ADMIN
+    let isAdminUser = false; // Drapeau pour identifier le rôle ADMIN
 
     // 1. Extraction des règles de sécurité (Blocages réciproques et Visibilité)
     if (idConnected) {
@@ -62,7 +62,7 @@ export const getExercices = async (req: Request, res: Response): Promise<void> =
       if (infoUtilisateur) {
         userFormationId = infoUtilisateur.id_formation;
         
-        // ✨ Isolation du rôle ADMIN pour éviter d'injecter une valeur invalide dans Prisma
+        // Isolation du rôle ADMIN pour éviter d'injecter une valeur invalide dans Prisma
         if (infoUtilisateur.role === 'ADMIN') {
           isAdminUser = true;
         } else if (infoUtilisateur.role) {
@@ -71,29 +71,22 @@ export const getExercices = async (req: Request, res: Response): Promise<void> =
 
         if (infoUtilisateur.formation) {
           const currentNiveau = infoUtilisateur.formation.niveau;
-          const currentRank = ENTRAIDE_LEVEL_RANKS[currentNiveau] || 0;
-          allowedAuthorNiveaux = Object.keys(ENTRAIDE_LEVEL_RANKS).filter(
-            niv => ENTRAIDE_LEVEL_RANKS[niv] <= currentRank
+          const currentRank = LEVEL_RANKS[currentNiveau] || 0;
+          allowedAuthorNiveaux = Object.keys(LEVEL_RANKS).filter(
+            niv => LEVEL_RANKS[niv] <= currentRank
           );
         }
       }
     }
 
-<<<<<<< HEAD
-    // 2. CONSTRUCTION DE LA CONDITION DE SÉCURITÉ COMMUNE
-    const condition = {
-      id_utilisateur: { notIn: excludedUserIds },
-      OR: [
-=======
-    // 2. Construction de la condition de visibilité globale
+    // 2. Construction de la condition de visibilité globale (Nettoyée du doublon de merge)
     const condition: any = {
       id_utilisateur: { notIn: excludedUserIds } // Exclusion des utilisateurs bloqués
     };
 
-    // ✨ Si l'utilisateur n'est pas ADMIN, on applique le filtrage classique
+    // Si l'utilisateur n'est pas ADMIN, on applique le filtrage classique
     if (!isAdminUser) {
       condition.OR = [
->>>>>>> a1d8c241b9e15fa6eb039462fd6d4ed4ba3074ea
         ...(idConnected ? [{ id_utilisateur: idConnected }] : []),
         { visibilite: { in: allowedVisibilities as any } },
         ...(userFormationId ? [{
@@ -111,7 +104,6 @@ export const getExercices = async (req: Request, res: Response): Promise<void> =
       ];
     }
 
-<<<<<<< HEAD
     // 3. REQUÊTES PARALLÈLES SUR LES DEUX TABLES (Exercices et Tutorats)
     const [exercices, tutorats] = await Promise.all([
       prisma.annonceExercice.findMany({
@@ -135,33 +127,11 @@ export const getExercices = async (req: Request, res: Response): Promise<void> =
         }
       })
     ]);
-=======
-    // 3. Exécution de la requête avec la clause 'where' sécurisée
-    const exercices = await prisma.annonceExercice.findMany({
-      where: condition,
-      include: {
-        utilisateur: {
-          select: {
-            id: true,
-            prenom: true,
-            nom: true,
-            photoProfil: true
-          }
-        },
-        matiere: true,
-        jaimes: true // Incontournable pour garder le bouton de Like fonctionnel
-      },
-      orderBy: {
-        datePublication: 'desc'
-      }
-    });
->>>>>>> a1d8c241b9e15fa6eb039462fd6d4ed4ba3074ea
 
     // 4. FUSION ET TRI PAR DATE DÉCROISSANTE
-    // On ajoute une propriété 'sousTypeTypeFront' pour que ton composant Vue puisse faire la différence au besoin
     const entraideGlobale = [
-      ...exercices.map(exo => ({ ...exo, sousTypeTypeFront: 'EXERCICE' })),
-      ...tutorats.map(tut => ({ ...tut, sousTypeTypeFront: 'TUTORAT' }))
+      ...exercices.map(exo => ({ ...exo, sousTypeTypeFront: 'EXERCICE', type: 'AnnonceExercice' })),
+      ...tutorats.map(tut => ({ ...tut, sousTypeTypeFront: 'TUTORAT', type: 'AnnonceTutorat' }))
     ];
 
     entraideGlobale.sort(
