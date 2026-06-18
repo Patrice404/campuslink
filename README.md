@@ -81,3 +81,7 @@ docker inspect --format '{{.State.Pid}}'
 
 
 
+<<<<<<< HEAD
+=======
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up
+>>>>>>> cb6311424576dc2d7486c5eb922a5d5c3b9e7c6b
