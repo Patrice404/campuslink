@@ -41,7 +41,7 @@ services:
     container_name: campuslink-web
     restart: unless-stopped
     ports:
-      - "80:80"  # ✅ Nginx écoute sur 80, pas 5173
+      - "5173:5173"  # ✅ Nginx écoute sur 5173, pas 80
     networks:
       - campus_net
     depends_on:
