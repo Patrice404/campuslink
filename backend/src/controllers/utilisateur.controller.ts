@@ -337,3 +337,53 @@ export async function supprimerCompte(req: Request, res: Response): Promise<void
     res.status(500).json({ message: "Erreur serveur lors de la suppression du compte." });
   }
 }
+
+// GET /api/utilisateurs/recherche-mentions?q=abc
+export const chercherPourMentions = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const query = (req.query.q as string || '').trim().toLowerCase();
+    
+    if (!query || query.length < 1) {
+      res.json([]);
+      return;
+    }
+
+    const utilisateurs = await prisma.utilisateur.findMany({
+      where: {
+        OR: [
+          { prenom: { contains: query, mode: 'insensitive' } },
+          { nom: { contains: query, mode: 'insensitive' } }
+        ]
+      },
+      take: 5,
+      select: {
+        id: true,
+        prenom: true,
+        nom: true,
+        photoProfil: true
+      }
+    });
+
+    const cleanUsers = utilisateurs.map(u => {
+      // Génère un username unique en enlevant les espaces, tirets et accents pour coller à ta Regex
+      const username = `${u.prenom}${u.nom}`
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "") // Supprime les accents
+        .replace(/[^a-z0-9]/g, "");     // Supprime espaces, tirets, etc.
+        
+      return {
+        id: u.id.toString(),
+        prenom: u.prenom,
+        nom: u.nom,
+        username: username,
+        photoProfil: u.photoProfil
+      };
+    });
+
+    res.json(cleanUsers);
+  } catch (error) {
+    console.error('Erreur recherche mentions:', error);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+};

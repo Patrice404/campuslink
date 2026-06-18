@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import multer from 'multer';
 import path from 'path';
-import { getProfil, updateProfil, getProfilPublic, toggleBlocage, supprimerCompte } from '../controllers/utilisateur.controller';
+import { getProfil, updateProfil, getProfilPublic, toggleBlocage, supprimerCompte, chercherPourMentions } from '../controllers/utilisateur.controller';
 import { auth } from '../middlewares/auth.middleware';
 import { uploadImageMiddleware } from '../middlewares/file_upload.middlewares';
 
@@ -19,5 +19,8 @@ router.post('/profile/block/:uuid', auth, toggleBlocage); // ✨ Modification : 
 
 // Supprimer son propre profil
 router.delete('/profile', auth, supprimerCompte);
+
+// Rechercher des utilisateurs pour les mentions
+router.get('/recherche-mentions', auth, chercherPourMentions);
 
 export default router;
