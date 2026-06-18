@@ -10,12 +10,12 @@ const LEVEL_RANKS: Record<string, number> = {
 export const getCampusAnnonces = async (req: Request, res: Response): Promise<void> => {
   try {
     const idConnected = req.utilisateur ? BigInt(req.utilisateur.id) : null;
-    const idConnectedStr = req.utilisateur ? String(req.utilisateur.id) : null;
 
     let excludedUserIds: bigint[] = [];
     let allowedVisibilities: string[] = ['PUBLIQUE'];
     let userFormationId: bigint | null = null;
     let allowedAuthorNiveaux: string[] = [];
+    let isAdminUser = false; // ✨ Drapeau pour repérer l'admin
 
     // 1. Extraction des règles de sécurité et visibilité
     if (idConnected) {
@@ -43,7 +43,11 @@ export const getCampusAnnonces = async (req: Request, res: Response): Promise<vo
 
       if (infoUtilisateur) {
         userFormationId = infoUtilisateur.id_formation;
-        if (infoUtilisateur.role) {
+        
+        // ✨ Protection : On isole le rôle ADMIN pour ne pas faire cracher Prisma
+        if (infoUtilisateur.role === 'ADMIN') {
+          isAdminUser = true;
+        } else if (infoUtilisateur.role) {
           allowedVisibilities.push(infoUtilisateur.role);
         }
 
@@ -57,14 +61,15 @@ export const getCampusAnnonces = async (req: Request, res: Response): Promise<vo
       }
     }
 
-    // 2. Application de la condition croisée (Sécurité + Catégories Vie Campus)
-    const condition = {
+    // 2. Application de la condition croisée (Sécurité + Restriction Événements/Fêtes)
+    const condition: any = {
       id_utilisateur: { notIn: excludedUserIds },
-      
-      // 🛠️ LA CORRECTION : On ajoute "as any" pour valider l'Enum Prisma
       sousType: { in: ['FETE', 'EVENEMENT', 'HACKATHON'] as any }, 
-      
-      OR: [
+    };
+
+    // ✨ Si ce n'est pas un admin, on applique les restrictions de visibilité de l'école
+    if (!isAdminUser) {
+      condition.OR = [
         ...(idConnected ? [{ id_utilisateur: idConnected }] : []),
         { visibilite: { in: allowedVisibilities as any } },
         ...(userFormationId ? [{
@@ -79,27 +84,22 @@ export const getCampusAnnonces = async (req: Request, res: Response): Promise<vo
             { utilisateur: { formation: { niveau: { in: allowedAuthorNiveaux } } } }
           ]
         }] : [])
-      ]
-    };
+      ];
+    }
 
     const bonsPlans = await prisma.annonceBonPlan.findMany({
       where: condition,
       include: {
-        utilisateur: true // Utilisation de l'inclusion globale recommandée pour éviter les bugs d'affichage
+        utilisateur: true
       },
       orderBy: {
         datePublication: 'desc'
       }
     });
 
-    const formatAnnonces = bonsPlans.map(bp => ({
-      ...bp,
-      nbJaime: bp.nbJaime || 0
-    }));
-
-    res.status(200).json(toJSON(formatAnnonces));
+    res.status(200).json(toJSON(bonsPlans));
   } catch (error) {
     console.error("Erreur lors de la récupération des annonces campus :", error);
-    res.status(500).json({ error: "Une erreur est survenue lors de la récupération des actualités du campus." });
+    res.status(500).json({ error: "Une erreur est survenue lors de la récupération des annonces campus." });
   }
 };

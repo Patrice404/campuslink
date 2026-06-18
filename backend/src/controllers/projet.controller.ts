@@ -21,6 +21,7 @@ export async function getProjets(req: Request, res: Response): Promise<void> {
         let allowedVisibilities: string[] = ['PUBLIQUE'];
         let userFormationId: bigint | null = null;
         let allowedAuthorNiveaux: string[] = [];
+        let isAdminUser = false; // ✨ Drapeau pour repérer l'admin
 
         // 2. Extraction des règles de sécurité (Blocages et Visibilité)
         if (idConnected) {
@@ -48,7 +49,13 @@ export async function getProjets(req: Request, res: Response): Promise<void> {
 
             if (infoUtilisateur) {
                 userFormationId = infoUtilisateur.id_formation;
-                allowedVisibilities.push(infoUtilisateur.role);
+                
+                // ✨ Protection : On isole le rôle ADMIN pour ne pas faire cracher Prisma
+                if (infoUtilisateur.role === 'ADMIN') {
+                    isAdminUser = true;
+                } else if (infoUtilisateur.role) {
+                    allowedVisibilities.push(infoUtilisateur.role);
+                }
 
                 if (infoUtilisateur.formation) {
                     const currentNiveau = infoUtilisateur.formation.niveau;
@@ -60,9 +67,14 @@ export async function getProjets(req: Request, res: Response): Promise<void> {
             }
         }
 
-        const projetsVisibilityWhere = {
+        // Configuration de la visibilité générique
+        const projetsVisibilityWhere: any = {
             id_utilisateur: { notIn: excludedUserIds },
-            OR: [
+        };
+
+        // ✨ Si c'est un utilisateur normal, on applique les restrictions de visibilité
+        if (!isAdminUser) {
+            projetsVisibilityWhere.OR = [
                 ...(idConnected ? [{ id_utilisateur: idConnected }] : []),
                 { visibilite: { in: allowedVisibilities as any } },
                 ...(userFormationId ? [{
@@ -77,8 +89,8 @@ export async function getProjets(req: Request, res: Response): Promise<void> {
                         { utilisateur: { formation: { niveau: { in: allowedAuthorNiveaux } } } }
                     ]
                 }] : [])
-            ]
-        };
+            ];
+        }
 
         // 3. REQUÊTE AVEC SKIP ET TAKE
         const projets = await prisma.annonceProjet.findMany({
@@ -90,7 +102,7 @@ export async function getProjets(req: Request, res: Response): Promise<void> {
             },
             orderBy: { datePublication: 'desc' },
             skip: skip,  // Saute les annonces des pages précédentes
-            take: LIMIT  // Récupère uniquement les 25 suivantes
+            take: LIMIT  // Récupère uniquement les suivantes
         });
 
         // 4. Sérialisation des BigInt

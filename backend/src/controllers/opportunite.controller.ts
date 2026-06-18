@@ -16,6 +16,7 @@ export const getOpportunites = async (req: Request, res: Response): Promise<void
     let allowedVisibilities: string[] = ['PUBLIQUE'];
     let userFormationId: bigint | null = null;
     let allowedAuthorNiveaux: string[] = [];
+    let isAdminUser = false; // ✨ Drapeau pour repérer l'admin
 
     // 1. Extraction des règles de sécurité et visibilité
     if (idConnected) {
@@ -43,7 +44,11 @@ export const getOpportunites = async (req: Request, res: Response): Promise<void
 
       if (infoUtilisateur) {
         userFormationId = infoUtilisateur.id_formation;
-        if (infoUtilisateur.role) {
+        
+        // ✨ Protection : On isole le rôle ADMIN pour ne pas faire cracher Prisma
+        if (infoUtilisateur.role === 'ADMIN') {
+          isAdminUser = true;
+        } else if (infoUtilisateur.role) {
           allowedVisibilities.push(infoUtilisateur.role);
         }
 
@@ -58,13 +63,14 @@ export const getOpportunites = async (req: Request, res: Response): Promise<void
     }
 
    // 2. Application de la condition croisée (Sécurité + Restriction de catégories)
-    const condition = {
+    const condition: any = {
       id_utilisateur: { notIn: excludedUserIds },
-      
-      // 🛠️ LA CORRECTION : On ajoute également "as any" ici
       sousType: { notIn: ['FETE', 'EVENEMENT', 'HACKATHON'] as any }, 
-      
-      OR: [
+    };
+
+    // ✨ Si ce n'est pas un admin, on applique les restrictions de visibilité habituelles
+    if (!isAdminUser) {
+      condition.OR = [
         ...(idConnected ? [{ id_utilisateur: idConnected }] : []),
         { visibilite: { in: allowedVisibilities as any } },
         ...(userFormationId ? [{
@@ -79,8 +85,8 @@ export const getOpportunites = async (req: Request, res: Response): Promise<void
             { utilisateur: { formation: { niveau: { in: allowedAuthorNiveaux } } } }
           ]
         }] : [])
-      ]
-    };
+      ];
+    }
 
     const opportunites = await prisma.annonceBonPlan.findMany({
       where: condition,
