@@ -88,20 +88,33 @@ export const getOpportunites = async (req: Request, res: Response): Promise<void
       ];
     }
 
+    // 3. Requête Prisma avec inclusion globale + table des Jaimes
     const opportunites = await prisma.annonceBonPlan.findMany({
       where: condition,
       include: {
-        utilisateur: true
+        utilisateur: true,
+        jaimes: true // <--- CORRECTION AJOUTÉE ICI
       },
       orderBy: {
         datePublication: 'desc'
       }
     });
 
-    const formatAnnonces = opportunites.map(op => ({
-      ...op,
-      nbJaime: op.nbJaime || 0
-    }));
+    // 4. Calcul dynamique de l'état réactif attendu par ton Layout et AnnonceCard
+    const formatAnnonces = opportunites.map(op => {
+      const jaimesArray = op.jaimes || [];
+      
+      // On regarde si l'utilisateur connecté (sous forme de String) a un like existant
+      const isLikedByMe = idConnectedStr
+        ? jaimesArray.some((j: any) => String(j.id_utilisateur) === idConnectedStr)
+        : false;
+
+      return {
+        ...op,
+        nbJaime: op.nbJaime || 0,
+        isLikedByMe // Booléen envoyé directement au Front-end
+      };
+    });
 
     res.status(200).json(toJSON(formatAnnonces));
   } catch (error) {

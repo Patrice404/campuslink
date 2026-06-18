@@ -64,6 +64,8 @@ export const getCampusAnnonces = async (req: Request, res: Response): Promise<vo
     // 2. Application de la condition croisée (Sécurité + Restriction Événements/Fêtes)
     const condition: any = {
       id_utilisateur: { notIn: excludedUserIds },
+      
+      // Maintien de ta correction d'Enum Prisma
       sousType: { in: ['FETE', 'EVENEMENT', 'HACKATHON'] as any }, 
     };
 
@@ -87,17 +89,35 @@ export const getCampusAnnonces = async (req: Request, res: Response): Promise<vo
       ];
     }
 
+    // 3. Requête Prisma avec inclusion globale + table des Jaimes
     const bonsPlans = await prisma.annonceBonPlan.findMany({
       where: condition,
       include: {
-        utilisateur: true
+        utilisateur: true,
+        jaimes: true // <--- CORRECTION AJOUTÉE ICI
       },
       orderBy: {
         datePublication: 'desc'
       }
     });
 
-    res.status(200).json(toJSON(bonsPlans));
+    // 4. Calcul dynamique de l'état réactif attendu par ton Layout et AnnonceCard
+    const formatAnnonces = bonsPlans.map(bp => {
+      const jaimesArray = bp.jaimes || [];
+      
+      // Vérification si l'utilisateur actuellement connecté a un like enregistré
+      const isLikedByMe = idConnectedStr
+        ? jaimesArray.some((j: any) => String(j.id_utilisateur) === idConnectedStr)
+        : false;
+
+      return {
+        ...bp,
+        nbJaime: bp.nbJaime || 0,
+        isLikedByMe // Booléen indispensable renvoyé au Front-end
+      };
+    });
+
+    res.status(200).json(toJSON(formatAnnonces));
   } catch (error) {
     console.error("Erreur lors de la récupération des annonces campus :", error);
     res.status(500).json({ error: "Une erreur est survenue lors de la récupération des annonces campus." });

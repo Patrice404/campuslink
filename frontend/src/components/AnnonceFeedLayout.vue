@@ -7,13 +7,13 @@ import AnnonceCard from './AnnonceCard.vue'
 import { useAuthStore } from '../stores/authStore'
 
 const authStore = useAuthStore()
-const MAX_ANNONCES_PER_PAGE = 4 // Ta limite de test
+const MAX_ANNONCES_PER_PAGE = 4 // Ta limite de pagination
 
 const props = defineProps({
   pageTitle: { type: String, required: true },
   pageSubtitle: { type: String, required: true },
-  apiEndpoint: { type: String, required: true },
-  cardType: { type: String, required: true },
+  apiEndpoint: { type: String, required: true }, // Ex: 'entraide', 'projets'
+  cardType: { type: String, required: true },    // Ex: 'AnnonceExercice'
   fallbackCardTitle: { type: String, default: 'Publication' },
   emptyStateEmoji: { type: String, default: '🎉' },
   emptyStateTitle: { type: String, default: 'Aucune publication !' },
@@ -24,33 +24,30 @@ const isSidebarOpen = ref(false)
 const isCreateModalOpen = ref(false)
 const annonces = ref<any[]>([])
 
-
+// Pagination et États de chargement
 const page = ref(1)
 const hasMore = ref(true)
 const isLoading = ref(true)       
 const isLoadingMore = ref(false)   
 const errorMessage = ref<string | null>(null)
-
 const annonceToEdit = ref<any | null>(null)
-/*
-* Gère l'événement d'édition d'une annonce.
-* Ouvre le modal de création avec les données de l'annonce à éditer.
-*/
+
+// Flag pour bloquer l'IntersectionObserver pendant qu'on vide la liste (Refresh)
+const isRefreshingNow = ref(false)
+
 const handleEditAnnonce = (annonce: any) => {
   annonceToEdit.value = annonce
   isCreateModalOpen.value = true
 }
 
-
-
-
-// ÉTAPE 1 : Références vers le conteneur de scroll ET le déclencheur bas de page
+// Références pour le scroll infini
 const scrollContainer = useTemplateRef<HTMLElement>('scrollContainer')
 const loadMoreTrigger = useTemplateRef<HTMLElement>('loadMoreTrigger')
 let observer: IntersectionObserver | null = null
 
 const fetchAnnonces = async (isRefresh = false) => {
   if (isRefresh) {
+    isRefreshingNow.value = true // Bloque temporairement l'observer
     page.value = 1
     hasMore.value = true
     isLoading.value = true
@@ -62,44 +59,66 @@ const fetchAnnonces = async (isRefresh = false) => {
   
   try {
     const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000'
-    const response = await fetch(`${apiUrl}/api/${props.apiEndpoint}?page=${page.value}`, {
-      method: 'GET',
-      headers: {
-        ...(authStore.token ? { Authorization: `Bearer ${authStore.token}` } : {})
-      }
-    })
-    
-    if (!response.ok) {
-      throw new Error(`Erreur HTTP : ${response.status}`)
+    const token = authStore.token || localStorage.getItem('token')
+
+    // Configuration propre des en-têtes
+    const headers: Record<string, string> = {
+      'Accept': 'application/json',
+      'Content-Type': 'application/json'
+    }
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`
     }
 
-    const data = await response.json()
+    const separator = props.apiEndpoint.includes('?') ? '&' : '?'
+    const urlComplete = `${apiUrl}/api/${props.apiEndpoint}${separator}page=${page.value}`
+
+    const response = await fetch(urlComplete, {
+      method: 'GET',
+      headers: headers
+    })
     
-    const nouvellesAnnonces = data.map((item: any) => ({
+    if (!response.ok) throw new Error(`Erreur HTTP : ${response.status}`)
+
+    const data = await response.json()
+    const structureData = Array.isArray(data) ? data : (data.results || data.data || [])
+
+    // Mapping ultra-simple car le backend fait le gros du travail !
+    const nouvellesAnnonces = structureData.map((item: any) => ({
       ...item,
       type: props.cardType,
-      auteur: item.utilisateur || { prenom: "Utilisateur", nom: "Inconnu", id: 0 },
+      auteur: item.utilisateur || item.auteur || { prenom: "Utilisateur", nom: "Inconnu", id: 0 },
       titre: item.titre || item.matiere?.titre || props.fallbackCardTitle,
-      texte: item.texte || item.description
+      texte: item.texte || item.description,
+      // On lie directement ce que le serveur a calculé
+      isLikedByMe: item.isLikedByMe ?? false, 
+      likesCount: item.nbJaime ?? 0
     }))
 
     if (isRefresh) {
       annonces.value = nouvellesAnnonces 
     } else {
-      annonces.value.push(...nouvellesAnnonces) 
+      // Sécurité anti-doublon d'IDs lors du scroll rapide
+      const existingIds = new Set(annonces.value.map(a => a.id))
+      const filtree = nouvellesAnnonces.filter((a: any) => !existingIds.has(a.id))
+      annonces.value.push(...filtree) 
     }
 
-    // CORRECTION : Si on reçoit moins que la limite demandée, c'est la fin !
-    if (data.length < MAX_ANNONCES_PER_PAGE) {
+    // S'il y a moins de résultats que la limite, c'est la fin du fil
+    if (structureData.length < MAX_ANNONCES_PER_PAGE) {
       hasMore.value = false
     }
 
   } catch (error) {
     console.error(`Erreur lors du chargement de ${props.apiEndpoint}:`, error)
     errorMessage.value = "Impossible de charger les données."
-  } finally {
+  } {
     isLoading.value = false
     isLoadingMore.value = false
+    // On réactive l'observer une fois que le DOM s'est repositionné
+    setTimeout(() => {
+      isRefreshingNow.value = false
+    }, 100)
   }
 }
 
@@ -109,12 +128,14 @@ const setupIntersectionObserver = () => {
   observer = new IntersectionObserver(async (entries) => {
     const trigger = entries[0]
     
+    // Si on est en train de Reset/Refresh, on ignore le déclenchement intempestif
+    if (isRefreshingNow.value) return
+
     if (trigger.isIntersecting && hasMore.value && !isLoading.value && !isLoadingMore.value) {
       page.value++ 
       await fetchAnnonces() 
     }
   }, {
-    // ÉTAPE 2 : On dit à l'observer de surveiller le scroll du <main> et non de la page entière
     root: scrollContainer.value, 
     rootMargin: '100px' 
   })
@@ -124,7 +145,6 @@ const setupIntersectionObserver = () => {
   }
 }
 
-
 const handleModalClose = async () => {
   isCreateModalOpen.value = false
   annonceToEdit.value = null 
@@ -132,11 +152,9 @@ const handleModalClose = async () => {
   setupIntersectionObserver()
 }
 
-
-// ÉTAPE 3 : L'ordre d'exécution synchrone/asynchrone est corrigé ici
 onMounted(async () => {
-  await fetchAnnonces(true)     // 1. On attend la fin complète du premier chargement
-  setupIntersectionObserver()  // 2. On active l'observer seulement quand les cartes sont là
+  await fetchAnnonces(true)     
+  setupIntersectionObserver()  
 })
 
 onUnmounted(() => {

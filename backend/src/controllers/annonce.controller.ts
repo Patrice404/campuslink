@@ -483,7 +483,14 @@ export async function detail(req: Request, res: Response): Promise<void> {
       res.status(404).json({ message: 'Annonce introuvable' });
       return;
     }
-    res.json(toJSON(found.record));
+    // On recharge avec l'auteur (+ matière pour Exercice/Tutorat) pour l'affichage de la carte
+    const include: any = { utilisateur: { select: { id: true, nom: true, prenom: true, photoProfil: true } } };
+    if (found.type === 'EXERCICE' || found.type === 'TUTORAT') include.matiere = true;
+    const record = await ANNONCE_CONFIG[found.type].delegate.findUnique({
+      where: { id: found.record.id },
+      include,
+    });
+    res.json(toJSON(record));
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Erreur serveur' });

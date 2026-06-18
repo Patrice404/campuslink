@@ -37,9 +37,13 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
       args:
-        VITE_API_URL: ${VITE_API_URL}  # ✅ passé au build
+        VITE_API_URL: http://localhost:3000
     container_name: campuslink-web
+    environment:
+      - VITE_API_URL=http://localhost:3000
     restart: unless-stopped
+    environment:
+      - VITE_API_URL=http://localhost:3000
     ports:
       - "5173:5173"  # ✅ Nginx écoute sur 5173, pas 80
     networks:
