@@ -47,7 +47,7 @@ const handleUpdateProfile = async () => {
     formData.append("bio", editForm.value.bio);
     
     if (selectedFile.value) {
-      formData.append("photo", selectedFile.value); 
+      formData.append("image", selectedFile.value); 
     }
 
     const response = await fetch(`${apiUrl}/api/utilisateurs/profile`, {
@@ -136,7 +136,6 @@ const fetchProfile = async () => {
   loading.value = true;
   error.value = "";
   try {
-    // ✨ Modification : Lecture de l'UUID depuis les paramètres de la route
     const userUuid = route.params.uuid;
     const endpoint = userUuid
       ? `${apiUrl}/api/utilisateurs/profile/${userUuid}`
@@ -168,7 +167,6 @@ const fetchProfile = async () => {
 };
 
 onMounted(fetchProfile);
-// ✨ Modification : Surveillance de l'UUID pour recharger la vue en cas de navigation directe
 watch(() => route.params.uuid, fetchProfile);
 
 const initials = computed(() => {
@@ -224,7 +222,7 @@ const initials = computed(() => {
         <div class="px-6 sm:px-10 pb-8">
           <div class="flex flex-col sm:flex-row sm:items-start gap-6 -mt-16 relative z-10">
             <div class="w-32 h-32 rounded-full border-4 border-white shadow-md flex-shrink-0 bg-white overflow-hidden">
-              <img v-if="user.photoProfil" :src="`${apiUrl}/uploads/${user.photoProfil}`" alt="Avatar" class="w-full h-full object-cover" />
+              <img v-if="user.photoProfil" :src="user.photoProfil" alt="Avatar" class="w-full h-full object-cover" />
               <div v-else class="w-full h-full bg-slate-100 flex items-center justify-center text-4xl font-bold text-slate-500">
                 {{ initials }}
               </div>

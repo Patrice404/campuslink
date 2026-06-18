@@ -153,7 +153,7 @@ const executeDelete = async () => {
         class="flex items-center gap-3 group/author cursor-pointer"
       >
         <div class="w-10 h-10 rounded-full bg-slate-100 border border-slate-200 overflow-hidden flex items-center justify-center font-bold text-slate-600 text-sm group-hover/author:border-indigo-400 transition duration-150">
-          <img v-if="annonce.auteur?.photoProfil" :src="`${apiUrl}/uploads/${annonce.auteur.photoProfil}`" alt="Avatar" class="w-full h-full object-cover" />
+          <img v-if="annonce.auteur?.photoProfil" :src="`${annonce.auteur.photoProfil}`" alt="Avatar" class="w-full h-full object-cover" />
           <span v-else>{{ initials }}</span>
         </div>
         

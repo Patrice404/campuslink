@@ -1,6 +1,8 @@
 import { Request, Response } from 'express';
 import { Utilisateur, CentreInteret } from '@prisma/client';
 import { prisma } from '../lib/prismaClient';
+import { deleteImageFromBlob, uploadImageToBlob } from '../services/storage.service';
+import { verifierContenuAvecIA } from '../services/modereration2.service';
 
 // 1. Modifier serializeUser pour inclure l'UUID, les centres d'intérêt et la bio
 function serializeUser(user: any) {
@@ -25,7 +27,7 @@ export async function getProfil(req: Request, res: Response): Promise<void> {
 
     const utilisateur = await prisma.utilisateur.findUnique({
       where: { id: targetId },
-      include: { 
+      include: {
         formation: {
           include: {
             departement: {
@@ -34,7 +36,7 @@ export async function getProfil(req: Request, res: Response): Promise<void> {
               }
             }
           }
-        } 
+        }
       },
     });
 
@@ -78,18 +80,18 @@ export async function getProfil(req: Request, res: Response): Promise<void> {
     res.json({
       ...serializeUser(utilisateur),
       stats: {
-        posts: exCount + bpCount + tutCount + projCount, 
+        posts: exCount + bpCount + tutCount + projCount,
         commentaires: commentCount,
         likes: totalLikesReceived
       },
       posts: postsArray,
       campus: campus
         ? {
-            id: campus.id.toString(),
-            nom: campus.nom,
-            ville: campus.ville,
-            etablissement: campus.etablissement,
-          }
+          id: campus.id.toString(),
+          nom: campus.nom,
+          ville: campus.ville,
+          etablissement: campus.etablissement,
+        }
         : null,
     });
   } catch (err) {
@@ -106,9 +108,26 @@ export async function updateProfil(req: Request, res: Response): Promise<void> {
     if (nom) data.nom = nom;
     if (prenom) data.prenom = prenom;
     if (bio !== undefined) data.bio = bio;
-    if (centresInteret !== undefined) data.centresInteret = centresInteret; 
+    if (centresInteret !== undefined) data.centresInteret = centresInteret;
     if (id_campus) data.id_campus = BigInt(id_campus);
-    if (req.file) data.photoProfil = req.file.filename;
+
+
+    let imageUrl: string | null = null;
+    if (req.file) {
+      imageUrl = await uploadImageToBlob(req.file);
+    }
+
+    const verdict = await verifierContenuAvecIA("", undefined, "", imageUrl ? [imageUrl] : []);
+
+    if (verdict === 'REJECT') {
+      if (imageUrl) await deleteImageFromBlob(imageUrl);
+      res.status(400).json({ message: "Votre photo a été rejetée par le système de modération." });
+      return;
+    }
+
+    if (imageUrl) {
+      data.photoProfil = imageUrl;
+    }
 
     const utilisateur = await prisma.utilisateur.update({
       where: { id: BigInt(req.utilisateur!.id) },
@@ -130,7 +149,7 @@ export async function getProfilPublic(req: Request, res: Response): Promise<void
     // Recherche initiale par l'UUID unique
     const utilisateur = await prisma.utilisateur.findUnique({
       where: { uuid: uuid }, // ✨ Modification : Recherche par UUID
-      include: { 
+      include: {
         formation: {
           include: {
             departement: {
@@ -139,7 +158,7 @@ export async function getProfilPublic(req: Request, res: Response): Promise<void
               }
             }
           }
-        } 
+        }
       },
     });
 
@@ -152,15 +171,15 @@ export async function getProfilPublic(req: Request, res: Response): Promise<void
     const targetId = utilisateur.id;
 
     // Vérification du blocage existant
-    const dejaBloque = idConnected 
+    const dejaBloque = idConnected
       ? await prisma.blocage.findUnique({
-          where: {
-            id_utilisateur_bloquant_id_utilisateur_bloque: {
-              id_utilisateur_bloquant: idConnected,
-              id_utilisateur_bloque: targetId,
-            },
+        where: {
+          id_utilisateur_bloquant_id_utilisateur_bloque: {
+            id_utilisateur_bloquant: idConnected,
+            id_utilisateur_bloque: targetId,
           },
-        })
+        },
+      })
       : null;
 
     // Récupération des statistiques avec targetId (BigInt de confiance issu de la bdd)
@@ -197,7 +216,7 @@ export async function getProfilPublic(req: Request, res: Response): Promise<void
 
     res.json({
       id: utilisateur.id.toString(),
-      uuid: utilisateur.uuid, // ✨ Ajout : On transmet également l'UUID au besoin
+      uuid: utilisateur.uuid, 
       nom: utilisateur.nom,
       prenom: utilisateur.prenom,
       role: utilisateur.role,
@@ -219,11 +238,11 @@ export async function getProfilPublic(req: Request, res: Response): Promise<void
       } : null,
       campus: campus
         ? {
-            id: campus.id.toString(),
-            nom: campus.nom,
-            ville: campus.ville,
-            etablissement: campus.etablissement,
-          }
+          id: campus.id.toString(),
+          nom: campus.nom,
+          ville: campus.ville,
+          etablissement: campus.etablissement,
+        }
         : null,
     });
   } catch (err) {
@@ -289,14 +308,30 @@ export async function toggleBlocage(req: Request, res: Response): Promise<void> 
   }
 }
 
+//Edit by patrice
 export async function supprimerCompte(req: Request, res: Response): Promise<void> {
   try {
-    await prisma.utilisateur.delete({
-      where: { id: BigInt(req.utilisateur!.id) },
+    const userId = BigInt(req.utilisateur!.id);
+
+    // 1. Récupérer l'utilisateur pour vérifier s'il a une photo
+    const user = await prisma.utilisateur.findUnique({
+      where: { id: userId },
+      select: { photoProfil: true }
     });
+
+    // 2. Si une photo en ligne existe, on la supprime d'Azure Blob
+    if (user?.photoProfil) {
+      await deleteImageFromBlob(user.photoProfil);
+    }
+
+    // 3. Suppression définitive en base de données
+    await prisma.utilisateur.delete({
+      where: { id: userId },
+    });
+
     res.json({ message: "Compte supprimé avec succès. Toutes vos données ont été nettoyées." });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ message: "Erreur serveur lors du suppression du compte." });
+    res.status(500).json({ message: "Erreur serveur lors de la suppression du compte." });
   }
 }

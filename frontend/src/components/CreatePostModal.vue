@@ -14,7 +14,7 @@ const sousTypesLoading = ref(true)
 const sousTypesError = ref<string | null>(null)
 
 const authStore = useAuthStore()
-const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:3000"
+const apiUrl = import.meta.env.VITE_API_URL
 
 const props = defineProps({
   isOpen: {
@@ -70,7 +70,7 @@ const removeImage = () => {
 const titre = ref('')          
 const annee = ref('L1')         
 const id_matiere = ref('')     
-const sousType = ref('') // ⚡️ Initialisé vide pour accueillir la valeur dynamique
+const sousType = ref('') 
 const nbCandidatsVoulus = ref(1)     
 
 const resetForm = () => {
@@ -155,7 +155,6 @@ const fetchMatieres = async () => {
   }
 }
 
-// ⚡️ NOUVELLE FONCTION : Récupère les enums SousTypeBonPlan depuis le backend
 const fetchSousTypes = async () => {
   sousTypesLoading.value = true
   sousTypesError.value = null
@@ -183,7 +182,7 @@ const fetchSousTypes = async () => {
   }
 }
 
-// ⚡️ FONCTION UTILITAIRE : Traduit les enums de la BDD en chaînes élégantes pour l'UI
+// Traduit les enums de la BDD en chaînes élégantes pour l'UI
 const getSousTypeLabel = (type: string) => {
   const labels: Record<string, string> = {
     JOB_ETUDIANT: 'Job Étudiant',

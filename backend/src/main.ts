@@ -25,15 +25,6 @@ dotenv.config();
 const app = express();
 
 // Origines autorisées (front Vite en dev sur 5173, + variable d'env pour la prod).
-// Garantit que le dossier uploads existe au démarrage
-// (le volume Docker peut être vide au premier lancement)
-const uploadsDir = path.join(__dirname, '../uploads');
-if (!fs.existsSync(uploadsDir)) {
-  fs.mkdirSync(uploadsDir, { recursive: true });
-  console.log('📁 Dossier uploads créé.');
-}
-
-// Origines autorisées (front Vite en dev sur 5173, + variable d'env pour la prod).
 const origines = [
   process.env.CORS_API_URL_FRONTEND || 'http://localhost:5173',
   'http://localhost:8080',
@@ -45,7 +36,7 @@ app.use(express.json());
 
 // Sert les fichiers uploadés (images des annonces) depuis le volume Docker
 // Ex: GET /uploads/1718450000123.jpg → /app/uploads/1718450000123.jpg
-app.use('/uploads', express.static(uploadsDir));
+//app.use('/uploads', express.static(uploadsDir));
 
 app.get('/', (_req: Request, res: Response) => {
   res.send('CampusLink API est opérationnelle !');

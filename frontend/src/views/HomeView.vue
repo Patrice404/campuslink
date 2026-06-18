@@ -9,7 +9,7 @@ import SmartSearch from '../components/SmartSearch.vue'
 import { useAuthStore } from '../stores/authStore'
 const authStore = useAuthStore()
 const route = useRoute()
-const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:3000";
+const apiUrl = import.meta.env.VITE_API_URL
 
 const annonces = ref<any[]>([]);
 const loading = ref(true);
