@@ -46,7 +46,7 @@ const router = createRouter({
     },
     // La page profile utilisateur (id optionnel pour consulter un autre profil)
     {
-      path: '/profil/:id?',
+      path: '/profil/:uuid?',
       name: 'profil',
       component: ProfileView
     },

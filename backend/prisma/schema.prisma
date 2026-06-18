@@ -88,6 +88,7 @@ model Formation {
 
 model Utilisateur {
   id               BigInt          @id @default(autoincrement())
+  uuid             String          @unique @default(uuid())
   nom              String
   prenom           String
   email            String          @unique

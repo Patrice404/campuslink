@@ -1,7 +1,8 @@
 import { Request, Response } from 'express';
 import { prisma } from '../lib/prismaClient';
 
-const LEVEL_RANKS: Record<string, number> = {
+// Configuration des rangs académiques identique à tes autres fichiers
+const ENTRAIDE_LEVEL_RANKS: Record<string, number> = {
   'L1': 1, 'L2': 2, 'L3': 3, 'M1': 4, 'M2': 5,
   '1A': 1, '2A': 2, '3A': 3, '4A': 4, '5A': 5
 };
@@ -48,7 +49,7 @@ export const getExercices = async (req: Request, res: Response): Promise<void> =
       });
 
       const excludedSet = new Set<bigint>();
-      blocages.forEach(b => {
+      blocages.forEach((b: { id_utilisateur_bloquant: bigint; id_utilisateur_bloque: bigint }) => {
         if (b.id_utilisateur_bloquant !== idConnected) excludedSet.add(b.id_utilisateur_bloquant);
         if (b.id_utilisateur_bloque !== idConnected) excludedSet.add(b.id_utilisateur_bloque);
       });
@@ -71,9 +72,9 @@ export const getExercices = async (req: Request, res: Response): Promise<void> =
 
         if (infoUtilisateur.formation) {
           const currentNiveau = infoUtilisateur.formation.niveau;
-          const currentRank = LEVEL_RANKS[currentNiveau] || 0;
-          allowedAuthorNiveaux = Object.keys(LEVEL_RANKS).filter(
-            niv => LEVEL_RANKS[niv] <= currentRank
+          const currentRank = ENTRAIDE_LEVEL_RANKS[currentNiveau] || 0;
+          allowedAuthorNiveaux = Object.keys(ENTRAIDE_LEVEL_RANKS).filter(
+            niv => ENTRAIDE_LEVEL_RANKS[niv] <= currentRank
           );
         }
       }
