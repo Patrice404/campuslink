@@ -153,6 +153,7 @@ export async function creer(req: Request, res: Response): Promise<void> {
 
     // Si c'est une réponse, on vérifie que le commentaire parent existe
     let parentId: bigint | undefined;
+    let parentOwnerId: bigint | undefined;
     if (id_parent) {
       const parent = await prisma.commentaire.findUnique({ where: { id: BigInt(id_parent) } });
       if (!parent) {
@@ -160,6 +161,7 @@ export async function creer(req: Request, res: Response): Promise<void> {
         return;
       }
       parentId = parent.id;
+      parentOwnerId = parent.id_utilisateur;
     }
 
     // 0. Modération IA : on bloque les commentaires/réponses inappropriés
@@ -182,7 +184,25 @@ export async function creer(req: Request, res: Response): Promise<void> {
       }
     });
 
-    // 2. Détection des mentions textuelles (ex: @JeanDupont)
+    const nomAuteur = `${commentaire.utilisateur.prenom} ${commentaire.utilisateur.nom}`;
+    const aperçuTexte = texte.length > 60 ? texte.substring(0, 60) + '...' : texte;
+    const lienAnnonce = `/home?annonceId=${found.record.id}&type=${found.type}`;
+
+    // Array pour stocker toutes les notifications à insérer d'un coup
+    const notificationsData: { contenu: string; id_utilisateur: bigint; lue: boolean; lien: string }[] = [];
+
+    // 2. GESTION DE LA NOTIFICATION DE RÉPONSE
+    // Si c'est une réponse et que l'auteur de la réponse n'est pas l'auteur du commentaire parent
+    if (parentId && parentOwnerId && parentOwnerId !== auteurIdBigInt) {
+      notificationsData.push({
+        contenu: `${nomAuteur} a répondu à votre commentaire : "${aperçuTexte}"`,
+        id_utilisateur: parentOwnerId,
+        lue: false,
+        lien: lienAnnonce
+      });
+    }
+
+    // 3. GESTION DES MENTIONS TEXTUELLES (ex: @JeanDupont)
     const mentionRegex = /@([a-zA-Z0-9À-ÿ_-]+)/g;
     let match;
     const mentionsTrouvees = new Set<string>();
@@ -195,48 +215,45 @@ export async function creer(req: Request, res: Response): Promise<void> {
     console.log("Texte reçu :", texte);
     console.log("Mentions extraites par la Regex :", Array.from(mentionsTrouvees));
 
-    // 3. Traitement des notifications
     if (mentionsTrouvees.size > 0) {
       const utilisateurs = await prisma.utilisateur.findMany({
         select: { id: true, nom: true, prenom: true }
       });
 
-      const lienAnnonce = `/home?annonceId=${found.record.id}&type=${found.type}`;
-      const notificationsData: { contenu: string; id_utilisateur: bigint; lue: boolean; lien: string }[] = [];
-      const nomAuteur = `${commentaire.utilisateur.prenom} ${commentaire.utilisateur.nom}`;
-      const aperçuTexte = texte.length > 60 ? texte.substring(0, 60) + '...' : texte;
-      const contenuNotification = `${nomAuteur} vous a mentionné dans un commentaire : "${aperçuTexte}"`;
+      const contenuNotificationMention = `${nomAuteur} vous a mentionné dans un commentaire : "${aperçuTexte}"`;
 
       for (const u of utilisateurs) {
         // Formats attendus en minuscules sans espace
         const prenomNomConcat = `${u.prenom}${u.nom}`.toLowerCase();
         const nomPrenomConcat = `${u.nom}${u.prenom}`.toLowerCase();
 
-        // LOG DE VERIFICATION : Pour voir ce que l'algorithme compare
-        console.log(`Vérification user ${u.prenom} ${u.nom} -> Formats testés : "${prenomNomConcat}" ou "${nomPrenomConcat}"`);
-
+        // ⚡️ NOTE : On NE met PAS de "if (u.id.toString() === auteurIdStr) continue;" 
+        // pour permettre l'auto-mention complète !
         if (mentionsTrouvees.has(prenomNomConcat) || mentionsTrouvees.has(nomPrenomConcat)) {
-          console.log(`-> MATCH TROUVÉ pour l'utilisateur ID: ${u.id}`);
+          console.log(`-> MATCH TROUVÉ pour la mention de l'utilisateur ID: ${u.id}`);
           
-          notificationsData.push({
-            contenu: contenuNotification,
-            id_utilisateur: u.id,
-            lue: false,
-            lien: lienAnnonce,
-          });
+          // On vérifie si une notification pour cet utilisateur n'a pas déjà été ajoutée (ex: s'il a aussi reçu la notif de réponse)
+          const dejaNotifie = notificationsData.some(n => n.id_utilisateur === u.id);
+          if (!dejaNotifie) {
+            notificationsData.push({
+              contenu: contenuNotificationMention,
+              id_utilisateur: u.id,
+              lue: false,
+              lien: lienAnnonce,
+            });
+          }
         }
       }
-
-      // 4. Insertion en base de données
-      if (notificationsData.length > 0) {
-        const result = await prisma.notification.createMany({
-          data: notificationsData,
-        });
-        console.log(`Nombre de notifications insérées en BDD : ${result.count}`);
-      } else {
-        console.log("Aucun utilisateur correspondant trouvé en BDD pour ces mentions.");
-      }
     }
+
+    // 4. Insertion groupée en base de données de toutes les notifications générées (réponses + mentions)
+    if (notificationsData.length > 0) {
+      const result = await prisma.notification.createMany({
+        data: notificationsData,
+      });
+      console.log(`Nombre de notifications insérées en BDD : ${result.count}`);
+    }
+
     console.log("=====================");
 
     res.status(201).json(toJSON(commentaire));
