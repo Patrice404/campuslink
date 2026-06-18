@@ -40,6 +40,8 @@ services:
         VITE_API_URL: ${VITE_API_URL}  # ✅ passé au build
     container_name: campuslink-web
     restart: unless-stopped
+    environment:
+      - VITE_API_URL=http://localhost:3000
     ports:
       - "5173:5173"  # ✅ Nginx écoute sur 5173, pas 80
     networks:

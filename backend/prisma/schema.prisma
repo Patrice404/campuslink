@@ -212,6 +212,7 @@ model Notification {
   contenu        String
   dateCreation   DateTime    @default(now())
   lue            Boolean     @default(false)
+  lien           String? // URL relative vers la publication concernée (ex: /home?annonceId=3&type=BON_PLAN)
   id_utilisateur BigInt
   utilisateur    Utilisateur @relation(fields: [id_utilisateur], references: [id], onDelete: Cascade)
 }
