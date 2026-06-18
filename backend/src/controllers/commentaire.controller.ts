@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { prisma } from '../lib/prismaClient';
 import { toJSON } from '../lib/serialize';
 import { ANNONCE_CONFIG, AnnonceType, findAnnonceById } from '../lib/annonces';
+import { verifierContenuAvecIA } from '../services/moderation.service';
 
 // GET /annonce/:id : liste les commentaires d'une annonce
 export async function listerParAnnonce(req: Request, res: Response): Promise<void> {
@@ -89,7 +90,8 @@ export async function listerParAnnonce(req: Request, res: Response): Promise<voi
         select: { id: true, nom: true, prenom: true }
       });
 
-      const notificationsData: { contenu: string; id_utilisateur: bigint; lue: boolean }[] = [];
+      const lienAnnonce = `/home?annonceId=${found.record.id}&type=${found.type}`;
+      const notificationsData: { contenu: string; id_utilisateur: bigint; lue: boolean; lien: string }[] = [];
       const nomAuteur = `${commentaire.utilisateur.prenom} ${commentaire.utilisateur.nom}`;
       const aperçuTexte = texte.length > 60 ? texte.substring(0, 60) + '...' : texte;
       const contenuNotification = `${nomAuteur} vous a mentionné dans un commentaire : "${aperçuTexte}"`;
@@ -160,6 +162,13 @@ export async function creer(req: Request, res: Response): Promise<void> {
       parentId = parent.id;
     }
 
+    // 0. Modération IA : on bloque les commentaires/réponses inappropriés
+    const verdict = await verifierContenuAvecIA(texte);
+    if (verdict === 'REJECT') {
+      res.status(400).json({ message: "Ce commentaire enfreint les règles de la communauté et a été bloqué." });
+      return;
+    }
+
     // 1. Création du commentaire (ou de la réponse)
     const commentaire = await prisma.commentaire.create({
       data: {
@@ -192,7 +201,8 @@ export async function creer(req: Request, res: Response): Promise<void> {
         select: { id: true, nom: true, prenom: true }
       });
 
-      const notificationsData: { contenu: string; id_utilisateur: bigint; lue: boolean }[] = [];
+      const lienAnnonce = `/home?annonceId=${found.record.id}&type=${found.type}`;
+      const notificationsData: { contenu: string; id_utilisateur: bigint; lue: boolean; lien: string }[] = [];
       const nomAuteur = `${commentaire.utilisateur.prenom} ${commentaire.utilisateur.nom}`;
       const aperçuTexte = texte.length > 60 ? texte.substring(0, 60) + '...' : texte;
       const contenuNotification = `${nomAuteur} vous a mentionné dans un commentaire : "${aperçuTexte}"`;
@@ -210,8 +220,9 @@ export async function creer(req: Request, res: Response): Promise<void> {
           
           notificationsData.push({
             contenu: contenuNotification,
-            id_utilisateur: u.id, 
-            lue: false
+            id_utilisateur: u.id,
+            lue: false,
+            lien: lienAnnonce,
           });
         }
       }

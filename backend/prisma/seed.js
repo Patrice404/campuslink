@@ -7,6 +7,26 @@ async function main() {
   console.log('🌱 Début du seeding de la base de données...');
 
   // ==========================================
+  // 0. NETTOYAGE (ordre FK-safe) — rend le seed relançable
+  // ==========================================
+  await prisma.jaime.deleteMany();
+  await prisma.commentaire.deleteMany();
+  await prisma.candidature.deleteMany();
+  await prisma.notification.deleteMany();
+  await prisma.annonceExercice.deleteMany();
+  await prisma.annonceBonPlan.deleteMany();
+  await prisma.annonceTutorat.deleteMany();
+  await prisma.annonceProjet.deleteMany();
+  await prisma.blocage.deleteMany();
+  await prisma.verificationEmail.deleteMany();
+  await prisma.utilisateur.deleteMany();
+  await prisma.matiere.deleteMany();
+  await prisma.formation.deleteMany();
+  await prisma.departement.deleteMany();
+  await prisma.campus.deleteMany();
+  console.log('🧹 Tables vidées.');
+
+  // ==========================================
   // 1. CAMPUS, DÉPARTEMENTS, FORMATIONS
   // ==========================================
   const campus = await prisma.campus.create({
@@ -98,7 +118,7 @@ async function main() {
   // Étudiants
   const alice = await prisma.utilisateur.create({ data: {
     nom: 'Dupont', prenom: 'Alice', email: 'alice.dupont@insa-cvl.fr',
-    motDePasse, role: Role.ETUDIANT, id_formation: sti3A.id,
+    motDePasse, role: Role.ADMIN, id_formation: sti3A.id,
     bio: 'Passionnée de cybersécurité et de développement web.',
     centresInteret: [CentreInteret.PROJET, CentreInteret.EXERCICE, CentreInteret.ENTRAIDE],
   }});

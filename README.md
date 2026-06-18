@@ -82,3 +82,14 @@ docker inspect --format '{{.State.Pid}}'
 
 
 docker compose -f docker-compose.yml -f docker-compose.dev.yml up
+# 1. Arrête les conteneurs et supprime les volumes (efface la base de données PostgreSQL)
+docker compose down -v
+
+# 2. Supprime le cache de build Docker pour forcer la relecture des fichiers .env
+docker builder prune -a -f
+
+# 3. Reconstruis les images proprement sans aucun cache
+docker compose build --no-cache
+
+# 4. Relance tout le monde en arrière-plan
+docker compose up -d
