@@ -98,7 +98,7 @@ async function main() {
   // Étudiants
   const alice = await prisma.utilisateur.create({ data: {
     nom: 'Dupont', prenom: 'Alice', email: 'alice.dupont@insa-cvl.fr',
-    motDePasse, role: Role.ETUDIANT, id_formation: sti3A.id,
+    motDePasse, role: Role.ADMIN, id_formation: sti3A.id,
     bio: 'Passionnée de cybersécurité et de développement web.',
     centresInteret: [CentreInteret.PROJET, CentreInteret.EXERCICE, CentreInteret.ENTRAIDE],
   }});
