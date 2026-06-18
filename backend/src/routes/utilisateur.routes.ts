@@ -15,11 +15,12 @@ const upload = multer({ storage, limits: { fileSize: 2 * 1024 * 1024 } });
 // Mon profil (utilisateur connecté)
 router.get('/profile', auth, getProfil);
 router.put('/profile', auth, upload.single('photo'), updateProfil);
+
 // Parcourir le profil public d'un autre utilisateur
-router.get('/profile/:id', auth, getProfilPublic);
+router.get('/profile/:uuid', auth, getProfilPublic); // ✨ Modification : Utilisation de :uuid à la place de :id
 
 // Bloquer ou débloquer un utilisateur externe
-router.post('/profile/block/:id', auth, toggleBlocage);
+router.post('/profile/block/:uuid', auth, toggleBlocage); // ✨ Modification : Utilisation de :uuid à la place de :id
 
 // Supprimer son propre profil
 router.delete('/profile', auth, supprimerCompte);

@@ -14,7 +14,8 @@ const user = ref<any>(null);
 const loading = ref(true);
 const error = ref("");
 
-const isMyProfile = computed(() => !route.params.id);
+// ✨ Modification : On vérifie la présence de l'UUID pour savoir si c'est notre profil
+const isMyProfile = computed(() => !route.params.uuid);
 
 // --- ÉTATS POUR LA MODIFICATION CLASSIQUE ---
 const isEditing = ref(false);
@@ -66,7 +67,7 @@ const handleUpdateProfile = async () => {
   }
 };
 
-// --- NOUVEAU : SAUVEGARDE AUTOMATIQUE DES PRÉFÉRENCES (JSON) ---
+// --- SAUVEGARDE AUTOMATIQUE DES PRÉFÉRENCES (JSON) ---
 const handleUpdatePreferences = async () => {
   try {
     const token = authStore.token;
@@ -76,7 +77,6 @@ const handleUpdatePreferences = async () => {
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
         'Content-Type': 'application/json'
       },
-      // On envoie le tableau des enums cochés
       body: JSON.stringify({ centresInteret: user.value.centresInteret })
     });
 
@@ -87,11 +87,12 @@ const handleUpdatePreferences = async () => {
   }
 };
 
-// --- NOUVEAU : TOGGLE BLOCAGE DE L'UTILISATEUR EXTERNE ---
+// --- TOGGLE BLOCAGE DE L'UTILISATEUR EXTERNE ---
 const handleToggleBlock = async () => {
   try {
     const token = authStore.token;
-    const response = await fetch(`${apiUrl}/api/utilisateurs/profile/block/${route.params.id}`, {
+    // ✨ Modification : Appel de la route avec l'UUID
+    const response = await fetch(`${apiUrl}/api/utilisateurs/profile/block/${route.params.uuid}`, {
       method: 'POST',
       headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) }
     });
@@ -99,7 +100,6 @@ const handleToggleBlock = async () => {
     if (!response.ok) throw new Error();
     const data = await response.json();
     
-    // On synchronise l'état visuel avec la réponse du serveur (true ou false)
     user.value.estBloque = data.bloque;
   } catch (err) {
     console.error(err);
@@ -107,7 +107,7 @@ const handleToggleBlock = async () => {
   }
 };
 
-// --- NOUVEAU : SUPPRESSION DU COMPTE (RGPD) ---
+// --- SUPPRESSION DU COMPTE (RGPD) ---
 const handleDeleteAccount = async () => {
   const confirmation = confirm("⚠️ ATTENTION : Êtes-vous absolument sûr de vouloir supprimer définitivement votre compte ? Cette action est irréversible et supprimera l'intégralité de vos publications.");
   if (!confirmation) return;
@@ -121,11 +121,10 @@ const handleDeleteAccount = async () => {
 
     if (!response.ok) throw new Error();
 
-    // Nettoyage de la session côté client
     authStore.token = null;
     localStorage.clear();
     alert("Votre compte a été supprimé avec succès.");
-    router.push("/login"); // Redirection immédiate
+    router.push("/login"); 
   } catch (err) {
     console.error(err);
     alert("Erreur lors de la suppression de votre compte.");
@@ -137,9 +136,10 @@ const fetchProfile = async () => {
   loading.value = true;
   error.value = "";
   try {
-    const userId = route.params.id;
-    const endpoint = userId
-      ? `${apiUrl}/api/utilisateurs/profile/${userId}`
+    // ✨ Modification : Lecture de l'UUID depuis les paramètres de la route
+    const userUuid = route.params.uuid;
+    const endpoint = userUuid
+      ? `${apiUrl}/api/utilisateurs/profile/${userUuid}`
       : `${apiUrl}/api/utilisateurs/profile`;
 
     const token = authStore.token; 
@@ -156,7 +156,6 @@ const fetchProfile = async () => {
 
     user.value = await response.json();
     
-    // Sécurité front : s'assurer que le tableau existe pour les cases à cocher
     if (isMyProfile.value && !user.value.centresInteret) {
       user.value.centresInteret = [];
     }
@@ -169,7 +168,8 @@ const fetchProfile = async () => {
 };
 
 onMounted(fetchProfile);
-watch(() => route.params.id, fetchProfile);
+// ✨ Modification : Surveillance de l'UUID pour recharger la vue en cas de navigation directe
+watch(() => route.params.uuid, fetchProfile);
 
 const initials = computed(() => {
   if (!user.value) return "";

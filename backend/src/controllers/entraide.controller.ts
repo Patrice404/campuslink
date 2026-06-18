@@ -5,7 +5,7 @@ import { toJSON } from '../lib/serialize';
 const prisma = new PrismaClient();
 
 // Configuration des rangs académiques identique à tes autres fichiers
-const LEVEL_RANKS: Record<string, number> = {
+const ENTRAIDE_LEVEL_RANKS: Record<string, number> = {
   'L1': 1, 'L2': 2, 'L3': 3, 'M1': 4, 'M2': 5,
   '1A': 1, '2A': 2, '3A': 3, '4A': 4, '5A': 5
 };
@@ -98,6 +98,7 @@ export const getExercices = async (req: Request, res: Response): Promise<void> =
         utilisateur: {
           select: {
             id: true,
+            uuid: true,
             prenom: true,
             nom: true,
             photoProfil: true

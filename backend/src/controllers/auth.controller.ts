@@ -11,6 +11,7 @@ const CODE_DUREE_MIN = 10;
 function serializeUser(utilisateur: any) {
   return {
     id: utilisateur.id.toString(), // ⚡️ CRUCIAL : Conversion du BigInt en String
+    uuid: utilisateur.uuid,
     email: utilisateur.email,
     nom: utilisateur.nom,
     prenom: utilisateur.prenom,

@@ -10,6 +10,7 @@ const LEVEL_RANKS: Record<string, number> = {
 export const getCampusAnnonces = async (req: Request, res: Response): Promise<void> => {
   try {
     const idConnected = req.utilisateur ? BigInt(req.utilisateur.id) : null;
+    const idConnectedStr = req.utilisateur ? String(req.utilisateur.id) : null;
 
     let excludedUserIds: bigint[] = [];
     let allowedVisibilities: string[] = ['PUBLIQUE'];

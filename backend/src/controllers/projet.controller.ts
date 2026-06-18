@@ -97,7 +97,7 @@ export async function getProjets(req: Request, res: Response): Promise<void> {
             where: projetsVisibilityWhere,
             include: {
                 utilisateur: {
-                    select: { id: true, nom: true, prenom: true, photoProfil: true, role: true }
+                    select: { id: true, uuid: true, nom: true, prenom: true, photoProfil: true, role: true }
                 },
                 jaimes: true // <--- AJOUT CRITIQUE : On inclut les likes du projet !
             },

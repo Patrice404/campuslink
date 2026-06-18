@@ -2,16 +2,17 @@ import { Request, Response } from 'express';
 import { Utilisateur, CentreInteret } from '@prisma/client';
 import { prisma } from '../lib/prismaClient';
 
-// 1. Modifier serializeUser pour inclure les centres d'intérêt et la bio
+// 1. Modifier serializeUser pour inclure l'UUID, les centres d'intérêt et la bio
 function serializeUser(user: any) {
   return {
     id: user.id.toString(),
+    uuid: user.uuid, // ✨ Ajout : Transmission de l'UUID au Frontend
     nom: user.nom,
     prenom: user.prenom,
     email: user.email,
     role: user.role,
     bio: user.bio,
-    centresInteret: user.centresInteret, // ✨ Ajout
+    centresInteret: user.centresInteret,
     dateInscription: user.dateInscription,
     photoProfil: user.photoProfil,
     id_campus: user.id_campus ? user.id_campus.toString() : null,
@@ -22,7 +23,6 @@ export async function getProfil(req: Request, res: Response): Promise<void> {
   try {
     const targetId = BigInt(req.utilisateur!.id);
 
-    // ✨ CORRECTION : On utilise la même logique d'inclusion imbriquée que getProfilPublic
     const utilisateur = await prisma.utilisateur.findUnique({
       where: { id: targetId },
       include: { 
@@ -66,7 +66,6 @@ export async function getProfil(req: Request, res: Response): Promise<void> {
       prisma.annonceProjet.findMany({ where: { id_utilisateur: targetId } }),
     ]);
 
-    // Fusionner et formater toutes les annonces pour les lister dans "Activités récentes"
     const postsArray = [
       ...exercices.map(e => ({ id: e.id.toString(), type: 'EXERCICE', titre: `Exercice`, texte: e.description, datePublication: e.datePublication })),
       ...bonsplans.map(b => ({ id: b.id.toString(), type: 'BON_PLAN', titre: b.titre, texte: b.description, datePublication: b.datePublication })),
@@ -74,7 +73,6 @@ export async function getProfil(req: Request, res: Response): Promise<void> {
       ...projets.map(p => ({ id: p.id.toString(), type: 'PROJET', titre: p.titre, texte: p.description, datePublication: p.datePublication })),
     ].sort((a, b) => b.datePublication.getTime() - a.datePublication.getTime());
 
-    // ✨ CORRECTION : On extrait correctement le campus à partir de la formation
     const campus = utilisateur.formation?.departement?.campus;
 
     res.json({
@@ -85,7 +83,6 @@ export async function getProfil(req: Request, res: Response): Promise<void> {
         likes: totalLikesReceived
       },
       posts: postsArray,
-      // ✨ CORRECTION : On utilise la variable extraite en toute sécurité
       campus: campus
         ? {
             id: campus.id.toString(),
@@ -101,7 +98,6 @@ export async function getProfil(req: Request, res: Response): Promise<void> {
   }
 }
 
-// 2. Mettre à jour la fonction de modification pour gérer bio et centresInteret
 export async function updateProfil(req: Request, res: Response): Promise<void> {
   try {
     const { nom, prenom, id_campus, bio, centresInteret } = req.body;
@@ -110,7 +106,7 @@ export async function updateProfil(req: Request, res: Response): Promise<void> {
     if (nom) data.nom = nom;
     if (prenom) data.prenom = prenom;
     if (bio !== undefined) data.bio = bio;
-    if (centresInteret !== undefined) data.centresInteret = centresInteret; // Tableau d'enums ex: ['PROJET', 'EXERCICE']
+    if (centresInteret !== undefined) data.centresInteret = centresInteret; 
     if (id_campus) data.id_campus = BigInt(id_campus);
     if (req.file) data.photoProfil = req.file.filename;
 
@@ -128,11 +124,12 @@ export async function updateProfil(req: Request, res: Response): Promise<void> {
 
 export async function getProfilPublic(req: Request, res: Response): Promise<void> {
   try {
-    const targetId = BigInt(req.params.id);
+    const { uuid } = req.params; // ✨ Modification : Récupération sûre de l'UUID de l'URL
     const idConnected = req.utilisateur ? BigInt(req.utilisateur.id) : null;
 
+    // Recherche initiale par l'UUID unique
     const utilisateur = await prisma.utilisateur.findUnique({
-      where: { id: targetId },
+      where: { uuid: uuid }, // ✨ Modification : Recherche par UUID
       include: { 
         formation: {
           include: {
@@ -151,6 +148,9 @@ export async function getProfilPublic(req: Request, res: Response): Promise<void
       return;
     }
 
+    // Extraction sécurisée du BigInt de l'utilisateur ciblé pour les requêtes relationnelles
+    const targetId = utilisateur.id;
+
     // Vérification du blocage existant
     const dejaBloque = idConnected 
       ? await prisma.blocage.findUnique({
@@ -163,7 +163,7 @@ export async function getProfilPublic(req: Request, res: Response): Promise<void
         })
       : null;
 
-    // ✨ NOUVEAU : Récupération et calcul des statistiques pour le profil public
+    // Récupération des statistiques avec targetId (BigInt de confiance issu de la bdd)
     const [exCount, bpCount, tutCount, projCount, commentCount, totalLikesReceived, exercices, bonsplans, tutorats, projets] = await Promise.all([
       prisma.annonceExercice.count({ where: { id_utilisateur: targetId } }),
       prisma.annonceBonPlan.count({ where: { id_utilisateur: targetId } }),
@@ -197,6 +197,7 @@ export async function getProfilPublic(req: Request, res: Response): Promise<void
 
     res.json({
       id: utilisateur.id.toString(),
+      uuid: utilisateur.uuid, // ✨ Ajout : On transmet également l'UUID au besoin
       nom: utilisateur.nom,
       prenom: utilisateur.prenom,
       role: utilisateur.role,
@@ -231,18 +232,29 @@ export async function getProfilPublic(req: Request, res: Response): Promise<void
   }
 }
 
-// 3. NOUVEAU : Fonction Toggle pour Bloquer / Débloquer un utilisateur
 export async function toggleBlocage(req: Request, res: Response): Promise<void> {
   try {
     const id_bloqueur = BigInt(req.utilisateur!.id);
-    const id_bloque = BigInt(req.params.id);
+    const { uuid } = req.params; // ✨ Modification : Récupération de l'UUID de la cible
+
+    // On cherche l'utilisateur ciblé par son UUID pour récupérer son ID interne
+    const targetUser = await prisma.utilisateur.findUnique({
+      where: { uuid: uuid }
+    });
+
+    if (!targetUser) {
+      res.status(404).json({ message: "Utilisateur introuvable." });
+      return;
+    }
+
+    const id_bloque = targetUser.id; // Récupération du BigInt interne
 
     if (id_bloqueur === id_bloque) {
       res.status(400).json({ message: "Vous ne pouvez pas vous bloquer vous-même." });
       return;
     }
 
-    // On cherche si le blocage existe déjà
+    // Gestion du blocage
     const blocageExistant = await prisma.blocage.findUnique({
       where: {
         id_utilisateur_bloquant_id_utilisateur_bloque: {
@@ -253,7 +265,6 @@ export async function toggleBlocage(req: Request, res: Response): Promise<void> 
     });
 
     if (blocageExistant) {
-      // Si présent, on débloque
       await prisma.blocage.delete({
         where: {
           id_utilisateur_bloquant_id_utilisateur_bloque: {
@@ -264,7 +275,6 @@ export async function toggleBlocage(req: Request, res: Response): Promise<void> 
       });
       res.json({ bloque: false, message: "Utilisateur débloqué avec succès." });
     } else {
-      // Si absent, on bloque
       await prisma.blocage.create({
         data: {
           id_utilisateur_bloquant: id_bloqueur,
@@ -279,7 +289,6 @@ export async function toggleBlocage(req: Request, res: Response): Promise<void> 
   }
 }
 
-// 4. NOUVEAU : Supprimer définitivement son propre compte (RGPD)
 export async function supprimerCompte(req: Request, res: Response): Promise<void> {
   try {
     await prisma.utilisateur.delete({
@@ -288,6 +297,6 @@ export async function supprimerCompte(req: Request, res: Response): Promise<void
     res.json({ message: "Compte supprimé avec succès. Toutes vos données ont été nettoyées." });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ message: "Erreur serveur lors de la suppression du compte." });
+    res.status(500).json({ message: "Erreur serveur lors du suppression du compte." });
   }
 }

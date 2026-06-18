@@ -161,8 +161,8 @@ const executeDelete = async () => {
     
     <div class="p-5 pb-3 flex items-center justify-between relative">
       <router-link 
-        v-if="annonce.auteur?.id" 
-        :to="'/profil/' + annonce.auteur.id" 
+        v-if="annonce.auteur?.uuid" 
+        :to="'/profil/' + annonce.auteur.uuid" 
         class="flex items-center gap-3 group/author cursor-pointer"
       >
         <div class="w-10 h-10 rounded-full bg-slate-100 border border-slate-200 overflow-hidden flex items-center justify-center font-bold text-slate-600 text-sm group-hover/author:border-indigo-400 transition duration-150">
