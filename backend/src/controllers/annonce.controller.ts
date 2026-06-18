@@ -332,8 +332,9 @@ export async function lister(req: Request, res: Response): Promise<void> {
     let userFormationId: bigint | null = null;
     let allowedAuthorNiveaux: string[] = [];
     let preferences: string[] = [];
+    let isAdminUser = false; // ✨ Drapeau pour savoir si c'est un admin
 
-    // 1. Extraction des règles de sécurité et visibilité (Blocages réciproques, Rôles et Niveaux)
+    // 1. Extraction des règles de sécurité et visibilité
     if (idConnected) {
       // Gestion des blocages dans les deux sens
       const blocages = await prisma.blocage.findMany({
@@ -363,14 +364,17 @@ export async function lister(req: Request, res: Response): Promise<void> {
         userFormationId = infoUtilisateur.id_formation;
         preferences = infoUtilisateur.centresInteret || [];
         
-        if (infoUtilisateur.role) {
-          allowedVisibilities.push(infoUtilisateur.role); // Ajoute 'ETUDIANT' ou 'PROFESSEUR' selon son profil
+        // ✨ Sécurité : On vérifie si c'est un admin
+        if (infoUtilisateur.role === 'ADMIN') {
+          isAdminUser = true;
+        } else if (infoUtilisateur.role) {
+          // On n'ajoute le rôle aux visibilités QUE si ce n'est pas un admin (évite le crash Prisma)
+          allowedVisibilities.push(infoUtilisateur.role); 
         }
 
         if (infoUtilisateur.formation) {
           const currentNiveau = infoUtilisateur.formation.niveau;
           const currentRank = LEVEL_RANKS[currentNiveau] || 0;
-          // Déterminer les niveaux inférieurs ou égaux pour le filtre PROMO_SUPERIEUR
           allowedAuthorNiveaux = Object.keys(LEVEL_RANKS).filter(
             niv => LEVEL_RANKS[niv] <= currentRank
           );
@@ -379,27 +383,31 @@ export async function lister(req: Request, res: Response): Promise<void> {
     }
 
     // 2. Création de la condition de filtrage de visibilité globale
-    const condition = {
+    const condition: any = {
       id_utilisateur: { notIn: excludedUserIds }, // Exclure les personnes bloquées
-      OR: [
-        ...(idConnected ? [{ id_utilisateur: idConnected }] : []), // Un auteur peut toujours voir ses propres annonces
+    };
+
+    // ✨ Si l'utilisateur est ADMIN, on ne met aucun filtre OR de visibilité : il voit TOUT !
+    if (!isAdminUser) {
+      condition.OR = [
+        ...(idConnected ? [{ id_utilisateur: idConnected }] : []), // Un auteur voit ses propres annonces
         { visibilite: { in: allowedVisibilities as any } }, // Publique ou correspondant à son rôle
         ...(userFormationId ? [{
           AND: [
             { visibilite: 'PROMOTION' as const },
-            { utilisateur: { id_formation: userFormationId } } // Même formation/classe
+            { utilisateur: { id_formation: userFormationId } }
           ]
         }] : []),
         ...(allowedAuthorNiveaux.length > 0 ? [{
           AND: [
             { visibilite: 'PROMO_SUPERIEUR' as const },
-            { utilisateur: { formation: { niveau: { in: allowedAuthorNiveaux } } } } // Auteur de niveau égal ou inférieur
+            { utilisateur: { formation: { niveau: { in: allowedAuthorNiveaux } } } }
           ]
         }] : [])
-      ]
-    };
+      ];
+    }
 
-    // 3. Récupération en parallèle sur les 4 tables avec la nouvelle condition (Inclusions conservées 🤝)
+    // 3. Récupération en parallèle sur les 4 tables avec la condition adaptée
     const [exercices, bonsPlans, tutorats, projets] = await Promise.all([
       prisma.annonceExercice.findMany({ 
         where: condition, 
@@ -421,7 +429,7 @@ export async function lister(req: Request, res: Response): Promise<void> {
 
     let toutesRaw = [...exercices, ...bonsPlans, ...tutorats, ...projets];
 
-    // 4. Mapping requis pour injecter l'état réel des interactions (Travail de ton équipe conservé 🤝)
+    // 4. Mapping requis pour injecter l'état réel des interactions
     const toutes = toutesRaw.map((annonce: any) => {
       const jaimesArray = annonce.jaimes || [];
       const commentairesArray = annonce.commentaires || [];
@@ -437,7 +445,7 @@ export async function lister(req: Request, res: Response): Promise<void> {
       };
     });
 
-    // 5. Tri intelligent par priorité de préférences, puis par date décroissante
+    // 5. Tri par priorité de préférences, puis par date décroissante
     toutes.sort((a, b) => {
       const aMatchesPref = preferences.length > 0 && (
         (a.type === 'PROJET' && preferences.includes('PROJET')) ||
@@ -459,7 +467,6 @@ export async function lister(req: Request, res: Response): Promise<void> {
       return b.datePublication.getTime() - a.datePublication.getTime();
     });
 
-    // Envoi au sérialiseur global
     res.json(toJSON(toutes));
   } catch (err) {
     console.error("Erreur dans lister avec gestion de visibilité :", err);

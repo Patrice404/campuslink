@@ -71,6 +71,11 @@ const router = createRouter({
       name: 'settings',
       component: SettingsView
     },
+    {
+      path: '/admin',
+      name: 'admin',
+      component: () => import('../views/AdminDashboardView.vue')
+    },
   ]
 })
 

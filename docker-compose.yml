@@ -12,6 +12,8 @@ services:
       POSTGRES_PASSWORD: ${DB_PASSWORD}
       POSTGRES_DB: ${DB_NAME}
       TZ: Europe/Paris
+    ports:
+      - "5432:5432"
     networks:
       - campus_net
     volumes:
@@ -42,8 +44,7 @@ services:
     environment:
       - VITE_API_URL=http://localhost:3000
     restart: unless-stopped
-    environment:
-      - VITE_API_URL=http://localhost:3000
+    
     ports:
       - "5173:5173"  # ✅ Nginx écoute sur 5173, pas 80
     networks:
