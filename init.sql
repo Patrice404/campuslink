@@ -1,3 +1,4 @@
+
 -- =============================================================================
 -- 1. NETTOYAGE DES TABLES (Ordre FK-Safe pour pouvoir relancer le script)
 -- =============================================================================
@@ -61,6 +62,7 @@ CREATE TABLE "Formation" (
 
 CREATE TABLE "Utilisateur" (
     "id" BIGSERIAL PRIMARY KEY,
+    "uuid" TEXT NOT NULL UNIQUE DEFAULT gen_random_uuid()::text,
     "nom" TEXT NOT NULL,
     "prenom" TEXT NOT NULL,
     "email" TEXT NOT NULL UNIQUE,
@@ -85,7 +87,6 @@ CREATE TABLE "Matiere" (
     "titre" TEXT NOT NULL
 );
 
--- Table de jointure implicite Prisma pour la relation Many-to-Many entre Formation et Matiere
 CREATE TABLE "_FormationToMatiere" (
     "A" BIGINT NOT NULL REFERENCES "Formation"("id") ON DELETE CASCADE ON UPDATE CASCADE,
     "B" BIGINT NOT NULL REFERENCES "Matiere"("id") ON DELETE CASCADE ON UPDATE CASCADE,
@@ -237,30 +238,29 @@ INSERT INTO "Matiere" (id, titre) VALUES
 (9, 'Systèmes d''exploitation'),
 (10, 'Gestion des risques industriels');
 
--- Liens Formations <-> Matieres (_FormationToMatiere)
+-- Liens Formations <-> Matieres
 INSERT INTO "_FormationToMatiere" ("A", "B") VALUES 
-(7, 1), (8, 1), (1, 1), -- Algo
-(7, 2), (8, 2),         -- Math
-(1, 3),                 -- Web
-(1, 4),                 -- POO
-(2, 5),                 -- Sec Web
-(2, 6),                 -- Crypto
-(3, 7), (6, 7),         -- Management
-(1, 8), (2, 8),         -- Réseaux
-(8, 9), (1, 9),         -- OS
-(4, 10), (6, 10);       -- Risques
+(7, 1), (8, 1), (1, 1),
+(7, 2), (8, 2),
+(1, 3),
+(1, 4),
+(2, 5),
+(2, 6),
+(3, 7), (6, 7),
+(1, 8), (2, 8),
+(8, 9), (1, 9),
+(4, 10), (6, 10);
 
--- Utilisateurs (Le hash correspond à la chaîne 'Password123!')
--- Note syntaxique pour les tableaux PG natifs : '{"PROJET", "EXERCICE"}'
-INSERT INTO "Utilisateur" (id, nom, prenom, email, "motDePasse", role, bio, "centresInteret", id_formation) VALUES 
-(1, 'Dupont', 'Alice', 'alice.dupont@insa-cvl.fr', '$2b$10$wR6L7L1gZlZ7ZlzV7z7z7eZ0rZ1V2z3z4z5z6z7z8z9z0z1z2z3z4', 'ADMIN', 'Passionnée de cybersécurité et de développement web.', '{"PROJET", "EXERCICE", "ENTRAIDE"}', 1),
-(2, 'Martin', 'Bob', 'bob.martin@insa-cvl.fr', '$2b$10$wR6L7L1gZlZ7ZlzV7z7z7eZ0rZ1V2z3z4z5z6z7z8z9z0z1z2z3z4', 'ETUDIANT', 'Fan de CTF et de cryptographie.', '{"EXERCICE", "BON_PLAN"}', 2),
-(3, 'Bernard', 'Clara', 'clara.bernard@insa-cvl.fr', '$2b$10$wR6L7L1gZlZ7ZlzV7z7z7eZ0rZ1V2z3z4z5z6z7z8z9z0z1z2z3z4', 'ETUDIANT', 'En 1A, je cherche de l''aide en maths et algo !', '{"ENTRAIDE", "MATIERE"}', 7),
-(4, 'Leroy', 'David', 'david.leroy@insa-cvl.fr', '$2b$10$wR6L7L1gZlZ7ZlzV7z7z7eZ0rZ1V2z3z4z5z6z7z8z9z0z1z2z3z4', 'ETUDIANT', 'En 5A, je cherche une alternance en sécu.', '{"BON_PLAN", "PROJET"}', 3),
-(5, 'Petit', 'Emma', 'emma.petit@insa-cvl.fr', '$2b$10$wR6L7L1gZlZ7ZlzV7z7z7eZ0rZ1V2z3z4z5z6z7z8z9z0z1z2z3z4', 'ETUDIANT', 'Curieuse de tout, surtout des systèmes d''exploitation.', '{"EXERCICE", "ENTRAIDE"}', 8),
-(6, 'Moreau', 'Fabien', 'fabien.moreau@insa-cvl.fr', '$2b$10$wR6L7L1gZlZ7ZlzV7z7z7eZ0rZ1V2z3z4z5z6z7z8z9z0z1z2z3z4', 'ETUDIANT', 'Étudiant MRI passionné par la gestion des risques.', '{"PROJET", "BON_PLAN"}', 4),
-(7, 'Laurent', 'Jean', 'jean.laurent@insa-cvl.fr', '$2b$10$wR6L7L1gZlZ7ZlzV7z7z7eZ0rZ1V2z3z4z5z6z7z8z9z0z1z2z3z4', 'PROFESSEUR', 'Professeur de cryptographie et sécurité des systèmes.', '{"MATIERE", "EXERCICE"}', NULL),
-(8, 'Garnier', 'Sophie', 'sophie.garnier@insa-cvl.fr', '$2b$10$wR6L7L1gZlZ7ZlzV7z7z7eZ0rZ1V2z3z4z5z6z7z8z9z0z1z2z3z4', 'PROFESSEUR', 'Professeure de mathématiques et algorithmique.', '{"MATIERE", "ENTRAIDE"}', NULL);
+-- Utilisateurs
+INSERT INTO "Utilisateur" (id, uuid, nom, prenom, email, "motDePasse", role, bio, "centresInteret", id_formation) VALUES 
+(1, 'a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d', 'Dupont', 'Alice', 'alice.dupont@insa-cvl.fr', '$2b$10$wR6L7L1gZlZ7ZlzV7z7z7eZ0rZ1V2z3z4z5z6z7z8z9z0z1z2z3z4', 'ADMIN', 'Passionnée de cybersécurité et de développement web.', '{"PROJET", "EXERCICE", "ENTRAIDE"}', 1),
+(2, 'b2c3d4e5-f67a-8b9c-0d1e-2f3a4b5c6d7e', 'Martin', 'Bob', 'bob.martin@insa-cvl.fr', '$2b$10$wR6L7L1gZlZ7ZlzV7z7z7eZ0rZ1V2z3z4z5z6z7z8z9z0z1z2z3z4', 'ETUDIANT', 'Fan de CTF et de cryptographie.', '{"EXERCICE", "BON_PLAN"}', 2),
+(3, 'c3d4e5f6-7a8b-9c0d-1e2f-3a4b5c6d7e8f', 'Bernard', 'Clara', 'clara.bernard@insa-cvl.fr', '$2b$10$wR6L7L1gZlZ7ZlzV7z7z7eZ0rZ1V2z3z4z5z6z7z8z9z0z1z2z3z4', 'ETUDIANT', 'En 1A, je cherche de l''aide en maths et algo !', '{"ENTRAIDE", "MATIERE"}', 7),
+(4, 'd4e5f67a-8b9c-0d1e-2f3a-4b5c6d7e8f9a', 'Leroy', 'David', 'david.leroy@insa-cvl.fr', '$2b$10$wR6L7L1gZlZ7ZlzV7z7z7eZ0rZ1V2z3z4z5z6z7z8z9z0z1z2z3z4', 'ETUDIANT', 'En 5A, je cherche une alternance en sécu.', '{"BON_PLAN", "PROJET"}', 3),
+(5, 'e5f67a8b-9c0d-1e2f-3a4b-5c6d7e8f9a0b', 'Petit', 'Emma', 'emma.petit@insa-cvl.fr', '$2b$10$wR6L7L1gZlZ7ZlzV7z7z7eZ0rZ1V2z3z4z5z6z7z8z9z0z1z2z3z4', 'ETUDIANT', 'Curieuse de tout, surtout des systèmes d''exploitation.', '{"EXERCICE", "ENTRAIDE"}', 8),
+(6, 'f67a8b9c-0d1e-2f3a-4b5c-6d7e8f9a0b1c', 'Moreau', 'Fabien', 'fabien.moreau@insa-cvl.fr', '$2b$10$wR6L7L1gZlZ7ZlzV7z7z7eZ0rZ1V2z3z4z5z6z7z8z9z0z1z2z3z4', 'ETUDIANT', 'Étudiant MRI passionné par la gestion des risques.', '{"PROJET", "BON_PLAN"}', 4),
+(7, '7a8b9c0d-1e2f-3a4b-5c6d-7e8f9a0b1c2d', 'Laurent', 'Jean', 'jean.laurent@insa-cvl.fr', '$2b$10$wR6L7L1gZlZ7ZlzV7z7z7eZ0rZ1V2z3z4z5z6z7z8z9z0z1z2z3z4', 'PROFESSEUR', 'Professeur de cryptographie et sécurité des systèmes.', '{"MATIERE", "EXERCICE"}', NULL),
+(8, '8b9c0d1e-2f3a-4b5c-6d7e-8f9a0b1c2d3e', 'Garnier', 'Sophie', 'sophie.garnier@insa-cvl.fr', '$2b$10$wR6L7L1gZlZ7ZlzV7z7z7eZ0rZ1V2z3z4z5z6z7z8z9z0z1z2z3z4', 'PROFESSEUR', 'Professeure de mathématiques et algorithmique.', '{"MATIERE", "ENTRAIDE"}', NULL);
 
 -- Blocages
 INSERT INTO "Blocage" (id_utilisateur_bloquant, id_utilisateur_bloque) VALUES (2, 6);
@@ -309,7 +309,7 @@ INSERT INTO "Commentaire" (id, texte, id_utilisateur, id_exercice, id_bonplan, i
 (1, 'Merci pour le partage ! Les rotations AVL c''est effectivement compliqué au début.', 1, 1, NULL, NULL, NULL, NULL),
 (2, 'Exactement ! Je recommande cette vidéo YouTube qui explique très bien les cas de rotation.', 2, 1, NULL, NULL, NULL, 1),
 (3, 'Super ressource sur Fourier, ça m''a sauvé pour les partiels !', 5, 2, NULL, NULL, NULL, NULL),
-(4, 'Le hackathon a l'’air incroyable, vous cherchez encore des équipes ?', 3, NULL, 5, NULL, NULL, NULL),
+(4, 'Le hackathon a l''air incroyable, vous cherchez encore des équipes ?', 3, NULL, 5, NULL, NULL, NULL),
 (5, 'Oui ! Contactez-moi en DM pour former une équipe.', 7, NULL, 5, NULL, NULL, 4),
 (6, 'Je suis intéressé par le projet CampusLink, j''ai de l''expérience en Vue.js !', 4, NULL, NULL, NULL, 1, NULL),
 (7, 'Le bot Discord c''est une super idée, on en a besoin depuis longtemps !', 6, NULL, NULL, NULL, 4, NULL),
@@ -340,7 +340,7 @@ INSERT INTO "Notification" (contenu, id_utilisateur, lue) VALUES
 -- Verification Emails (Tokens de test)
 INSERT INTO "VerificationEmail" (email, code, expiration, nom, prenom, "motDePasse", role, id_formation) VALUES 
 ('test.inscription@insa-cvl.fr', '482910', NOW() - INTERVAL '1 hour', 'Durand', 'Lucas', '$2b$10$wR6L7L1gZlZ7ZlzV7z7z7eZ0rZ1V2z3z4z5z6z7z8z9z0z1z2z3z4', 'ETUDIANT', 1),
-('prof.test@insa-cvl.fr', '751234', NOW() + INTERVAL '15 minutes', 'Renard', 'Marie ', '$2b$10$wR6L7L1gZlZ7ZlzV7z7z7eZ0rZ1V2z3z4z5z6z7z8z9z0z1z2z3z4', 'PROFESSEUR', NULL);
+('prof.test@insa-cvl.fr', '751234', NOW() + INTERVAL '15 minutes', 'Renard', 'Marie', '$2b$10$wR6L7L1gZlZ7ZlzV7z7z7eZ0rZ1V2z3z4z5z6z7z8z9z0z1z2z3z4', 'PROFESSEUR', NULL);
 
 -- =============================================================================
 -- 5. AJUSTEMENT DES SÉQUENCES (Nécessaire après des insertions d'ID forcés)
