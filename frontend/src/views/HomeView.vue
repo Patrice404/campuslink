@@ -1,14 +1,16 @@
 <script setup lang="ts">
 import { ref, onMounted, computed, watch } from 'vue'
-import { useRoute } from 'vue-router'
 import SidebarNav from '../components/SidebarNav.vue'
 import TopNav from '../components/TopNav.vue'
 import CreatePostModal from '../components/CreatePostModal.vue'
 import AnnonceCard from '../components/AnnonceCard.vue'
 import SmartSearch from '../components/SmartSearch.vue'
 import { useAuthStore } from '../stores/authStore'
-const authStore = useAuthStore()
+import { useRoute, useRouter } from 'vue-router'
 const route = useRoute()
+const router = useRouter()
+
+const authStore = useAuthStore()
 const apiUrl = import.meta.env.VITE_API_URL
 
 const annonces = ref<any[]>([]);
@@ -19,6 +21,7 @@ const visibleCount = ref(10);
 
 const isMobileMenuOpen = ref(false)
 const isCreateModalOpen = ref(false)
+
 
 // ⚡️ AJOUT : État pour stocker l'annonce en cours de modification
 const annonceToEdit = ref<any | null>(null);
@@ -146,7 +149,14 @@ const chargerSelonRoute = () => {
   }
 };
 
-onMounted(chargerSelonRoute);
+onMounted(() => {
+   //On verifie si l'utilisateur est connecté avant de tenter de charger le profil
+  if (!authStore.token) {
+    router.push('/');
+    return;
+  }
+  chargerSelonRoute();
+});
 
 // Re-déclenche si on clique une notif alors qu'on est déjà sur la page d'accueil
 watch(() => route.query.annonceId, () => chargerSelonRoute());

@@ -3,6 +3,7 @@ import { ref, onMounted } from 'vue'
 import SidebarNav from '../components/SidebarNav.vue'
 import TopNav from '../components/TopNav.vue'
 import { useAuthStore } from '../stores/authStore'
+import { useRouter } from 'vue-router'
 
 const authStore = useAuthStore()
 const blockedUsers = ref<any[]>([])
@@ -11,6 +12,7 @@ const error = ref("")
 const successMessage = ref("")
 
 const isMobileMenuOpen = ref(false)
+const router = useRouter()
 
 // Charger la liste des personnes bloquées
 const fetchBlockedUsers = async () => {
@@ -64,7 +66,14 @@ const handleUnblock = async (userId: string) => {
   }
 }
 
-onMounted(fetchBlockedUsers)
+onMounted(() => {
+  // Vérification de l'authentification avant de charger les paramètres
+  if (!authStore.token) {
+    router.push('/')
+    return
+  }
+  fetchBlockedUsers()
+})
 </script>
 
 <template>
@@ -85,10 +94,7 @@ onMounted(fetchBlockedUsers)
           <div class="grid grid-cols-1 md:grid-cols-4 gap-6 items-start">
             <nav class="flex md:flex-col gap-1 overflow-x-auto pb-2 md:pb-0">
               <button class="w-full text-left px-3 py-2 text-sm font-bold bg-white text-indigo-600 rounded-lg shadow-sm border border-gray-100 whitespace-nowrap">
-                🚫 Utilisateurs bloqués
-              </button>
-              <button class="w-full text-left px-3 py-2 text-sm font-medium text-gray-500 hover:bg-gray-100 rounded-lg whitespace-nowrap opacity-60 cursor-not-allowed">
-                ⚙️ Général (Bientôt)
+                Utilisateurs bloqués
               </button>
             </nav>
 
@@ -102,7 +108,7 @@ onMounted(fetchBlockedUsers)
                 ✓ {{ successMessage }}
               </div>
               <div v-if="error" class="p-3 bg-red-50 text-red-600 rounded-lg text-sm font-medium">
-                ⚠️ {{ error }}
+                {{ error }}
               </div>
 
               <div v-if="loading" class="text-center py-6 text-gray-400 animate-pulse text-sm">
@@ -110,7 +116,6 @@ onMounted(fetchBlockedUsers)
               </div>
 
               <div v-else-if="blockedUsers.length === 0" class="text-center py-12 border-2 border-dashed border-gray-100 rounded-xl text-gray-400">
-                <span class="text-2xl">🕊️</span>
                 <p class="text-sm mt-1 font-medium">Ta liste d'utilisateurs bloqués est vide.</p>
               </div>
 
