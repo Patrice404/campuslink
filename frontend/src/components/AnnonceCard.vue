@@ -3,7 +3,6 @@ import { ref, computed, watch } from 'vue';
 import { useAuthStore } from '../stores/authStore';
 import AnnoncesCommentaires from './AnnoncesCommentaires.vue';
 
-
 const props = defineProps<{
   annonce: any
 }>();
@@ -22,7 +21,6 @@ const showDropdown = ref(false);
 
 /**
  * Vérifie si l'utilisateur connecté est le propriétaire de l'annonce.
- * @returns {boolean} true si l'utilisateur est le propriétaire, false sinon.
  */
 const isOwner = computed(() => {
   const currentUserId = authStore.user?.id; 
@@ -31,25 +29,17 @@ const isOwner = computed(() => {
   return String(currentUserId) === String(auteurId);
 });
 
-/**
- * Déclenche l'ouverture du modal de confirmation de suppression.
- * Ferme également le menu déroulant des actions.
- */
 const triggerDeleteConfirmation = () => {
-  showDropdown.value = false; // Ferme le menu 3 points
-  showDeleteConfirm.value = true; // Ouvre le modal de confirmation
+  showDropdown.value = false; 
+  showDeleteConfirm.value = true; 
 };
 
-/**
- * Déclenche l'action d'édition de l'annonce.
- * Ferme le menu déroulant et émet un événement vers le parent.
- */
 const handleEditClick = () => {
   showDropdown.value = false; 
   emit('edit', props.annonce); 
 };
 
-// Synchronisation si les props changent (ex: rafraîchissement global)
+// Synchronisation si les props changent
 watch(() => props.annonce, (newAnnonce) => {
   nbJaimeLocal.value = Number(newAnnonce.nbJaime) || 0;
   isLikedLocal.value = newAnnonce.isLikedByMe || false;
@@ -70,7 +60,7 @@ const initials = computed(() => {
   return `${auteur.prenom?.[0] || ""}${auteur.nom?.[0] || ""}`.toUpperCase();
 });
 
-// --- DÉTECTION INTELLIGENTE DU FICHIER IMAGE (Sécurise le champ 'image' ou 'photo' de Prisma) ---
+// --- DÉTECTION INTELLIGENTE DU FICHIER IMAGE ---
 const imageSource = computed(() => {
   const fileField = props.annonce.image || props.annonce.photo;
   if (!fileField) return null;
@@ -124,17 +114,14 @@ const handleLikeToggle = async () => {
   }
 };
 
-
 /**
- * Supprime l'annonce après confirmation de l'utilisateur.
- * Émet un événement 'deleted' pour informer le parent de la suppression.
- * Ferme le modal de confirmation après l'action.
+ * Supprime l'annonce après confirmation.
  */
 const executeDelete = async () => {
   let typeRoute = props.annonce.type.replace('Annonce', '').toLowerCase();
 
   const annonceIdStr = String(props.annonce.id);
-  showDeleteConfirm.value = false; // Ferme le modal immédiatement
+  showDeleteConfirm.value = false;
 
   try {
     const response = await fetch(`${apiUrl}/api/annonces/${typeRoute}/${annonceIdStr}`, {
@@ -178,9 +165,15 @@ const executeDelete = async () => {
         </div>
       </router-link>
 
-      <!-- Zone Droite : Badge + Menu Actions Propriétaire -->
       <div class="flex items-center gap-2">
-        <span class="text-[10px] uppercase tracking-wider font-extrabold px-2.5 py-1 rounded-md"
+        <span v-if="annonce.sousTypeTypeFront" class="text-[10px] uppercase tracking-wider font-extrabold px-2.5 py-1 rounded-md"
+          :class="{
+            'bg-orange-100 text-orange-700': annonce.sousTypeTypeFront === 'TUTORAT',
+            'bg-sky-100 text-sky-700': annonce.sousTypeTypeFront === 'EXERCICE'
+          }">
+          {{ annonce.sousTypeTypeFront === 'TUTORAT' ? '🤝 Tutorat' : '📝 Exercice' }}
+        </span>
+        <span v-else class="text-[10px] uppercase tracking-wider font-extrabold px-2.5 py-1 rounded-md"
           :class="{
             'bg-indigo-100 text-indigo-700': annonce.type === 'AnnonceProjet', 
             'bg-emerald-100 text-emerald-700': annonce.type === 'AnnonceBonPlan',
@@ -190,7 +183,6 @@ const executeDelete = async () => {
           {{ annonce.type ? annonce.type.replace('Annonce', '') : '' }}
         </span>
 
-        <!-- ⚡️ MENU TRIS POINTS : S'affiche UNIQUEMENT si l'utilisateur est le propriétaire -->
         <div v-if="isOwner" class="relative">
           <button 
             @click.stop="showDropdown = !showDropdown" 
@@ -201,7 +193,6 @@ const executeDelete = async () => {
             </svg>
           </button>
 
-          <!-- Le Dropdown Menu -->
           <div 
             v-if="showDropdown" 
             class="absolute right-0 mt-1 w-36 bg-white border border-slate-100 rounded-xl shadow-lg py-1.5 z-10 animate-in fade-in slide-in-from-top-1 duration-150"
@@ -227,8 +218,8 @@ const executeDelete = async () => {
       
       <h3 class="text-lg font-extrabold text-slate-900 tracking-tight">
         <span v-if="annonce.titre">{{ annonce.titre }}</span>
-        <span v-else-if="annonce.type === 'AnnonceExercice'">Exercice : {{ annonce.matiere?.titre || 'Ressource' }}</span>
-        <span v-else-if="annonce.type === 'AnnonceTutorat'">Demande de Tutorat</span>
+        <span v-else-if="annonce.sousTypeTypeFront === 'EXERCICE' || annonce.type === 'AnnonceExercice'">Exercice : {{ annonce.matiere?.titre || 'Ressource' }}</span>
+        <span v-else-if="annonce.sousTypeTypeFront === 'TUTORAT' || annonce.type === 'AnnonceTutorat'">Demande de Tutorat : {{ annonce.matiere?.titre || 'Aide' }}</span>
       </h3>
 
       <div class="flex flex-wrap gap-2 text-xs">
@@ -241,8 +232,8 @@ const executeDelete = async () => {
         <span v-if="annonce.sousType" class="inline-flex items-center gap-1 bg-purple-50 text-purple-700 border border-purple-100 px-2.5 py-1 rounded-lg font-semibold uppercase text-[10px]">
           🔥 {{ annonce.sousType.replace('_', ' ') }}
         </span>
-        <span v-if="annonce.nbCandidatsVoulus" class="inline-flex items-center gap-1 bg-orange-50 text-orange-700 px-2.5 py-1 rounded-lg font-medium">
-          👥 Besoin de : {{ annonce.nbCandidatsVoulus }} élève(s)
+        <span v-if="annonce.nbCandidatsVoulus" class="inline-flex items-center gap-1 bg-orange-50 text-orange-700 px-2.5 py-1 rounded-lg font-semibold border border-orange-100">
+          👥 Places disponibles : {{ annonce.nbCandidatsVoulus }} élève(s)
         </span>
       </div>
 
@@ -260,6 +251,7 @@ const executeDelete = async () => {
 
       <div v-if="annonce.lien" class="mt-2">
         <a 
+          :src="annonce.lien" 
           :href="annonce.lien" 
           target="_blank" 
           class="inline-flex items-center gap-2 text-xs font-semibold px-4 py-2.5 bg-slate-50 hover:bg-indigo-50 border border-slate-200 hover:border-indigo-200 rounded-xl transition duration-150 w-full group"
@@ -291,11 +283,11 @@ const executeDelete = async () => {
     <div v-if="showCommentaires">
       <AnnoncesCommentaires :annonceId="annonce.id" :annonceType="annonce.type" />
     </div>
+
     <div v-if="showDeleteConfirm" class="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div class="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" @click="showDeleteConfirm = false"></div>
       
       <div class="bg-white rounded-2xl max-w-sm w-full p-6 shadow-xl border border-slate-100 relative z-10 animate-in fade-in zoom-in-95 duration-150">
-        
         <h3 class="text-base font-bold text-slate-900 mb-1">
           Supprimer la publication ?
         </h3>

@@ -21,8 +21,30 @@ export async function recherche(req: Request, res: Response): Promise<void> {
       string | undefined
     >;
 
+    // Exclure les annonces des personnes bloquées (dans les deux sens), comme dans le fil
+    const idConnected = req.utilisateur ? BigInt(req.utilisateur.id) : null;
+    let excludedUserIds: bigint[] = [];
+    if (idConnected) {
+      const blocages = await prisma.blocage.findMany({
+        where: {
+          OR: [
+            { id_utilisateur_bloquant: idConnected },
+            { id_utilisateur_bloque: idConnected },
+          ],
+        },
+        select: { id_utilisateur_bloquant: true, id_utilisateur_bloque: true },
+      });
+      const excludedSet = new Set<bigint>();
+      blocages.forEach((b: { id_utilisateur_bloquant: bigint; id_utilisateur_bloque: bigint }) => {
+        if (b.id_utilisateur_bloquant !== idConnected) excludedSet.add(b.id_utilisateur_bloquant);
+        if (b.id_utilisateur_bloque !== idConnected) excludedSet.add(b.id_utilisateur_bloque);
+      });
+      excludedUserIds = Array.from(excludedSet);
+    }
+
     // Filtres communs à tous les types d'annonce
     const base: any = {};
+    if (excludedUserIds.length > 0) base.id_utilisateur = { notIn: excludedUserIds };
     if (auteur) {
       base.utilisateur = {
         OR: [
