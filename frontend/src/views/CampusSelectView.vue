@@ -23,7 +23,11 @@ const fetchCampuses = async () => {
     // Utilisation de la variable d'environnement (Port 3000 selon ton code backend)
     const apiUrl = import.meta.env.VITE_API_URL
     
-    const response = await fetch(`${apiUrl}/api/campus`)
+    // ✨ On nettoie proprement l'URL pour enlever le/les slashes de fin s'ils existent
+    const cleanApiUrl = apiUrl.replace(/\/+$/, '')
+  
+    // Maintenant, l'assemblage donnera obligatoirement un seul slash
+    const response = await fetch(`${cleanApiUrl}/api/campus`)
     console.log("Réponse brute de l'API :", response)
     if (!response.ok) {
       throw new Error(`Erreur HTTP: ${response.status}`)
