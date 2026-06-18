@@ -111,6 +111,7 @@ CREATE TABLE "AnnonceTutorat" (
     "type" "TypeAnnonce" NOT NULL DEFAULT 'TUTORAT',
     "visibilite" "Visibilite" NOT NULL DEFAULT 'PUBLIQUE',
     "datePublication" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "nbJaime" INTEGER NOT NULL DEFAULT 0,
     "nbCandidatsVoulus" INTEGER NOT NULL,
     "description" TEXT NOT NULL,
     "image" TEXT,
@@ -128,6 +129,7 @@ CREATE TABLE "AnnonceProjet" (
     "type" "TypeAnnonce" NOT NULL DEFAULT 'PROJET',
     "visibilite" "Visibilite" NOT NULL DEFAULT 'PUBLIQUE',
     "datePublication" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "nbJaime" INTEGER NOT NULL DEFAULT 0,
     "titre" TEXT NOT NULL,
     "lien" TEXT,
     "image" TEXT,
@@ -166,6 +168,7 @@ CREATE TABLE "Commentaire" (
     "id_bonplan" BIGINT,
     "id_tutorat" BIGINT,
     "id_projet" BIGINT,
+    "id_parent" BIGINT,
 
     CONSTRAINT "Commentaire_pkey" PRIMARY KEY ("id")
 );
@@ -209,11 +212,22 @@ CREATE TABLE "VerificationEmail" (
     CONSTRAINT "VerificationEmail_pkey" PRIMARY KEY ("id")
 );
 
+-- CreateTable
+CREATE TABLE "_FormationToMatiere" (
+    "A" BIGINT NOT NULL,
+    "B" BIGINT NOT NULL,
+
+    CONSTRAINT "_FormationToMatiere_AB_pkey" PRIMARY KEY ("A","B")
+);
+
 -- CreateIndex
 CREATE UNIQUE INDEX "Utilisateur_email_key" ON "Utilisateur"("email");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "VerificationEmail_email_key" ON "VerificationEmail"("email");
+
+-- CreateIndex
+CREATE INDEX "_FormationToMatiere_B_index" ON "_FormationToMatiere"("B");
 
 -- AddForeignKey
 ALTER TABLE "Departement" ADD CONSTRAINT "Departement_id_campus_fkey" FOREIGN KEY ("id_campus") REFERENCES "Campus"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
@@ -267,6 +281,9 @@ ALTER TABLE "Commentaire" ADD CONSTRAINT "Commentaire_id_tutorat_fkey" FOREIGN K
 ALTER TABLE "Commentaire" ADD CONSTRAINT "Commentaire_id_projet_fkey" FOREIGN KEY ("id_projet") REFERENCES "AnnonceProjet"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE "Commentaire" ADD CONSTRAINT "Commentaire_id_parent_fkey" FOREIGN KEY ("id_parent") REFERENCES "Commentaire"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "Jaime" ADD CONSTRAINT "Jaime_id_utilisateur_fkey" FOREIGN KEY ("id_utilisateur") REFERENCES "Utilisateur"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
@@ -283,3 +300,9 @@ ALTER TABLE "Jaime" ADD CONSTRAINT "Jaime_id_projet_fkey" FOREIGN KEY ("id_proje
 
 -- AddForeignKey
 ALTER TABLE "Candidature" ADD CONSTRAINT "Candidature_id_tutorat_fkey" FOREIGN KEY ("id_tutorat") REFERENCES "AnnonceTutorat"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "_FormationToMatiere" ADD CONSTRAINT "_FormationToMatiere_A_fkey" FOREIGN KEY ("A") REFERENCES "Formation"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "_FormationToMatiere" ADD CONSTRAINT "_FormationToMatiere_B_fkey" FOREIGN KEY ("B") REFERENCES "Matiere"("id") ON DELETE CASCADE ON UPDATE CASCADE;

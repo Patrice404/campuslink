@@ -1,13 +1,47 @@
 import OpenAI from 'openai';
+import * as fs from 'fs';
+import * as path from 'path';
 
 const apiKey = process.env.OPENAI_API_KEY || '';
 const client = new OpenAI({ apiKey });
 
+/**
+ * Lit une image depuis le disque et la convertit en base64
+ */
+function imageFileToBase64(filename: string): { base64: string; mimeType: string } | null {
+    try {
+        const imagePath = path.join(process.cwd(), 'uploads', filename);
+        if (!fs.existsSync(imagePath)) {
+            console.warn(`Image introuvable sur le disque : ${imagePath}`);
+            return null;
+        }
+        const buffer = fs.readFileSync(imagePath);
+        const base64 = buffer.toString('base64');
+        const ext = path.extname(filename).toLowerCase();
+        const mimeTypes: Record<string, string> = {
+            '.jpg':  'image/jpeg',
+            '.jpeg': 'image/jpeg',
+            '.png':  'image/png',
+            '.gif':  'image/gif',
+            '.webp': 'image/webp'
+        };
+        const mimeType = mimeTypes[ext] || 'image/jpeg';
+        return { base64, mimeType };
+    } catch (err) {
+        console.error("Erreur lors de la lecture de l'image:", err);
+        return null;
+    }
+}
+
+/**
+ * Service de modération automatique utilisant OpenAI GPT-4o
+ * Analyse texte ET images (lues depuis le disque du container)
+ */
 export async function verifierContenuAvecIA(
     description: string,
     titre?: string,
     lien?: string,
-    imageUrls?: string[] // URLs publiques Blob Azure
+    imageFilenames?: string[] // 👈 noms de fichiers ex: ['photo.jpg']
 ): Promise<'SAFE' | 'REJECT'> {
     try {
         if (!apiKey) {
@@ -18,7 +52,9 @@ export async function verifierContenuAvecIA(
         let contenuAAnalyser = titre
             ? `Titre: "${titre}". Description: "${description}"`
             : `Description: "${description}"`;
-        if (lien) contenuAAnalyser += ` Lien: "${lien}"`;
+        if (lien) {
+            contenuAAnalyser += ` Lien: "${lien}"`;
+        }
 
         const systemPrompt = `You are an expert Content Policy Inspector for a university student platform.
     Your task is to perform a semantic investigation on the following student post written in French.
@@ -34,6 +70,7 @@ export async function verifierContenuAvecIA(
     6. Companies site links are allowed, github and coworking spaces.
     7. Images: Reject any image containing nudity, violence, gore, hate symbols, or inappropriate content for a university platform.`;
 
+        // Construction du message avec texte
         const userContent: OpenAI.Chat.ChatCompletionContentPart[] = [
             {
                 type: 'text',
@@ -41,15 +78,21 @@ export async function verifierContenuAvecIA(
             }
         ];
 
-        // Ajout des images via URL publique Blob
+        // Ajout des images en base64 depuis le disque
         let hasImages = false;
-        if (imageUrls && imageUrls.length > 0) {
-            for (const url of imageUrls) {
-                userContent.push({
-                    type: 'image_url',
-                    image_url: { url, detail: 'low' }
-                });
-                hasImages = true;
+        if (imageFilenames && imageFilenames.length > 0) {
+            for (const filename of imageFilenames) {
+                const imageData = imageFileToBase64(filename);
+                if (imageData) {
+                    userContent.push({
+                        type: 'image_url',
+                        image_url: {
+                            url: `data:${imageData.mimeType};base64,${imageData.base64}`,
+                            detail: 'low' // suffit pour la modération, moins cher
+                        }
+                    });
+                    hasImages = true;
+                }
             }
         }
 
@@ -62,7 +105,7 @@ export async function verifierContenuAvecIA(
         });
 
         const response = await client.chat.completions.create({
-            model: hasImages ? 'gpt-4o' : 'gpt-4o-mini',
+            model: hasImages ? 'gpt-4o' : 'gpt-4o-mini', // GPT-4o seulement si images
             messages: [
                 { role: 'system', content: systemPrompt },
                 { role: 'user', content: userContent }
@@ -76,7 +119,7 @@ export async function verifierContenuAvecIA(
 
         console.log("---------------- MODÉRATION IA (OPENAI) ----------------");
         console.log("📝 CONTEXTE ANALYSÉ :", contenuAAnalyser);
-        console.log("🖼️  IMAGES ANALYSÉES :", imageUrls?.length || 0);
+        console.log("🖼️  IMAGES ANALYSÉES :", hasImages ? imageFilenames?.length : 0);
         console.log("🤖 RÉPONSE BRUTE DE L'IA :", `"${reponseIA}"`);
         console.log("-------------------------------------------------------");
 

@@ -9,8 +9,9 @@ jobs:
   build-and-push:
     runs-on: ubuntu-latest
     permissions:
-      id-token: write # Nécessaire pour OIDC
+      id-token: write
       contents: read
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -38,3 +39,12 @@ jobs:
           file: ./frontend/Dockerfile.prod
           push: true
           tags: acrcampuslink.azurecr.io/frontend:latest
+          build-args: |
+            VITE_API_URL=${{ secrets.VITE_API_URL }}
+
+      # ✅ Redémarre les App Services pour prendre la nouvelle image
+      - name: Restart Backend App Service
+        run: az webapp restart --name  --resource-group rg-campuslink-prod
+
+      - name: Restart Frontend App Service
+        run: az webapp restart --name campuslink-backend-api --resource-group rg-campuslink-prod
