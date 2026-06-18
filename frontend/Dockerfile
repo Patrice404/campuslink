@@ -6,6 +6,9 @@ FROM node:20-alpine
 # Définition du dossier de travail dans le conteneur
 WORKDIR /app
 
+ARG VITE_API_URL
+ENV VITE_API_URL=$VITE_API_URL
+
 # 1. Copie des fichiers de dépendances
 # (L'astérisque permet de copier package.json ET package-lock.json s'il existe)
 COPY package*.json ./
