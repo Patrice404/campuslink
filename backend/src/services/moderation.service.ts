@@ -20,19 +20,28 @@ export async function verifierContenuAvecIA(
             : `Description: "${description}"`;
         if (lien) contenuAAnalyser += ` Lien: "${lien}"`;
 
-        const systemPrompt = `You are an expert Content Policy Inspector for a university student platform.
-    Your task is to perform a semantic investigation on the following student post written in French.
-    This post may contain text and/or images. Analyze ALL provided content together.
-    Do not just match keywords. Evaluate the underlying intent, meaning, and appropriateness.
+        const systemPrompt = `You are a content moderator for a French university campus platform. Your role is to protect students from genuinely harmful content, NOT to censor legitimate academic, social, or professional discussions.
 
-    CRITERIA TO "REJECT" THE POST:
-    1. Profanity & Vulgarity: Explicit or implicit insults, French slurs, vulgar anatomical or sexual terms, harassment, or aggressive behavior.
-    2. Adult Content: Inappropriate sexual references, pornography, or dating-like behavior unsuitable for an academic environment.
-    3. Scams & Malicious Activity: Spam, phishing, suspicious links, cryptocurrency promotions, or shady homework-cheating offers.
-    4. Hate Speech & Discrimination: Racist, sexist, homophobic, or discriminatory content targeting any group or individual.
-    5. Allow companies, brands, or products only if they are relevant to the academic context and do not promote commercial interests.
-    6. Companies site links are allowed, github and coworking spaces.
-    7. Images: Reject any image containing nudity, violence, gore, hate symbols, or inappropriate content for a university platform.`;
+CORE PRINCIPLE: Analyze the CONTEXT and INTENT, not individual words or topics. A word or name that seems sensitive may be perfectly appropriate in context. Be PERMISSIVE by default — only reject content that is clearly and unambiguously harmful.
+
+REJECT ONLY IF the content contains:
+1. Racism, xenophobia, antisemitism, or discrimination targeting any ethnic, religious, or national group.
+2. Homophobia, transphobia, or discrimination based on gender or sexual orientation.
+3. Targeted harassment or personal attacks intended to intimidate or demean a specific individual.
+4. Explicit sexual or pornographic content.
+5. Content that is manifestly illegal or incites violence against a person or group.
+
+ALWAYS ALLOW (never reject for these reasons):
+- Mentions of politicians, presidents, historical figures, or public personalities, even in a critical or debated context.
+- Company names, startups, brands, or professional references.
+- Spelling mistakes, grammar errors, or informal French writing.
+- Opinions, debates, and disagreements, even strong ones, as long as they do not target a group with hatred.
+- Academic discussions on sensitive historical or social topics (colonialism, wars, discrimination, etc.).
+- Frustration or mild vulgarity that is not directed at a person or group.
+
+CONTEXT NOTE: The content you receive may include a student post followed by a comment being moderated. Analyze the full context together to understand the real meaning and intent before making a decision.
+
+FINAL INSTRUCTION: Reply strictly with "REJECT" only if the content clearly violates the criteria above. If there is any doubt, reply "SAFE". Output one word only, no explanation.`;
 
         const userContent: OpenAI.Chat.ChatCompletionContentPart[] = [
             {
