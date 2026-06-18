@@ -1,82 +1,56 @@
-# Définition d'un réseau privé pour nos conteneurs (Sécurité standard)
 networks:
   campus_net:
     driver: bridge
 
 services:
-  # ==========================================
-  # 1. BASE DE DONNÉES (PostgreSQL)
-  # ==========================================
   database:
     image: postgres:15-alpine
     container_name: campuslink-db
     restart: unless-stopped
-    env_file:
-      - .env  
     environment:
       POSTGRES_USER: ${DB_USER}
       POSTGRES_PASSWORD: ${DB_PASSWORD}
       POSTGRES_DB: ${DB_NAME}
       TZ: Europe/Paris
     ports:
-      - "5432:5432" 
+      - "5432:5432"
     networks:
       - campus_net
     volumes:
-      - pg_data:/var/lib/postgresql/data 
-      - /etc/localtime:/etc/localtime:ro
-      - /etc/timezone:/etc/timezone:ro
+      - pg_data:/var/lib/postgresql/data
 
-  # ==========================================
-  # 2. BACKEND (Node.js + Prisma)
-  # ==========================================
   backend:
     build:
       context: ./backend
-      dockerfile: Dockerfile # Utilise la version optimisée pour le développement
+      dockerfile: Dockerfile
     container_name: campuslink-api
     restart: unless-stopped
     ports:
       - "3000:3000"
-    env_file:
-      - .env
     environment:
       TZ: Europe/Paris
     networks:
       - campus_net
     depends_on:
-      - database # Attendre que la DB soit prête avant de lancer l'API
-      
-    volumes:
-      - ./backend:/app
-      - uploads_data:/app/uploads  
-      - /app/node_modules
-      - /etc/localtime:/etc/localtime:ro
-      - /etc/timezone:/etc/timezone:ro
+      - database
 
-  # ==========================================
-  # 3. FRONTEND (Vue.js + Vite)
-  # ==========================================
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      args:
+        VITE_API_URL: http://localhost:3000
     container_name: campuslink-web
+    environment:
+      - VITE_API_URL=http://localhost:3000
     restart: unless-stopped
+    
     ports:
-      - "5173:5173"
+      - "5173:5173"  # ✅ Nginx écoute sur 5173, pas 80
     networks:
       - campus_net
-    environment:
-      TZ: Europe/Paris
     depends_on:
-      - backend # Attendre que l'API soit prête avant de lancer la vue
-    volumes:
-      - ./frontend:/app
-      - /app/node_modules
-      - /etc/localtime:/etc/localtime:ro
-      - /etc/timezone:/etc/timezone:ro
-  
+      - backend
+
 volumes:
   pg_data:
-  uploads_data:

@@ -10,9 +10,13 @@
   "dependencies": {
     "@azure/openai": "^2.0.0",
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
     "@azure/storage-blob": "^12.32.0",
 >>>>>>> cb6311424576dc2d7486c5eb922a5d5c3b9e7c6b
+=======
+    "@azure/storage-blob": "^12.32.0",
+>>>>>>> frontend-feature
     "@prisma/client": "^6.19.3",
     "bcrypt": "^6.0.0",
     "bcryptjs": "^3.0.3",

@@ -80,24 +80,40 @@ export async function getProjets(req: Request, res: Response): Promise<void> {
             ]
         };
 
-        // 3. REQUÊTE AVEC SKIP ET TAKE
+        // 3. REQUÊTE AVEC SKIP, TAKE ET LA COUCHE DE LIKE INTÉGRÉE
         const projets = await prisma.annonceProjet.findMany({
             where: projetsVisibilityWhere,
             include: {
                 utilisateur: {
                     select: { id: true, nom: true, prenom: true, photoProfil: true, role: true }
-                }
+                },
+                jaimes: true // <--- AJOUT CRITIQUE : On inclut les likes du projet !
             },
             orderBy: { datePublication: 'desc' },
-            skip: skip,  // Saute les annonces des pages précédentes
-            take: LIMIT  // Récupère uniquement les 25 suivantes
+            skip: skip,  
+            take: LIMIT  
         });
 
-        // 4. Sérialisation des BigInt
+        // 4. FORMATAGE ET CALCUL EN CONTINU DE "isLikedByMe"
+        const formatProjets = projets.map(proj => {
+            const jaimesArray = proj.jaimes || [];
+            
+            // On vérifie si l'utilisateur actuellement connecté fait partie du tableau des likes
+            const isLikedByMe = idConnected
+                ? jaimesArray.some((j: any) => BigInt(j.id_utilisateur) === idConnected)
+                : false;
+
+            return {
+                ...proj,
+                nbJaime: proj.nbJaime || 0,
+                isLikedByMe // Injection de la propriété booléenne attendue par le Front
+            };
+        });
+
+        // 5. Sérialisation des BigInt (Ton utilitaire indispensable)
         const deepSerializeBigInt = (obj: any): any => {
             if (!obj || typeof obj !== 'object') return obj;
 
-            // ⚡️ LA CORRECTION SÉCURITÉ : Si c'est une Date, on la renvoie telle quelle sans la casser
             if (obj instanceof Date) return obj;
 
             if (Array.isArray(obj)) return obj.map(deepSerializeBigInt);
@@ -113,7 +129,8 @@ export async function getProjets(req: Request, res: Response): Promise<void> {
             return newObj;
         };
 
-        res.status(200).json(deepSerializeBigInt(projets));
+        // Renvoyer les données formatées et sérialisées
+        res.status(200).json(deepSerializeBigInt(formatProjets));
 
     } catch (error) {
         console.error("Erreur dans getProjets avec pagination :", error);

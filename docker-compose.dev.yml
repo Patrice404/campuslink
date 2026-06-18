@@ -1,0 +1,10 @@
+services:
+  backend:
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+
+  frontend:
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules

@@ -6,8 +6,6 @@ import { SousTypeBonPlan } from '@prisma/client';
 import fs from 'fs';
 import path from 'path';
 import { verifierContenuAvecIA } from '../services/moderation.service';
-import { uploadImageToBlob, deleteImageFromBlob } from '../services/storage.service';
-
 
 const TYPES: AnnonceType[] = ['EXERCICE', 'BON_PLAN', 'TUTORAT', 'PROJET'];
 
@@ -476,19 +474,14 @@ export async function detail(req: Request, res: Response): Promise<void> {
       res.status(404).json({ message: 'Annonce introuvable' });
       return;
     }
-    // On recharge avec l'auteur (+ matière pour Exercice/Tutorat) pour l'affichage de la carte
-    const include: any = { utilisateur: { select: { id: true, nom: true, prenom: true, photoProfil: true } } };
-    if (found.type === 'EXERCICE' || found.type === 'TUTORAT') include.matiere = true;
-    const record = await ANNONCE_CONFIG[found.type].delegate.findUnique({
-      where: { id: found.record.id },
-      include,
-    });
-    res.json(toJSON(record));
+    res.json(toJSON(found.record));
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Erreur serveur' });
   }
 }
+
+
 
 
 // Fonction utilitaire pour sérialiser
@@ -501,36 +494,29 @@ const serializeAnnonce = (annonce: any) => {
     };
 };
 
-
-
 // POST /api/annonces/exercice
 export async function createExercice(req: Request, res: Response): Promise<void> {
     try {
         const id_utilisateur = BigInt(req.utilisateur!.id);
         const { annee, id_matiere, description, visibilite } = req.body;
         const lien = req.body.lien || null;
+        const image = req.file ? req.file.filename : null;
 
         if (!description || !annee || !id_matiere) {
             res.status(400).json({ message: 'Champs requis manquants : description, annee, id_matiere' });
             return;
         }
 
-        // Upload image vers Blob si présente
-        let imageUrl: string | null = null;
-        if (req.file) {
-            imageUrl = await uploadImageToBlob(req.file);
-        }
-
-        const verdict = await verifierContenuAvecIA(description, undefined, lien, imageUrl ? [imageUrl] : []);
+        const verdict = await verifierContenuAvecIA(description, undefined, lien, image ? [image] : []);
 
         if (verdict === 'REJECT') {
-            if (imageUrl) await deleteImageFromBlob(imageUrl); // Nettoyage Blob
+            if (image) fs.unlinkSync(path.join(process.cwd(), 'uploads', image));
             res.status(400).json({ message: "Votre annonce a été rejetée par le système de modération." });
             return;
         }
 
         const annonce = await prisma.annonceExercice.create({
-            data: { description, annee, visibilite, id_matiere: BigInt(id_matiere), id_utilisateur, image: imageUrl, lien },
+            data: { description, annee, visibilite, id_matiere: BigInt(id_matiere), id_utilisateur, image, lien },
         });
 
         res.status(201).json(toJSON(annonce));
@@ -539,7 +525,6 @@ export async function createExercice(req: Request, res: Response): Promise<void>
         res.status(500).json({ message: 'Erreur serveur' });
     }
 }
-
 
 // POST /api/annonces/bonplan
 export async function createBonPlan(req: Request, res: Response): Promise<void> {
@@ -559,18 +544,11 @@ export async function createBonPlan(req: Request, res: Response): Promise<void> 
             res.status(400).json({ message: `sousType invalide. Valeurs autorisées : ${sousTypesAutorises.join(', ')}` });
             return;
         }
-         // Upload image vers Blob si présente
-        let imageUrl: string | null = null;
-        if (req.file) {
-            imageUrl = await uploadImageToBlob(req.file);
-        }
-        
-        const verdict = await verifierContenuAvecIA(description, titre, lien, imageUrl ? [imageUrl] : []);
+
+        const verdict = await verifierContenuAvecIA(description, titre, lien, image ? [image] : []);
 
         if (verdict === 'REJECT') {
-            if (imageUrl) {
-                await deleteImageFromBlob(imageUrl);
-            }
+            if (image) fs.unlinkSync(path.join(process.cwd(), 'uploads', image));
             res.status(400).json({ message: "Votre annonce a été rejetée par le système de modération." });
             return;
         }
@@ -605,18 +583,10 @@ export async function createTutorat(req: Request, res: Response): Promise<void> 
             return;
         }
 
-         // Upload image vers Blob si présente
-        let imageUrl: string | null = null;
-        if (req.file) {
-            imageUrl = await uploadImageToBlob(req.file);
-        }
-
-        const verdict = await verifierContenuAvecIA(description, undefined, lien, imageUrl ? [imageUrl] : []);
+        const verdict = await verifierContenuAvecIA(description, undefined, lien, image ? [image] : []);
 
         if (verdict === 'REJECT') {
-            if (imageUrl) {
-                await deleteImageFromBlob(imageUrl);
-            }
+            if (image) fs.unlinkSync(path.join(process.cwd(), 'uploads', image));
             res.status(400).json({ message: "Votre annonce a été rejetée par le système de modération." });
             return;
         }
@@ -645,23 +615,16 @@ export async function createProjet(req: Request, res: Response): Promise<void> {
             return;
         }
 
-        let imageUrl: string | null = null;
-        if (req.file) {
-            imageUrl = await uploadImageToBlob(req.file);
-        }
-
-        const verdict = await verifierContenuAvecIA(description, titre, lien, imageUrl ? [imageUrl] : []);
+        const verdict = await verifierContenuAvecIA(description, titre, lien, image ? [image] : []);
 
         if (verdict === 'REJECT') {
-            if (imageUrl) {
-                await deleteImageFromBlob(imageUrl);
-            }
+            if (image) fs.unlinkSync(path.join(process.cwd(), 'uploads', image));
             res.status(400).json({ message: "Votre annonce a été rejetée par le système de modération." });
             return;
         }
 
         const annonce = await prisma.annonceProjet.create({
-            data: { titre, description, visibilite, id_utilisateur, image: imageUrl, lien },
+            data: { titre, description, visibilite, id_utilisateur, image, lien },
         });
 
         res.status(201).json(toJSON(annonce));
@@ -704,15 +667,13 @@ export async function modifierAnnonce(req: Request, res: Response): Promise<void
         if (req.body.lien !== undefined) data.lien = req.body.lien;
         if (req.body.visibilite !== undefined) data.visibilite = req.body.visibilite;
 
-        // ✅ Upload nouvelle image vers Blob si présente
-        let nouvelleImageUrl: string | null = null;
         if (req.file) {
-            nouvelleImageUrl = await uploadImageToBlob(req.file);
-            data.image = nouvelleImageUrl;
-
-            // ✅ Supprimer l'ancienne image du Blob si elle existait
+            data.image = req.file.filename;
             if (annonceExistante.image) {
-                await deleteImageFromBlob(annonceExistante.image);
+                const oldImagePath = path.join(process.cwd(), 'uploads', annonceExistante.image);
+                if (fs.existsSync(oldImagePath)) {
+                    try { fs.unlinkSync(oldImagePath); } catch (err) { console.error(err); }
+                }
             }
         }
 
@@ -724,17 +685,10 @@ export async function modifierAnnonce(req: Request, res: Response): Promise<void
         if (type === 'bonplan' || type === 'projet') if (req.body.titre) data.titre = req.body.titre;
         if (type === 'bonplan' && req.body.sousType) data.sousType = req.body.sousType;
 
-        // ✅ Modération avec l'URL Blob (pas un nom de fichier)
-        const verdict = await verifierContenuAvecIA(
-            data.description,
-            data.titre,
-            data.lien,
-            nouvelleImageUrl ? [nouvelleImageUrl] : []
-        );
+        const verdict = await verifierContenuAvecIA(data.description, data.titre, data.lien, data.image ? [data.image] : []);
 
         if (verdict === 'REJECT') {
-            // ✅ Supprimer la nouvelle image du Blob si rejetée
-            if (nouvelleImageUrl) await deleteImageFromBlob(nouvelleImageUrl);
+            if (data.image) fs.unlinkSync(path.join(process.cwd(), 'uploads', data.image));
             res.status(400).json({ message: "Votre annonce a été rejetée par le système de modération." });
             return;
         }
@@ -752,70 +706,78 @@ export async function modifierAnnonce(req: Request, res: Response): Promise<void
         console.error(error);
         res.status(500).json({ message: "Erreur serveur lors de la modification." });
     }
-} 
+}
+ 
 //---------------------------------------------------------------------
 // DELETE /api/annonces/:type/:id
 //---------------------------------------------------------------------
 export async function supprimerAnnonce(req: Request, res: Response): Promise<void> {
-    try {
-        const { type, id } = req.params;
-
-        if (isNaN(Number(id))) {
-            res.status(400).json({ message: "L'ID fourni est invalide." });
-            return;
-        }
-
-        const idAnnonce = BigInt(id);
-        const idUtilisateur = BigInt(req.utilisateur!.id);
-
-        let annonce: any;
-        let actionSuppression: () => Promise<any>;
-
-        switch (type.toLowerCase()) {
-            case 'exercice':
-                annonce = await prisma.annonceExercice.findUnique({ where: { id: idAnnonce } });
-                actionSuppression = () => prisma.annonceExercice.delete({ where: { id: idAnnonce } });
-                break;
-            case 'bonplan':
-                annonce = await prisma.annonceBonPlan.findUnique({ where: { id: idAnnonce } });
-                actionSuppression = () => prisma.annonceBonPlan.delete({ where: { id: idAnnonce } });
-                break;
-            case 'tutorat':
-                annonce = await prisma.annonceTutorat.findUnique({ where: { id: idAnnonce } });
-                actionSuppression = () => prisma.annonceTutorat.delete({ where: { id: idAnnonce } });
-                break;
-            case 'projet':
-                annonce = await prisma.annonceProjet.findUnique({ where: { id: idAnnonce } });
-                actionSuppression = () => prisma.annonceProjet.delete({ where: { id: idAnnonce } });
-                break;
-            default:
-                res.status(400).json({ message: "Type d'annonce inconnu." });
-                return;
-        }
-
-        if (!annonce) {
-            res.status(404).json({ message: "Annonce introuvable." });
-            return;
-        }
-
-        if (annonce.id_utilisateur !== idUtilisateur) {
-            res.status(403).json({ message: "Action non autorisée. Vous n'êtes pas l'auteur de cette publication." });
-            return;
-        }
-
-        // Supprimer l'image du Blob Azure si elle existe
-        if (annonce.image) {
-            await deleteImageFromBlob(annonce.image);
-        }
-
-        await actionSuppression();
-        res.status(200).json({ message: "Publication supprimée avec succès." });
-
-    } catch (error) {
-        console.error("Erreur lors de la suppression de l'annonce :", error);
-        res.status(500).json({ message: "Erreur serveur lors de la suppression." });
+  try {
+    const { type, id } = req.params;
+    
+    if (isNaN(Number(id))) {
+      res.status(400).json({ message: "L'ID fourni est invalide." });
+      return;
     }
+
+    const idAnnonce = BigInt(id);
+    const idUtilisateur = BigInt(req.utilisateur!.id);
+
+    let annonce;
+    let actionSuppression;
+
+    switch (type.toLowerCase()) {
+      case 'exercice':
+        annonce = await prisma.annonceExercice.findUnique({ where: { id: idAnnonce } });
+        actionSuppression = () => prisma.annonceExercice.delete({ where: { id: idAnnonce } });
+        break;
+      case 'bonplan':
+        annonce = await prisma.annonceBonPlan.findUnique({ where: { id: idAnnonce } });
+        actionSuppression = () => prisma.annonceBonPlan.delete({ where: { id: idAnnonce } });
+        break;
+      case 'tutorat':
+        annonce = await prisma.annonceTutorat.findUnique({ where: { id: idAnnonce } });
+        actionSuppression = () => prisma.annonceTutorat.delete({ where: { id: idAnnonce } });
+        break;
+      case 'projet':
+        annonce = await prisma.annonceProjet.findUnique({ where: { id: idAnnonce } });
+        actionSuppression = () => prisma.annonceProjet.delete({ where: { id: idAnnonce } });
+        break;
+      default:
+        res.status(400).json({ message: "Type d'annonce inconnu." });
+        return;
+    }
+
+    if (!annonce) {
+      res.status(404).json({ message: "Annonce introuvable." });
+      return;
+    }
+
+    if (annonce.id_utilisateur !== idUtilisateur) {
+      res.status(403).json({ message: "Action non autorisée. Vous n'êtes pas l'auteur de cette publication." });
+      return;
+    }
+
+    if (annonce.image) {
+      const imagePath = path.join(process.cwd(), 'uploads', annonce.image);
+      if (fs.existsSync(imagePath)) {
+        try {
+          fs.unlinkSync(imagePath);
+        } catch (fileErr) {
+          console.error(`Impossible de supprimer l'image physique : ${imagePath}`, fileErr);
+        }
+      }
+    }
+
+    await actionSuppression();
+    res.status(200).json({ message: "Publication supprimée avec succès." });
+
+  } catch (error) {
+    console.error("Erreur lors de la suppression de l'annonce :", error);
+    res.status(500).json({ message: "Erreur serveur lors de la suppression." });
+  }
 }
+
 
 
 export async function toggleLike(req: Request, res: Response): Promise<void> {

@@ -1,47 +1,13 @@
 import OpenAI from 'openai';
-import * as fs from 'fs';
-import * as path from 'path';
 
 const apiKey = process.env.OPENAI_API_KEY || '';
 const client = new OpenAI({ apiKey });
 
-/**
- * Lit une image depuis le disque et la convertit en base64
- */
-function imageFileToBase64(filename: string): { base64: string; mimeType: string } | null {
-    try {
-        const imagePath = path.join(process.cwd(), 'uploads', filename);
-        if (!fs.existsSync(imagePath)) {
-            console.warn(`Image introuvable sur le disque : ${imagePath}`);
-            return null;
-        }
-        const buffer = fs.readFileSync(imagePath);
-        const base64 = buffer.toString('base64');
-        const ext = path.extname(filename).toLowerCase();
-        const mimeTypes: Record<string, string> = {
-            '.jpg':  'image/jpeg',
-            '.jpeg': 'image/jpeg',
-            '.png':  'image/png',
-            '.gif':  'image/gif',
-            '.webp': 'image/webp'
-        };
-        const mimeType = mimeTypes[ext] || 'image/jpeg';
-        return { base64, mimeType };
-    } catch (err) {
-        console.error("Erreur lors de la lecture de l'image:", err);
-        return null;
-    }
-}
-
-/**
- * Service de modération automatique utilisant OpenAI GPT-4o
- * Analyse texte ET images (lues depuis le disque du container)
- */
 export async function verifierContenuAvecIA(
     description: string,
     titre?: string,
     lien?: string,
-    imageFilenames?: string[] // 👈 noms de fichiers ex: ['photo.jpg']
+    imageUrls?: string[] // URLs publiques Blob Azure
 ): Promise<'SAFE' | 'REJECT'> {
     try {
         if (!apiKey) {
@@ -52,25 +18,31 @@ export async function verifierContenuAvecIA(
         let contenuAAnalyser = titre
             ? `Titre: "${titre}". Description: "${description}"`
             : `Description: "${description}"`;
-        if (lien) {
-            contenuAAnalyser += ` Lien: "${lien}"`;
-        }
+        if (lien) contenuAAnalyser += ` Lien: "${lien}"`;
 
-        const systemPrompt = `You are an expert Content Policy Inspector for a university student platform.
-    Your task is to perform a semantic investigation on the following student post written in French.
-    This post may contain text and/or images. Analyze ALL provided content together.
-    Do not just match keywords. Evaluate the underlying intent, meaning, and appropriateness.
+        const systemPrompt = `You are a content moderator for a French university campus platform. Your role is to protect students from genuinely harmful content, NOT to censor legitimate academic, social, or professional discussions.
 
-    CRITERIA TO "REJECT" THE POST:
-    1. Profanity & Vulgarity: Explicit or implicit insults, French slurs, vulgar anatomical or sexual terms, harassment, or aggressive behavior.
-    2. Adult Content: Inappropriate sexual references, pornography, or dating-like behavior unsuitable for an academic environment.
-    3. Scams & Malicious Activity: Spam, phishing, suspicious links, cryptocurrency promotions, or shady homework-cheating offers.
-    4. Hate Speech & Discrimination: Racist, sexist, homophobic, or discriminatory content targeting any group or individual.
-    5. Allow companies, brands, or products only if they are relevant to the academic context and do not promote commercial interests.
-    6. Companies site links are allowed, github and coworking spaces.
-    7. Images: Reject any image containing nudity, violence, gore, hate symbols, or inappropriate content for a university platform.`;
+CORE PRINCIPLE: Analyze the CONTEXT and INTENT, not individual words or topics. A word or name that seems sensitive may be perfectly appropriate in context. Be PERMISSIVE by default — only reject content that is clearly and unambiguously harmful.
 
-        // Construction du message avec texte
+REJECT ONLY IF the content contains:
+1. Racism, xenophobia, antisemitism, or discrimination targeting any ethnic, religious, or national group.
+2. Homophobia, transphobia, or discrimination based on gender or sexual orientation.
+3. Targeted harassment or personal attacks intended to intimidate or demean a specific individual.
+4. Explicit sexual or pornographic content.
+5. Content that is manifestly illegal or incites violence against a person or group.
+
+ALWAYS ALLOW (never reject for these reasons):
+- Mentions of politicians, presidents, historical figures, or public personalities, even in a critical or debated context.
+- Company names, startups, brands, or professional references.
+- Spelling mistakes, grammar errors, or informal French writing.
+- Opinions, debates, and disagreements, even strong ones, as long as they do not target a group with hatred.
+- Academic discussions on sensitive historical or social topics (colonialism, wars, discrimination, etc.).
+- Frustration or mild vulgarity that is not directed at a person or group.
+
+CONTEXT NOTE: The content you receive may include a student post followed by a comment being moderated. Analyze the full context together to understand the real meaning and intent before making a decision.
+
+FINAL INSTRUCTION: Reply strictly with "REJECT" only if the content clearly violates the criteria above. If there is any doubt, reply "SAFE". Output one word only, no explanation.`;
+
         const userContent: OpenAI.Chat.ChatCompletionContentPart[] = [
             {
                 type: 'text',
@@ -78,21 +50,15 @@ export async function verifierContenuAvecIA(
             }
         ];
 
-        // Ajout des images en base64 depuis le disque
+        // Ajout des images via URL publique Blob
         let hasImages = false;
-        if (imageFilenames && imageFilenames.length > 0) {
-            for (const filename of imageFilenames) {
-                const imageData = imageFileToBase64(filename);
-                if (imageData) {
-                    userContent.push({
-                        type: 'image_url',
-                        image_url: {
-                            url: `data:${imageData.mimeType};base64,${imageData.base64}`,
-                            detail: 'low' // suffit pour la modération, moins cher
-                        }
-                    });
-                    hasImages = true;
-                }
+        if (imageUrls && imageUrls.length > 0) {
+            for (const url of imageUrls) {
+                userContent.push({
+                    type: 'image_url',
+                    image_url: { url, detail: 'low' }
+                });
+                hasImages = true;
             }
         }
 
@@ -105,7 +71,7 @@ export async function verifierContenuAvecIA(
         });
 
         const response = await client.chat.completions.create({
-            model: hasImages ? 'gpt-4o' : 'gpt-4o-mini', // GPT-4o seulement si images
+            model: hasImages ? 'gpt-4o' : 'gpt-4o-mini',
             messages: [
                 { role: 'system', content: systemPrompt },
                 { role: 'user', content: userContent }
@@ -119,7 +85,7 @@ export async function verifierContenuAvecIA(
 
         console.log("---------------- MODÉRATION IA (OPENAI) ----------------");
         console.log("📝 CONTEXTE ANALYSÉ :", contenuAAnalyser);
-        console.log("🖼️  IMAGES ANALYSÉES :", hasImages ? imageFilenames?.length : 0);
+        console.log("🖼️  IMAGES ANALYSÉES :", imageUrls?.length || 0);
         console.log("🤖 RÉPONSE BRUTE DE L'IA :", `"${reponseIA}"`);
         console.log("-------------------------------------------------------");
 
