@@ -16,6 +16,7 @@ export const getCampusAnnonces = async (req: Request, res: Response): Promise<vo
     let allowedVisibilities: string[] = ['PUBLIQUE'];
     let userFormationId: bigint | null = null;
     let allowedAuthorNiveaux: string[] = [];
+    let isAdminUser = false; // ✨ Drapeau pour repérer l'admin
 
     // 1. Extraction des règles de sécurité et visibilité
     if (idConnected) {
@@ -43,7 +44,11 @@ export const getCampusAnnonces = async (req: Request, res: Response): Promise<vo
 
       if (infoUtilisateur) {
         userFormationId = infoUtilisateur.id_formation;
-        if (infoUtilisateur.role) {
+        
+        // ✨ Protection : On isole le rôle ADMIN pour ne pas faire cracher Prisma
+        if (infoUtilisateur.role === 'ADMIN') {
+          isAdminUser = true;
+        } else if (infoUtilisateur.role) {
           allowedVisibilities.push(infoUtilisateur.role);
         }
 
@@ -57,14 +62,17 @@ export const getCampusAnnonces = async (req: Request, res: Response): Promise<vo
       }
     }
 
-    // 2. Application de la condition croisée (Sécurité + Catégories Vie Campus)
-    const condition = {
+    // 2. Application de la condition croisée (Sécurité + Restriction Événements/Fêtes)
+    const condition: any = {
       id_utilisateur: { notIn: excludedUserIds },
       
       // Maintien de ta correction d'Enum Prisma
       sousType: { in: ['FETE', 'EVENEMENT', 'HACKATHON'] as any }, 
-      
-      OR: [
+    };
+
+    // ✨ Si ce n'est pas un admin, on applique les restrictions de visibilité de l'école
+    if (!isAdminUser) {
+      condition.OR = [
         ...(idConnected ? [{ id_utilisateur: idConnected }] : []),
         { visibilite: { in: allowedVisibilities as any } },
         ...(userFormationId ? [{
@@ -79,8 +87,8 @@ export const getCampusAnnonces = async (req: Request, res: Response): Promise<vo
             { utilisateur: { formation: { niveau: { in: allowedAuthorNiveaux } } } }
           ]
         }] : [])
-      ]
-    };
+      ];
+    }
 
     // 3. Requête Prisma avec inclusion globale + table des Jaimes
     const bonsPlans = await prisma.annonceBonPlan.findMany({
@@ -113,6 +121,6 @@ export const getCampusAnnonces = async (req: Request, res: Response): Promise<vo
     res.status(200).json(toJSON(formatAnnonces));
   } catch (error) {
     console.error("Erreur lors de la récupération des annonces campus :", error);
-    res.status(500).json({ error: "Une erreur est survenue lors de la récupération des actualités du campus." });
+    res.status(500).json({ error: "Une erreur est survenue lors de la récupération des annonces campus." });
   }
 };

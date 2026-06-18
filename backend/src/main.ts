@@ -17,6 +17,8 @@ import candidatureRoutes from './routes/candidature.routes'
 import campusVieRoutes from './routes/campusvie.routes';
 import opportuniteRoutes from './routes/opportunite.routes';
 import settingsRoutes from './routes/settings.routes';
+import adminRoutes from './routes/admin.routes';
+
 
 
 dotenv.config();
@@ -67,6 +69,7 @@ app.use('/api/notifications', notificationRoutes);
 // Routes à brancher une fois leurs controllers implémentés :
 //app.use('/api/candidatures', candidatureRoutes);
 //app.use('/api/notifications', notificationRoutes);
+app.use('/api/admin', adminRoutes);
 
 app.use((_req: Request, res: Response) => {
   res.status(404).json({ message: 'Route introuvable' });
