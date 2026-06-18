@@ -14,16 +14,20 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4 # Mis à jour en v4 (plus récent et rapide)
 
       - name: Login to Azure
-        uses: azure/login@v1
+        uses: azure/login@v2 # Mis à jour en v2
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
       - name: Login to ACR via Azure CLI
         run: az acr login --name acrcampuslink
 
+      # ==========================================
+      # 1. BUILD & PUSH DES IMAGES DOCKER
+      # ==========================================
+      
       - name: Build and push Backend
         uses: docker/build-push-action@v5
         with:
@@ -42,9 +46,26 @@ jobs:
           build-args: |
             VITE_API_URL=${{ secrets.VITE_API_URL }}
 
-      # ✅ Redémarre les App Services pour prendre la nouvelle image
-      - name: Restart Backend App Service
-        run: az webapp restart --name  --resource-group rg-campuslink-prod
+      # ==========================================
+      # 2. DÉPLOIEMENT & SÉCURISATION SUR AZURE
+      # ==========================================
 
-      - name: Restart Frontend App Service
-        run: az webapp restart --name campuslink-backend-api --resource-group rg-campuslink-prod
+      # Déploiement du Backend (Force l'App Service à tirer l'image :latest)
+      - name: Deploy Backend to Azure Web App
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: 'campuslink-backend-api' 
+          images: 'acrcampuslink.azurecr.io/backend:latest'
+
+      # Déploiement du Frontend
+      - name: Deploy Frontend to Azure Web App
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: 'campuslink-app' 
+          images: 'acrcampuslink.azurecr.io/frontend:latest'
+
+      # Optionnel mais recommandé : Un restart complet pour vider les caches d'instance
+      - name: Force Restart Web Apps
+        run: |
+          az webapp restart --name campuslink-backend-api --resource-group rg-campuslink-prod
+          az webapp restart --name campuslink-app --resource-group rg-campuslink-prod
