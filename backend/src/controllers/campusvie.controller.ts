@@ -61,7 +61,7 @@ export const getCampusAnnonces = async (req: Request, res: Response): Promise<vo
     const condition = {
       id_utilisateur: { notIn: excludedUserIds },
       
-      // 🛠️ LA CORRECTION : On ajoute "as any" pour valider l'Enum Prisma
+      // Maintien de ta correction d'Enum Prisma
       sousType: { in: ['FETE', 'EVENEMENT', 'HACKATHON'] as any }, 
       
       OR: [
@@ -82,20 +82,33 @@ export const getCampusAnnonces = async (req: Request, res: Response): Promise<vo
       ]
     };
 
+    // 3. Requête Prisma avec inclusion globale + table des Jaimes
     const bonsPlans = await prisma.annonceBonPlan.findMany({
       where: condition,
       include: {
-        utilisateur: true // Utilisation de l'inclusion globale recommandée pour éviter les bugs d'affichage
+        utilisateur: true,
+        jaimes: true // <--- CORRECTION AJOUTÉE ICI
       },
       orderBy: {
         datePublication: 'desc'
       }
     });
 
-    const formatAnnonces = bonsPlans.map(bp => ({
-      ...bp,
-      nbJaime: bp.nbJaime || 0
-    }));
+    // 4. Calcul dynamique de l'état réactif attendu par ton Layout et AnnonceCard
+    const formatAnnonces = bonsPlans.map(bp => {
+      const jaimesArray = bp.jaimes || [];
+      
+      // Vérification si l'utilisateur actuellement connecté a un like enregistré
+      const isLikedByMe = idConnectedStr
+        ? jaimesArray.some((j: any) => String(j.id_utilisateur) === idConnectedStr)
+        : false;
+
+      return {
+        ...bp,
+        nbJaime: bp.nbJaime || 0,
+        isLikedByMe // Booléen indispensable renvoyé au Front-end
+      };
+    });
 
     res.status(200).json(toJSON(formatAnnonces));
   } catch (error) {
