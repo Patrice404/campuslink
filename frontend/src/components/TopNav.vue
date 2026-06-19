@@ -102,7 +102,10 @@ onMounted(() => {
           <span v-if="unreadCount > 0" class="absolute top-0.5 right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[9px] font-bold text-white ring-2 ring-white">{{ unreadCount }}</span>
         </button>
 
-        <div v-if="isDropdownOpen" class="absolute right-0 top-12 w-80 bg-white rounded-xl shadow-lg border border-gray-100 py-2 z-50">
+        <div 
+          v-if="isDropdownOpen" 
+          class="fixed md:absolute inset-x-4 md:inset-x-auto md:right-0 top-16 md:top-12 md:w-80 bg-white rounded-xl shadow-xl border border-gray-100 py-2 z-50"
+        >
           <h3 class="px-4 py-2 font-bold text-gray-700 border-b border-gray-100 text-sm">Notifications</h3>
           
           <div class="max-h-64 overflow-y-auto">
@@ -115,16 +118,14 @@ onMounted(() => {
               class="px-4 py-3 hover:bg-gray-50 transition-colors border-b border-gray-50 last:border-0 text-sm text-gray-600 cursor-pointer"
               :class="{'bg-blue-50/60 font-semibold text-gray-900': !notif.lue}"
             >
-              <p>{{ notif.contenu }}</p>
+              <p class="break-words">{{ notif.contenu }}</p>
               <span class="text-xs text-gray-400 block mt-1">
                 {{ new Date(notif.dateCreation).toLocaleDateString() }}
               </span>
             </div>
           </div>
         </div>
-      </div>
-
-      <button 
+      </div> <button 
         @click="$emit('open-create-modal')"
         class="flex items-center gap-2 bg-secondary text-white px-3 md:px-4 py-2 rounded-lg font-medium hover:opacity-90 active:scale-95 transition-all shadow-sm text-sm md:text-base"
       >
