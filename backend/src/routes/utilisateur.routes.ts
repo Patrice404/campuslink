@@ -3,18 +3,13 @@ import multer from 'multer';
 import path from 'path';
 import { getProfil, updateProfil, getProfilPublic, toggleBlocage, supprimerCompte, chercherPourMentions } from '../controllers/utilisateur.controller';
 import { auth } from '../middlewares/auth.middleware';
+import { uploadImageMiddleware } from '../middlewares/file_upload.middlewares';
 
 const router = Router();
 
-const storage = multer.diskStorage({
-  destination: 'uploads/',
-  filename: (_req, file, cb) => cb(null, `${Date.now()}${path.extname(file.originalname)}`),
-});
-const upload = multer({ storage, limits: { fileSize: 2 * 1024 * 1024 } });
-
 // Mon profil (utilisateur connecté)
 router.get('/profile', auth, getProfil);
-router.put('/profile', auth, upload.single('photo'), updateProfil);
+router.put('/profile', auth, uploadImageMiddleware, updateProfil);
 
 // Parcourir le profil public d'un autre utilisateur
 router.get('/profile/:uuid', auth, getProfilPublic); // ✨ Modification : Utilisation de :uuid à la place de :id

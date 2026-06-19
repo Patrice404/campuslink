@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useAuthStore } from '../stores/authStore'
+import { useRouter } from 'vue-router'
 
+const router = useRouter()
 const authStore = useAuthStore()
 
-// Nettoyage de l'URL comme validé ensemble pour éviter le double slash
-const apiUrl = (import.meta.env.VITE_API_URL || 'http://localhost:3000').replace(/\/+$/, '')
+const apiUrl = import.meta.env.VITE_API_URL 
 
 interface User {
   id: string
@@ -92,6 +93,15 @@ const handleBanUser = async (userId: string, userStringName: string) => {
 }
 
 onMounted(() => {
+  // Vérification de l'authentification et du rôle ADMIN avant de charger les données
+  if (!authStore.token) {
+    router.push('/')
+    return
+  }
+  if (authStore.user?.role !== 'ADMIN') {
+    router.push('/')
+    return
+  }
   fetchAdminData()
 })
 </script>

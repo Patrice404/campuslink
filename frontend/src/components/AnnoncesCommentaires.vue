@@ -233,7 +233,7 @@ onMounted(() => {
       <div v-for="com in commentaires" :key="com.id" class="text-sm">
         <div class="flex items-start gap-2.5">
           <img
-            :src="com.auteur.photoProfil ? `${apiUrl}${com.auteur.photoProfil}` : 'https://www.gravatar.com/avatar/?d=mp'"
+            :src="com.auteur.photoProfil ? `${com.auteur.photoProfil}` : 'https://www.gravatar.com/avatar/?d=mp'"
             class="w-7 h-7 rounded-full object-cover shrink-0 bg-gray-55"
           />
           <div class="flex-1 bg-gray-50 rounded-xl p-2.5 relative">

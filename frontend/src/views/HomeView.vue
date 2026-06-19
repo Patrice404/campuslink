@@ -1,15 +1,17 @@
 <script setup lang="ts">
 import { ref, onMounted, computed, watch } from 'vue'
-import { useRoute } from 'vue-router'
 import SidebarNav from '../components/SidebarNav.vue'
 import TopNav from '../components/TopNav.vue'
 import CreatePostModal from '../components/CreatePostModal.vue'
 import AnnonceCard from '../components/AnnonceCard.vue'
 import SmartSearch from '../components/SmartSearch.vue'
 import { useAuthStore } from '../stores/authStore'
-const authStore = useAuthStore()
+import { useRoute, useRouter } from 'vue-router'
 const route = useRoute()
-const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:3000";
+const router = useRouter()
+
+const authStore = useAuthStore()
+const apiUrl = import.meta.env.VITE_API_URL
 
 const annonces = ref<any[]>([]);
 const loading = ref(true);
@@ -19,6 +21,7 @@ const visibleCount = ref(10);
 
 const isMobileMenuOpen = ref(false)
 const isCreateModalOpen = ref(false)
+
 
 // ⚡️ AJOUT : État pour stocker l'annonce en cours de modification
 const annonceToEdit = ref<any | null>(null);
@@ -146,28 +149,35 @@ const chargerSelonRoute = () => {
   }
 };
 
-onMounted(chargerSelonRoute);
+onMounted(() => {
+   //On verifie si l'utilisateur est connecté avant de tenter de charger le profil
+  if (!authStore.token) {
+    router.push('/');
+    return;
+  }
+  chargerSelonRoute();
+});
 
 // Re-déclenche si on clique une notif alors qu'on est déjà sur la page d'accueil
 watch(() => route.query.annonceId, () => chargerSelonRoute());
 </script>
 
 <template>
-  <div class="flex min-h-screen bg-gray-50">
+  <div class="flex h-screen w-screen bg-gray-50 overflow-hidden">
 
     <SidebarNav
       :is-open="isMobileMenuOpen"
       @close="isMobileMenuOpen = false"
     />
 
-    <main class="flex-1 flex flex-col min-w-0">
+    <main class="flex-1 flex flex-col min-w-0 h-full">
 
       <TopNav
         @open-menu="isMobileMenuOpen = true"
         @open-create-modal="isCreateModalOpen = true"
       />
 
-      <div class="flex-1 p-4 sm:p-6 overflow-y-auto">
+      <div class="flex-1 p-4 sm:p-6 overflow-y-auto min-h-0">
         <div class="max-w-2xl mx-auto space-y-6">
           
           <section class="bg-white rounded-xl shadow-sm p-4 border border-gray-100">

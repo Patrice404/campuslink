@@ -153,7 +153,7 @@ const executeDelete = async () => {
         class="flex items-center gap-3 group/author cursor-pointer"
       >
         <div class="w-10 h-10 rounded-full bg-slate-100 border border-slate-200 overflow-hidden flex items-center justify-center font-bold text-slate-600 text-sm group-hover/author:border-indigo-400 transition duration-150">
-          <img v-if="annonce.auteur?.photoProfil" :src="`${apiUrl}/uploads/${annonce.auteur.photoProfil}`" alt="Avatar" class="w-full h-full object-cover" />
+          <img v-if="annonce.auteur?.photoProfil" :src="`${annonce.auteur.photoProfil}`" alt="Avatar" class="w-full h-full object-cover" />
           <span v-else>{{ initials }}</span>
         </div>
         
@@ -171,7 +171,7 @@ const executeDelete = async () => {
             'bg-orange-100 text-orange-700': annonce.sousTypeTypeFront === 'TUTORAT',
             'bg-sky-100 text-sky-700': annonce.sousTypeTypeFront === 'EXERCICE'
           }">
-          {{ annonce.sousTypeTypeFront === 'TUTORAT' ? '🤝 Tutorat' : '📝 Exercice' }}
+          {{ annonce.sousTypeTypeFront === 'TUTORAT' ? 'Tutorat' : 'Exercice' }}
         </span>
         <span v-else class="text-[10px] uppercase tracking-wider font-extrabold px-2.5 py-1 rounded-md"
           :class="{
@@ -224,16 +224,16 @@ const executeDelete = async () => {
 
       <div class="flex flex-wrap gap-2 text-xs">
         <span v-if="annonce.matiere" class="inline-flex items-center gap-1 bg-slate-100 text-slate-700 px-2.5 py-1 rounded-lg font-medium">
-          📚 {{ annonce.matiere.titre }}
+           {{ annonce.matiere.titre }}
         </span>
         <span v-if="annonce.annee" class="inline-flex items-center gap-1 bg-slate-100 text-slate-700 px-2.5 py-1 rounded-lg font-medium">
-          🎓 {{ annonce.annee }}
+           {{ annonce.annee }}
         </span>
         <span v-if="annonce.sousType" class="inline-flex items-center gap-1 bg-purple-50 text-purple-700 border border-purple-100 px-2.5 py-1 rounded-lg font-semibold uppercase text-[10px]">
-          🔥 {{ annonce.sousType.replace('_', ' ') }}
+           {{ annonce.sousType.replace('_', ' ') }}
         </span>
         <span v-if="annonce.nbCandidatsVoulus" class="inline-flex items-center gap-1 bg-orange-50 text-orange-700 px-2.5 py-1 rounded-lg font-semibold border border-orange-100">
-          👥 Places disponibles : {{ annonce.nbCandidatsVoulus }} élève(s)
+           Places disponibles : {{ annonce.nbCandidatsVoulus }} élève(s)
         </span>
       </div>
 

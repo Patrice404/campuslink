@@ -1,12 +1,16 @@
 import { Request, Response } from 'express';
 import { Utilisateur, CentreInteret } from '@prisma/client';
 import { prisma } from '../lib/prismaClient';
+import { deleteImageFromBlob, uploadImageToBlob } from '../services/storage.service';
+import { verifierContenuAvecIA } from '../services/modereration2.service';
+import { BlobServiceClient, BlobSASPermissions, generateBlobSASQueryParameters, StorageSharedKeyCredential } from '@azure/storage-blob';
+import { genererUrlSignee } from '../services/generateUrl.service';
 
 // 1. Modifier serializeUser pour inclure l'UUID, les centres d'intérêt et la bio
 function serializeUser(user: any) {
   return {
     id: user.id.toString(),
-    uuid: user.uuid, // ✨ Ajout : Transmission de l'UUID au Frontend
+    uuid: user.uuid,
     nom: user.nom,
     prenom: user.prenom,
     email: user.email,
@@ -14,7 +18,7 @@ function serializeUser(user: any) {
     bio: user.bio,
     centresInteret: user.centresInteret,
     dateInscription: user.dateInscription,
-    photoProfil: user.photoProfil,
+    photoProfil: user.photoProfil, // Sera écrasée par l'URL signée dans les GET
     id_campus: user.id_campus ? user.id_campus.toString() : null,
   };
 }
@@ -25,7 +29,7 @@ export async function getProfil(req: Request, res: Response): Promise<void> {
 
     const utilisateur = await prisma.utilisateur.findUnique({
       where: { id: targetId },
-      include: { 
+      include: {
         formation: {
           include: {
             departement: {
@@ -34,7 +38,7 @@ export async function getProfil(req: Request, res: Response): Promise<void> {
               }
             }
           }
-        } 
+        }
       },
     });
 
@@ -75,21 +79,25 @@ export async function getProfil(req: Request, res: Response): Promise<void> {
 
     const campus = utilisateur.formation?.departement?.campus;
 
+    // ✨ Modification : Signature à la volée de l'URL pour le profil connecté
+    const serializedUser = serializeUser(utilisateur);
+    serializedUser.photoProfil = await genererUrlSignee(serializedUser.photoProfil);
+
     res.json({
-      ...serializeUser(utilisateur),
+      ...serializedUser,
       stats: {
-        posts: exCount + bpCount + tutCount + projCount, 
+        posts: exCount + bpCount + tutCount + projCount,
         commentaires: commentCount,
         likes: totalLikesReceived
       },
       posts: postsArray,
       campus: campus
         ? {
-            id: campus.id.toString(),
-            nom: campus.nom,
-            ville: campus.ville,
-            etablissement: campus.etablissement,
-          }
+          id: campus.id.toString(),
+          nom: campus.nom,
+          ville: campus.ville,
+          etablissement: campus.etablissement,
+        }
         : null,
     });
   } catch (err) {
@@ -106,16 +114,36 @@ export async function updateProfil(req: Request, res: Response): Promise<void> {
     if (nom) data.nom = nom;
     if (prenom) data.prenom = prenom;
     if (bio !== undefined) data.bio = bio;
-    if (centresInteret !== undefined) data.centresInteret = centresInteret; 
+    if (centresInteret !== undefined) data.centresInteret = centresInteret;
     if (id_campus) data.id_campus = BigInt(id_campus);
-    if (req.file) data.photoProfil = req.file.filename;
+
+    let imageUrl: string | null = null;
+    if (req.file) {
+      imageUrl = await uploadImageToBlob(req.file);
+    }
+
+    const verdict = await verifierContenuAvecIA("", undefined, "", imageUrl ? [imageUrl] : []);
+
+    if (verdict === 'REJECT') {
+      if (imageUrl) await deleteImageFromBlob(imageUrl);
+      res.status(400).json({ message: "Votre photo a été rejetée par le système de modération." });
+      return;
+    }
+
+    if (imageUrl) {
+      data.photoProfil = imageUrl;
+    }
 
     const utilisateur = await prisma.utilisateur.update({
       where: { id: BigInt(req.utilisateur!.id) },
       data,
     });
 
-    res.json(serializeUser(utilisateur));
+    // ✨ Modification : Signature de la nouvelle URL pour la renvoyer instantanément au front après l'upload
+    const serializedUser = serializeUser(utilisateur);
+    serializedUser.photoProfil = await genererUrlSignee(serializedUser.photoProfil);
+
+    res.json(serializedUser);
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Erreur serveur' });
@@ -124,13 +152,12 @@ export async function updateProfil(req: Request, res: Response): Promise<void> {
 
 export async function getProfilPublic(req: Request, res: Response): Promise<void> {
   try {
-    const { uuid } = req.params; // ✨ Modification : Récupération sûre de l'UUID de l'URL
+    const { uuid } = req.params;
     const idConnected = req.utilisateur ? BigInt(req.utilisateur.id) : null;
 
-    // Recherche initiale par l'UUID unique
     const utilisateur = await prisma.utilisateur.findUnique({
-      where: { uuid: uuid }, // ✨ Modification : Recherche par UUID
-      include: { 
+      where: { uuid: uuid },
+      include: {
         formation: {
           include: {
             departement: {
@@ -139,7 +166,7 @@ export async function getProfilPublic(req: Request, res: Response): Promise<void
               }
             }
           }
-        } 
+        }
       },
     });
 
@@ -148,22 +175,19 @@ export async function getProfilPublic(req: Request, res: Response): Promise<void
       return;
     }
 
-    // Extraction sécurisée du BigInt de l'utilisateur ciblé pour les requêtes relationnelles
     const targetId = utilisateur.id;
 
-    // Vérification du blocage existant
-    const dejaBloque = idConnected 
+    const dejaBloque = idConnected
       ? await prisma.blocage.findUnique({
-          where: {
-            id_utilisateur_bloquant_id_utilisateur_bloque: {
-              id_utilisateur_bloquant: idConnected,
-              id_utilisateur_bloque: targetId,
-            },
+        where: {
+          id_utilisateur_bloquant_id_utilisateur_bloque: {
+            id_utilisateur_bloquant: idConnected,
+            id_utilisateur_bloque: targetId,
           },
-        })
+        },
+      })
       : null;
 
-    // Récupération des statistiques avec targetId (BigInt de confiance issu de la bdd)
     const [exCount, bpCount, tutCount, projCount, commentCount, totalLikesReceived, exercices, bonsplans, tutorats, projets] = await Promise.all([
       prisma.annonceExercice.count({ where: { id_utilisateur: targetId } }),
       prisma.annonceBonPlan.count({ where: { id_utilisateur: targetId } }),
@@ -195,13 +219,16 @@ export async function getProfilPublic(req: Request, res: Response): Promise<void
 
     const campus = utilisateur.formation?.departement?.campus;
 
+    // ✨ Modification : Signature à la volée de l'image du profil public ciblé
+    const photoSignee = await genererUrlSignee(utilisateur.photoProfil);
+
     res.json({
       id: utilisateur.id.toString(),
-      uuid: utilisateur.uuid, // ✨ Ajout : On transmet également l'UUID au besoin
+      uuid: utilisateur.uuid, 
       nom: utilisateur.nom,
       prenom: utilisateur.prenom,
       role: utilisateur.role,
-      photoProfil: utilisateur.photoProfil,
+      photoProfil: photoSignee, // 👈 URL signée sécurisée transmise
       dateInscription: utilisateur.dateInscription,
       bio: utilisateur.bio,
       centresInteret: utilisateur.centresInteret,
@@ -219,11 +246,11 @@ export async function getProfilPublic(req: Request, res: Response): Promise<void
       } : null,
       campus: campus
         ? {
-            id: campus.id.toString(),
-            nom: campus.nom,
-            ville: campus.ville,
-            etablissement: campus.etablissement,
-          }
+          id: campus.id.toString(),
+          nom: campus.nom,
+          ville: campus.ville,
+          etablissement: campus.etablissement,
+        }
         : null,
     });
   } catch (err) {
@@ -235,9 +262,8 @@ export async function getProfilPublic(req: Request, res: Response): Promise<void
 export async function toggleBlocage(req: Request, res: Response): Promise<void> {
   try {
     const id_bloqueur = BigInt(req.utilisateur!.id);
-    const { uuid } = req.params; // ✨ Modification : Récupération de l'UUID de la cible
+    const { uuid } = req.params;
 
-    // On cherche l'utilisateur ciblé par son UUID pour récupérer son ID interne
     const targetUser = await prisma.utilisateur.findUnique({
       where: { uuid: uuid }
     });
@@ -247,14 +273,13 @@ export async function toggleBlocage(req: Request, res: Response): Promise<void> 
       return;
     }
 
-    const id_bloque = targetUser.id; // Récupération du BigInt interne
+    const id_bloque = targetUser.id;
 
     if (id_bloqueur === id_bloque) {
       res.status(400).json({ message: "Vous ne pouvez pas vous bloquer vous-même." });
       return;
     }
 
-    // Gestion du blocage
     const blocageExistant = await prisma.blocage.findUnique({
       where: {
         id_utilisateur_bloquant_id_utilisateur_bloque: {
@@ -291,13 +316,25 @@ export async function toggleBlocage(req: Request, res: Response): Promise<void> 
 
 export async function supprimerCompte(req: Request, res: Response): Promise<void> {
   try {
-    await prisma.utilisateur.delete({
-      where: { id: BigInt(req.utilisateur!.id) },
+    const userId = BigInt(req.utilisateur!.id);
+
+    const user = await prisma.utilisateur.findUnique({
+      where: { id: userId },
+      select: { photoProfil: true }
     });
+
+    if (user?.photoProfil) {
+      await deleteImageFromBlob(user.photoProfil);
+    }
+
+    await prisma.utilisateur.delete({
+      where: { id: userId },
+    });
+
     res.json({ message: "Compte supprimé avec succès. Toutes vos données ont été nettoyées." });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ message: "Erreur serveur lors du suppression du compte." });
+    res.status(500).json({ message: "Erreur serveur lors de la suppression du compte." });
   }
 }
 

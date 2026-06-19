@@ -22,14 +22,6 @@ import { getBonPlanSubTypes } from '../controllers/bonPlan.controller';
 
 
 const router = Router();
-
-const storage = multer.diskStorage({
-  destination: 'uploads/',
-  filename: (_req, file, cb) => cb(null, `${Date.now()}${path.extname(file.originalname)}`),
-});
-const upload = multer({ storage, limits: { fileSize: 5 * 1024 * 1024 } });
-
-
  
 // ordre important : routes spécifiques avant /:id pour éviter toute capture ambiguë
 router.get('/', auth, lister);
@@ -59,14 +51,4 @@ router.post('/:id/jaime', auth, toggle);
 // Commentaires d'une annonce (param ?type= recommandé)
 router.get('/:id/commentaires', auth, listerParAnnonce);
 
-
-//Ancien code (avant la refonte pour les types d'annonces spécifiques)
-// ordre important : /mes avant /:id pour éviter que "mes" soit capturé comme id
-//router.get('/', lister);
-//router.get('/mes', auth, mesAnnonces);
-//router.get('/:id', detail);
-///router.post('/', auth, upload.single('image'), creer);
-//router.put('/:id', auth, upload.single('image'), modifier);
-//router.delete('/:id', auth, supprimer);
-//router.post('/:id/jaime', auth, toggle);
 export default router;

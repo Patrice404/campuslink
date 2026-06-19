@@ -8,7 +8,7 @@ export interface AuthUser {
   email: string;
   nom: string;
   prenom: string;
-  role: 'ETUDIANT' | 'PROFESSEUR';
+  role: 'ETUDIANT' | 'PROFESSEUR' | 'ADMIN';
   id_formation?: string | null;
 }
 

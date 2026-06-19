@@ -81,6 +81,12 @@ docker inspect --format '{{.State.Pid}}'
 
 
 
+<<<<<<< HEAD
+<<<<<<< HEAD
+=======
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up
+>>>>>>> cb6311424576dc2d7486c5eb922a5d5c3b9e7c6b
+=======
 docker compose -f docker-compose.yml -f docker-compose.dev.yml up
 # 1. Arrête les conteneurs et supprime les volumes (efface la base de données PostgreSQL)
 docker compose down -v
@@ -93,3 +99,4 @@ docker compose build --no-cache
 
 # 4. Relance tout le monde en arrière-plan
 docker compose up -d
+>>>>>>> frontend-feature
