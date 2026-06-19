@@ -252,7 +252,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="mt-4 border-t border-gray-100 pt-4 relative">
+  <div class="-mt-1 border-t border-gray-100 pt-3 relative">
     <!-- Bandeau de modération (même style que AnnonceFeedLayout) -->
     <div v-if="moderationMessage" class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl text-sm mb-3 flex items-start justify-between gap-3">
       <span>{{ moderationMessage }}</span>
@@ -419,7 +419,7 @@ onMounted(() => {
       </div>
     </div>
 
-    <form @submit.prevent="ajouterCommentaire" class="flex gap-2 mt-3 relative" @click.stop>
+    <form @submit.prevent="ajouterCommentaire" class="flex gap-2 mt-2 relative" @click.stop>
       <input
         v-model="nouveauCommentaire"
         @input="gererFrappeMention(nouveauCommentaire, 'racine')"
