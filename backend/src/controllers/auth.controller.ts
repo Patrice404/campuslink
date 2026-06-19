@@ -106,7 +106,7 @@ export async function verifyAndRegister(req: Request, res: Response): Promise<vo
         email: verif.email,
         motDePasse: verif.motDePasse,
         role: verif.role,
-        id_formation: verif.id_formation,
+        id_formation: verif.id_formation
       },
     });
 

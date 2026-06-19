@@ -154,7 +154,7 @@ const fetchProfile = async () => {
     if (!response.ok) throw new Error(`Erreur HTTP : ${response.status}`);
 
     user.value = await response.json();
-    
+    authStore.setUser(user.value)
     if (isMyProfile.value && !user.value.centresInteret) {
       user.value.centresInteret = [];
     }

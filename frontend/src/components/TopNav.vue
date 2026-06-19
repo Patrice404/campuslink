@@ -139,8 +139,14 @@ onMounted(() => {
         class="w-9 h-9 rounded-full bg-slate-100 border border-slate-200 overflow-hidden flex items-center justify-center font-bold text-slate-600 text-xs hover:border-indigo-500 hover:ring-2 hover:ring-indigo-100 transition shrink-0 cursor-pointer"
         title="Mon Profil"
       >
-    
-        <span >{{ initials }}</span>
+        <img 
+          v-if="authStore.user?.photoProfil" 
+          :src="authStore.user.photoProfil" 
+          alt="Mon profil" 
+          class="w-full h-full object-cover"
+        />
+        
+        <span v-else>{{ initials }}</span>
       </RouterLink>
 
     </div>
