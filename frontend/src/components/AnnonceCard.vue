@@ -64,9 +64,9 @@ const initials = computed(() => {
 
 // --- DÉTECTION INTELLIGENTE DU FICHIER IMAGE ---
 const imageSource = computed(() => {
-  const fileField = props.annonce.image || props.annonce.photo;
+  const fileField = props.annonce.image;
   if (!fileField) return null;
-  return `${apiUrl}/uploads/${fileField}`;
+  return `${fileField}`;
 });
 
 // --- LOGIQUE DU LIKE SYNCHRONISÉ ---
