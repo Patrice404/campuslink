@@ -111,7 +111,7 @@ export const getExercices = async (req: Request, res: Response): Promise<void> =
         where: condition,
         include: {
           utilisateur: {
-            select: { id: true, prenom: true, nom: true, photoProfil: true }
+            select: { id: true, uuid: true, prenom: true, nom: true, photoProfil: true }
           },
           matiere: true,
           jaimes: true

@@ -74,17 +74,14 @@ const imageSource = computed(() => {
 });
 
 // --- LOGIQUE DE CALCUL DU TEXTE TRONQUÉ ---
-// Récupère le texte brut peu importe le champ renvoyé par le backend
 const texteGlobal = computed(() => {
   return props.annonce.description || props.annonce.texte || "";
 });
 
-// Vérifie si le texte dépasse la limite et a besoin d'être tronqué
 const isLongText = computed(() => {
   return texteGlobal.value.length > maxCharacters;
 });
 
-// Renvoie le texte final à afficher (complet ou tronqué)
 const texteAffiche = computed(() => {
   if (!isLongText.value || isExpanded.value) {
     return texteGlobal.value;
@@ -107,7 +104,6 @@ const handleLikeToggle = async () => {
 
   const annonceIdStr = String(props.annonce.id);
 
-  // Changement optimiste de l'UI
   if (isLikedLocal.value) {
     nbJaimeLocal.value = Math.max(0, nbJaimeLocal.value - 1);
     isLikedLocal.value = false;
@@ -172,6 +168,7 @@ const executeDelete = async () => {
   <article class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden hover:shadow-md transition duration-200">
     
     <div class="p-5 pb-3 flex items-center justify-between relative">
+      
       <router-link 
         v-if="annonce.auteur?.uuid" 
         :to="'/profil/' + annonce.auteur.uuid" 
@@ -189,6 +186,20 @@ const executeDelete = async () => {
           <p class="text-slate-400 text-xs font-medium">{{ dateAffichee }}</p>
         </div>
       </router-link>
+
+      <div v-else class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-full bg-slate-100 border border-slate-200 overflow-hidden flex items-center justify-center font-bold text-slate-600 text-sm">
+          <img v-if="annonce.auteur?.photoProfil" :src="`${annonce.auteur.photoProfil}`" alt="Avatar" class="w-full h-full object-cover" />
+          <span v-else>{{ initials }}</span>
+        </div>
+        
+        <div>
+          <h4 class="text-sm font-bold text-slate-800">
+            {{ annonce.auteur?.prenom || 'Étudiant' }} {{ annonce.auteur?.nom || 'Inconnu' }}
+          </h4>
+          <p class="text-slate-400 text-xs font-medium">{{ dateAffichee }}</p>
+        </div>
+      </div>
 
       <div class="flex items-center gap-2">
         <span v-if="annonce.sousTypeTypeFront" class="text-[10px] uppercase tracking-wider font-extrabold px-2.5 py-1 rounded-md"
@@ -260,6 +271,26 @@ const executeDelete = async () => {
         <span v-if="annonce.nbCandidatsVoulus" class="inline-flex items-center gap-1 bg-orange-50 text-orange-700 px-2.5 py-1 rounded-lg font-semibold border border-orange-100">
           👥 Places disponibles : {{ annonce.nbCandidatsVoulus }} élève(s)
         </span>
+
+        <template v-if="annonce.tags && annonce.tags.length">
+          <span 
+            v-for="(tag, idx) in annonce.tags" 
+            :key="'tag-' + idx" 
+            class="inline-flex items-center gap-1 bg-blue-50 text-blue-700 border border-blue-100 px-2.5 py-1 rounded-lg font-semibold uppercase text-[10px]"
+          >
+            💻 {{ typeof tag === 'object' ? (tag.nom || tag.titre || tag.label) : tag }}
+          </span>
+        </template>
+
+        <template v-if="annonce.technologies && annonce.technologies.length">
+          <span 
+            v-for="(tech, idx) in annonce.technologies" 
+            :key="'tech-' + idx" 
+            class="inline-flex items-center gap-1 bg-blue-50 text-blue-700 border border-blue-100 px-2.5 py-1 rounded-lg font-semibold uppercase text-[10px]"
+          >
+            💻 {{ typeof tech === 'object' ? (tech.nom || tech.titre || tech.label) : tech }}
+          </span>
+        </template>
       </div>
 
       <div>
@@ -295,7 +326,6 @@ const executeDelete = async () => {
 
       <div v-if="annonce.lien" class="mt-2">
         <a 
-          :src="annonce.lien" 
           :href="annonce.lien" 
           target="_blank" 
           class="inline-flex items-center gap-2 text-xs font-semibold px-4 py-2.5 bg-slate-50 hover:bg-indigo-50 border border-slate-200 hover:border-indigo-200 rounded-xl transition duration-150 w-full group"
@@ -311,7 +341,7 @@ const executeDelete = async () => {
     </div>
 
     <div class="px-5 py-3.5 bg-slate-50/50 border-t border-slate-50 flex gap-6 text-slate-500 text-sm font-medium">
-      <button @click="handleLikeToggle" class="flex items-center gap-1.5 transition cursor-pointer group" :class="isLikedLocal ? 'text-red-500 font-bold' : 'hover:text-red-500'">
+      <button @click="handleLikeToggle" class="flex items-center gap-1.5 transition duration-150 cursor-pointer group" :class="isLikedLocal ? 'text-red-500 font-bold' : 'hover:text-red-500'">
         <svg class="w-4 h-4 transition duration-150" :fill="isLikedLocal ? 'currentColor' : 'none'" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"></path>
         </svg>
