@@ -15,7 +15,7 @@ export async function listerParAnnonce(req: Request, res: Response): Promise<voi
     }
 
     const fk = ANNONCE_CONFIG[found.type].fk; // ex: id_exercice
-    const auteurSelect = { select: { id: true, nom: true, prenom: true, photoProfil: true } };
+    const auteurSelect = { select: { id: true, uuid: true, nom: true, prenom: true, photoProfil: true } };
 
     // On ne récupère que les commentaires racine (id_parent = null) ;
     // leurs réponses sont imbriquées dans `reponses` (plus anciennes d'abord).

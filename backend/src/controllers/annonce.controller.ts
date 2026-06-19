@@ -92,9 +92,10 @@ export async function recherche(req: Request, res: Response): Promise<void> {
       ];
     }
 
-    const auteurSelect = { select: { id: true, nom: true, prenom: true, photoProfil: true } };
-    const incMat = { utilisateur: auteurSelect, matiere: true };
-    const inc = { utilisateur: auteurSelect };
+    const auteurSelect = { select: { id: true, uuid: true, nom: true, prenom: true, photoProfil: true } };
+    const countSelect = { _count: { select: { commentaires: true } } };
+    const incMat = { utilisateur: auteurSelect, matiere: true, ...countSelect };
+    const inc = { utilisateur: auteurSelect, ...countSelect };
 
     const tasks: Promise<any[]>[] = [];
     if (!typeKey || typeKey === 'EXERCICE')
@@ -109,7 +110,13 @@ export async function recherche(req: Request, res: Response): Promise<void> {
     const resultats = (await Promise.all(tasks)).flat();
     resultats.sort((a, b) => b.datePublication.getTime() - a.datePublication.getTime());
 
-    res.json(toJSON(resultats));
+    // Expose le nombre de commentaires sous une clé simple pour le front
+    const avecCompteurs = resultats.map((a: any) => ({
+      ...a,
+      nbCommentaires: a._count?.commentaires ?? 0,
+    }));
+
+    res.json(toJSON(avecCompteurs));
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Erreur serveur' });
@@ -506,13 +513,16 @@ export async function detail(req: Request, res: Response): Promise<void> {
       return;
     }
     // On recharge avec l'auteur (+ matière pour Exercice/Tutorat) pour l'affichage de la carte
-    const include: any = { utilisateur: { select: { id: true, nom: true, prenom: true, photoProfil: true } } };
+    const include: any = {
+      utilisateur: { select: { id: true, uuid: true, nom: true, prenom: true, photoProfil: true } },
+      _count: { select: { commentaires: true } },
+    };
     if (found.type === 'EXERCICE' || found.type === 'TUTORAT') include.matiere = true;
-    const record = await ANNONCE_CONFIG[found.type].delegate.findUnique({
+    const record: any = await ANNONCE_CONFIG[found.type].delegate.findUnique({
       where: { id: found.record.id },
       include,
     });
-    res.json(toJSON(record));
+    res.json(toJSON({ ...record, nbCommentaires: record?._count?.commentaires ?? 0 }));
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Erreur serveur' });
