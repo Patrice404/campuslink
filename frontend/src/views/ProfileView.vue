@@ -277,19 +277,23 @@ const initials = computed(() => {
             </span>
           </div>
 
-          <div class="grid grid-cols-3 gap-4 mt-8 pt-8 border-t border-slate-100">
-            <div class="bg-slate-50 rounded-xl p-4 text-center border border-slate-100 cursor-default">
-              <p class="text-3xl font-black" style="color: #6366F1;">{{ user.stats?.posts || 0 }}</p>
-              <p class="text-slate-500 text-sm font-medium mt-1">Annonces</p>
+          <div class="grid grid-cols-3 gap-2 sm:gap-4 mt-8 pt-8 border-t border-slate-100">
+            
+            <div class="bg-slate-50 rounded-xl p-2.5 sm:p-4 text-center border border-slate-100 cursor-default min-w-0">
+              <p class="text-xl sm:text-3xl font-black" style="color: #6366F1;">{{ user.stats?.posts || 0 }}</p>
+              <p class="text-slate-500 text-[11px] sm:text-sm font-medium mt-1 truncate">Annonces</p>
             </div>
-            <div class="bg-slate-50 rounded-xl p-4 text-center border border-slate-100 cursor-default">
-              <p class="text-3xl font-black" style="color: #6366F1;">{{ user.stats?.commentaires || 0 }}</p>
-              <p class="text-slate-500 text-sm font-medium mt-1">Commentaires</p>
+            
+            <div class="bg-slate-50 rounded-xl p-2.5 sm:p-4 text-center border border-slate-100 cursor-default min-w-0">
+              <p class="text-xl sm:text-3xl font-black" style="color: #6366F1;">{{ user.stats?.commentaires || 0 }}</p>
+              <p class="text-slate-500 text-[11px] sm:text-sm font-medium mt-1 leading-tight">Commentaires</p>
             </div>
-            <div class="bg-slate-50 rounded-xl p-4 text-center border border-slate-100 cursor-default">
-              <p class="text-3xl font-black" style="color: #6366F1;">{{ user.stats?.likes || 0 }}</p>
-              <p class="text-slate-500 text-sm font-medium mt-1">Likes reçus</p>
+            
+            <div class="bg-slate-50 rounded-xl p-2.5 sm:p-4 text-center border border-slate-100 cursor-default min-w-0">
+              <p class="text-xl sm:text-3xl font-black" style="color: #6366F1;">{{ user.stats?.likes || 0 }}</p>
+              <p class="text-slate-500 text-[11px] sm:text-sm font-medium mt-1 leading-tight">Likes reçus</p>
             </div>
+
           </div>
         </div>
       </section>
