@@ -20,6 +20,10 @@ const nbCommentairesLocal = ref(Number(props.annonce.nbCommentaires ?? props.ann
 const showCommentaires = ref(false);
 const showDropdown = ref(false);
 
+// --- ÉTAT LOCAL DE TRONCATURE DU TEXTE ("VOIR PLUS") ---
+const isExpanded = ref(false);
+const maxCharacters = 280; // Nombre de caractères maximum avant l'apparition du bouton
+
 /**
  * Vérifie si l'utilisateur connecté est le propriétaire de l'annonce.
  */
@@ -67,6 +71,25 @@ const imageSource = computed(() => {
   const fileField = props.annonce.image;
   if (!fileField) return null;
   return `${fileField}`;
+});
+
+// --- LOGIQUE DE CALCUL DU TEXTE TRONQUÉ ---
+// Récupère le texte brut peu importe le champ renvoyé par le backend
+const texteGlobal = computed(() => {
+  return props.annonce.description || props.annonce.texte || "";
+});
+
+// Vérifie si le texte dépasse la limite et a besoin d'être tronqué
+const isLongText = computed(() => {
+  return texteGlobal.value.length > maxCharacters;
+});
+
+// Renvoie le texte final à afficher (complet ou tronqué)
+const texteAffiche = computed(() => {
+  if (!isLongText.value || isExpanded.value) {
+    return texteGlobal.value;
+  }
+  return texteGlobal.value.slice(0, maxCharacters) + "...";
 });
 
 // --- LOGIQUE DU LIKE SYNCHRONISÉ ---
@@ -239,9 +262,28 @@ const executeDelete = async () => {
         </span>
       </div>
 
-      <p class="text-slate-600 text-sm leading-relaxed whitespace-pre-line">
-        {{ annonce.description || annonce.texte }}
-      </p>
+      <div>
+        <p class="text-slate-600 text-sm leading-relaxed whitespace-pre-line">
+          {{ texteAffiche }}
+        </p>
+        
+        <button 
+          v-if="isLongText"
+          @click="isExpanded = !isExpanded"
+          class="mt-1.5 text-xs font-bold text-indigo-600 hover:text-indigo-800 transition duration-150 inline-flex items-center gap-0.5 cursor-pointer hover:underline"
+        >
+          <span>{{ isExpanded ? "Voir moins" : "Voir plus" }}</span>
+          <svg 
+            class="w-3.5 h-3.5 transition-transform duration-200" 
+            :class="{ 'rotate-180': isExpanded }"
+            fill="none" 
+            stroke="currentColor" 
+            viewBox="0 0 24 24"
+          >
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7" />
+          </svg>
+        </button>
+      </div>
 
       <div v-if="imageSource" class="mt-3 rounded-xl overflow-hidden border border-slate-100 max-h-72 bg-slate-50">
         <img 

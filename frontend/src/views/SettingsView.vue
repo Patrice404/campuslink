@@ -85,11 +85,9 @@ onMounted(fetchBlockedUsers)
           <div class="grid grid-cols-1 md:grid-cols-4 gap-6 items-start">
             <nav class="flex md:flex-col gap-1 overflow-x-auto pb-2 md:pb-0">
               <button class="w-full text-left px-3 py-2 text-sm font-bold bg-white text-indigo-600 rounded-lg shadow-sm border border-gray-100 whitespace-nowrap">
-                🚫 Utilisateurs bloqués
+                Utilisateurs bloqués
               </button>
-              <button class="w-full text-left px-3 py-2 text-sm font-medium text-gray-500 hover:bg-gray-100 rounded-lg whitespace-nowrap opacity-60 cursor-not-allowed">
-                ⚙️ Général (Bientôt)
-              </button>
+             
             </nav>
 
             <div class="md:col-span-3 bg-white rounded-xl shadow-sm border border-gray-100 p-4 sm:p-6 space-y-4">
@@ -102,7 +100,7 @@ onMounted(fetchBlockedUsers)
                 ✓ {{ successMessage }}
               </div>
               <div v-if="error" class="p-3 bg-red-50 text-red-600 rounded-lg text-sm font-medium">
-                ⚠️ {{ error }}
+                 {{ error }}
               </div>
 
               <div v-if="loading" class="text-center py-6 text-gray-400 animate-pulse text-sm">
