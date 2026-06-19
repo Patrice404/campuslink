@@ -24,7 +24,7 @@ const isEditing = ref(false);
 const editForm = ref({ nom: "", prenom: "", bio: "" });
 const selectedFile = ref<File | null>(null);
 
-// ✨ ÉTAT POUR LE MODAL DE SUPPRESSION DE COMPTE PERSONNALISÉ
+// ÉTAT POUR LE MODAL DE SUPPRESSION DE COMPTE PERSONNALISÉ
 const showDeleteAccountConfirm = ref(false);
 
 const openEditModal = () => {
@@ -109,9 +109,8 @@ const handleToggleBlock = async () => {
   }
 };
 
-// ✨ FONCTION MODIFIÉE : Suppression exécutée après la validation du modal custom
 const executeDeleteAccount = async () => {
-  showDeleteAccountConfirm.value = false; // Ferme le modal immédiatement
+  showDeleteAccountConfirm.value = false;
 
   try {
     const token = authStore.token;
@@ -250,7 +249,7 @@ const initials = computed(() => {
                 <p class="font-bold text-xs uppercase tracking-wider text-slate-400 mb-2">Mes préférences de contenu </p>
                 <div class="flex flex-wrap gap-2.5 mt-2">
                   <label 
-                    v-for="genre in ['PROJET', 'EXERCICE', 'BON_PLAN', 'ENTRAIDE', 'MATIERE']" 
+                    v-for="genre in ['PROJET', 'EXERCICE', 'BON_PLAN', 'ENTRAIDE']" 
                     :key="genre"
                     class="inline-flex items-center gap-2 bg-white px-3 py-1.5 rounded-xl border border-slate-200 shadow-sm cursor-pointer hover:bg-slate-100 transition text-xs font-semibold text-slate-700"
                   >
@@ -360,7 +359,6 @@ const initials = computed(() => {
       <div class="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" @click="showDeleteAccountConfirm = false"></div>
       
       <div class="bg-white rounded-2xl max-w-sm w-full p-6 shadow-xl border border-slate-100 relative z-10 animate-in fade-in zoom-in-95 duration-150">
-        
         <h3 class="text-base font-bold text-slate-900 mb-1">
           Supprimer le compte ?
         </h3>
