@@ -10,12 +10,13 @@ export interface AuthUser {
   prenom: string;
   role: 'ETUDIANT' | 'PROFESSEUR';
   id_formation?: string | null;
+  photoProfil : string | null;
 }
 
 export const useAuthStore = defineStore('auth', {
   state: () => ({
     selectedCampusId: null as string | null,
-    user: null as AuthUser | null, // Remplacement du 'any' par l'interface
+    user: null as AuthUser | null, 
     token: null as string | null,
   }),
 
@@ -50,7 +51,8 @@ export const useAuthStore = defineStore('auth', {
         nom: userData.nom,
         prenom: userData.prenom,
         role: userData.role,
-        id_formation: userData.id_formation
+        id_formation: userData.id_formation,
+        photoProfil: userData.photoProfil
       }
     },
 
