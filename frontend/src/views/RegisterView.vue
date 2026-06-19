@@ -95,6 +95,11 @@ watch(selectedDepartement, (newVal) => {
 const handleRegister = async () => {
   errorMessage.value = ''
 
+  if (password.value.length < 8) {
+    errorMessage.value = "Le mot de passe doit contenir au moins 8 caractères."
+    return
+  }
+  
   // 1. Validation locale
   if (password.value !== confirmPassword.value) {
     errorMessage.value = "Les mots de passe ne correspondent pas."
