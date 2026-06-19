@@ -21,10 +21,17 @@ export async function recherche(req: Request, res: Response): Promise<void> {
       string | undefined
     >;
 
-    // Exclure les annonces des personnes bloquées (dans les deux sens), comme dans le fil
+    // Règles de sécurité/visibilité, identiques au fil d'accueil et aux opportunités :
+    // blocages réciproques + visibilité selon le rôle, la formation (PROMOTION) et le niveau (PROMO_SUPERIEUR).
     const idConnected = req.utilisateur ? BigInt(req.utilisateur.id) : null;
     let excludedUserIds: bigint[] = [];
+    let allowedVisibilities: string[] = ['PUBLIQUE'];
+    let userFormationId: bigint | null = null;
+    let allowedAuthorNiveaux: string[] = [];
+    let isAdminUser = false;
+
     if (idConnected) {
+      // Blocages dans les deux sens
       const blocages = await prisma.blocage.findMany({
         where: {
           OR: [
@@ -40,11 +47,62 @@ export async function recherche(req: Request, res: Response): Promise<void> {
         if (b.id_utilisateur_bloque !== idConnected) excludedSet.add(b.id_utilisateur_bloque);
       });
       excludedUserIds = Array.from(excludedSet);
+
+      // Profil du lecteur (rôle, formation, niveau)
+      const infoUtilisateur = await prisma.utilisateur.findUnique({
+        where: { id: idConnected },
+        include: { formation: true },
+      });
+
+      if (infoUtilisateur) {
+        userFormationId = infoUtilisateur.id_formation;
+
+        if (infoUtilisateur.role === 'ADMIN') {
+          isAdminUser = true; // l'admin voit tout, on n'applique pas la restriction de visibilité
+        } else if (infoUtilisateur.role) {
+          allowedVisibilities.push(infoUtilisateur.role); // ETUDIANT ou PROFESSEUR
+        }
+
+        if (infoUtilisateur.formation) {
+          const currentRank = LEVEL_RANKS[infoUtilisateur.formation.niveau] || 0;
+          allowedAuthorNiveaux = Object.keys(LEVEL_RANKS).filter(
+            (niv) => LEVEL_RANKS[niv] <= currentRank
+          );
+        }
+      }
     }
 
     // Filtres communs à tous les types d'annonce
     const base: any = {};
     if (excludedUserIds.length > 0) base.id_utilisateur = { notIn: excludedUserIds };
+
+    // Condition de visibilité (placée dans un AND pour ne pas entrer en conflit avec le OR du texte libre `q`)
+    if (idConnected && !isAdminUser) {
+      base.AND = [
+        {
+          OR: [
+            { id_utilisateur: idConnected }, // toujours voir ses propres annonces
+            { visibilite: { in: allowedVisibilities as any } },
+            ...(userFormationId
+              ? [{
+                  AND: [
+                    { visibilite: 'PROMOTION' as const },
+                    { utilisateur: { id_formation: userFormationId } },
+                  ],
+                }]
+              : []),
+            ...(allowedAuthorNiveaux.length > 0
+              ? [{
+                  AND: [
+                    { visibilite: 'PROMO_SUPERIEUR' as const },
+                    { utilisateur: { formation: { niveau: { in: allowedAuthorNiveaux } } } },
+                  ],
+                }]
+              : []),
+          ],
+        },
+      ];
+    }
     if (auteur) {
       base.utilisateur = {
         OR: [
