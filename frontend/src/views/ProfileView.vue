@@ -166,14 +166,7 @@ const fetchProfile = async () => {
   }
 };
 
-onMounted(() => {
-  // On vérifie si l'utilisateur est connecté avant de tenter de charger le profil
-  if (!authStore.token) {
-    router.push('/login');
-    return;
-  }
-  fetchProfile();
-});
+onMounted(fetchProfile);
 watch(() => route.params.uuid, fetchProfile);
 
 const initials = computed(() => {

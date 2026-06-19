@@ -18,6 +18,20 @@ const nouveauCommentaire = ref('')
 const isLoading = ref(false)
 const isSubmitting = ref(false)
 
+// Message de modération affiché en bandeau (même style que AnnonceFeedLayout), remplace le popup navigateur
+const moderationMessage = ref('')
+
+// Confirmation de suppression in-app (remplace le confirm() navigateur)
+const commentToDelete = ref<string | null>(null)
+const isDeleting = ref(false)
+
+// Construit l'URL d'une photo de profil : URL absolue (Azure) telle quelle, sinon préfixe l'API, sinon avatar par défaut.
+const photoUrl = (auteur: any): string => {
+  const p = auteur?.photoProfil
+  if (!p) return 'https://www.gravatar.com/avatar/?d=mp'
+  return p.startsWith('http') ? p : `${apiUrl}${p}`
+}
+
 // États des réponses, de la modification et de la soumission de mise à jour
 const replyingTo = ref<string | null>(null)
 const reponseTexte = ref('')
@@ -130,6 +144,9 @@ const ajouterCommentaire = async () => {
       await chargerCommentaires()
       emit('comment-added')
       router.go(0)
+    } else {
+      const err = await response.json().catch(() => ({}))
+      moderationMessage.value = err.message || "Votre commentaire n'a pas pu être publié."
     }
   } catch (err) {
     console.error(err)
@@ -160,6 +177,9 @@ const ajouterReponse = async (parentCommentId: string) => {
       replyingTo.value = null
       await chargerCommentaires()
       router.go(0)
+    } else {
+      const err = await response.json().catch(() => ({}))
+      moderationMessage.value = err.message || "Votre réponse n'a pas pu être publiée."
     }
   } catch (err) {
     console.error(err)
@@ -193,20 +213,28 @@ const modifierCommentaire = async (id: string) => {
   }
 }
 
-// ⚡️ FONCTION DE SUPPRESSION (DELETE)
-const supprimerCommentaire = async (id: string) => {
-  if (!confirm("Voulez-vous vraiment supprimer ce commentaire ?")) return
+// ⚡️ SUPPRESSION (DELETE) — confirmation via modale in-app
+const demanderSuppression = (id: string) => {
+  commentToDelete.value = id
+}
+
+const confirmerSuppression = async () => {
+  if (!commentToDelete.value || isDeleting.value) return
+  isDeleting.value = true
   try {
-    const response = await fetch(`${apiUrl}/api/commentaires/${id}`, {
+    const response = await fetch(`${apiUrl}/api/commentaires/${commentToDelete.value}`, {
       method: 'DELETE',
       headers: { 'Authorization': `Bearer ${authStore.token}` }
     })
     if (response.ok) {
+      commentToDelete.value = null
       await chargerCommentaires()
       router.go(0)
     }
   } catch (err) {
     console.error(err)
+  } finally {
+    isDeleting.value = false
   }
 }
 
@@ -224,7 +252,13 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="mt-4 border-t border-gray-100 pt-4 relative">
+  <div class="-mt-1 border-t border-gray-100 pt-3 relative">
+    <!-- Bandeau de modération (même style que AnnonceFeedLayout) -->
+    <div v-if="moderationMessage" class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl text-sm mb-3 flex items-start justify-between gap-3">
+      <span>{{ moderationMessage }}</span>
+      <button @click="moderationMessage = ''" class="text-red-400 hover:text-red-600 shrink-0 cursor-pointer font-bold leading-none">✕</button>
+    </div>
+
     <div v-if="isLoading" class="text-center py-4 text-xs text-gray-400 animate-pulse">
       Chargement des commentaires...
     </div>
@@ -232,13 +266,23 @@ onMounted(() => {
     <div v-else class="space-y-4 max-h-96 overflow-y-auto pr-1">
       <div v-for="com in commentaires" :key="com.id" class="text-sm">
         <div class="flex items-start gap-2.5">
-          <img
-            :src="com.auteur.photoProfil ? `${com.auteur.photoProfil}` : 'https://www.gravatar.com/avatar/?d=mp'"
-            class="w-7 h-7 rounded-full object-cover shrink-0 bg-gray-55"
-          />
+          <component
+            :is="com.auteur.uuid ? 'router-link' : 'span'"
+            :to="com.auteur.uuid ? `/profil/${com.auteur.uuid}` : undefined"
+            class="shrink-0"
+          >
+            <img
+              :src="photoUrl(com.auteur)"
+              class="w-7 h-7 rounded-full object-cover shrink-0 bg-gray-55 hover:ring-2 hover:ring-blue-200 transition"
+            />
+          </component>
           <div class="flex-1 bg-gray-50 rounded-xl p-2.5 relative">
             <div class="flex justify-between items-baseline mb-0.5">
-              <span class="font-semibold text-gray-900 text-xs">{{ com.auteur.prenom }} {{ com.auteur.nom }}</span>
+              <component
+                :is="com.auteur.uuid ? 'router-link' : 'span'"
+                :to="com.auteur.uuid ? `/profil/${com.auteur.uuid}` : undefined"
+                class="font-semibold text-gray-900 text-xs hover:text-blue-600 hover:underline transition"
+              >{{ com.auteur.prenom }} {{ com.auteur.nom }}</component>
               <span class="text-[10px] text-gray-400">Récemment</span>
             </div>
 
@@ -271,7 +315,7 @@ onMounted(() => {
                 <button @click="activerEdition(com)" class="text-[10px] text-gray-500 font-medium hover:underline block cursor-pointer">
                   Modifier
                 </button>
-                <button @click="supprimerCommentaire(com.id)" class="text-[10px] text-red-500 font-medium hover:underline block cursor-pointer">
+                <button @click="demanderSuppression(com.id)" class="text-[10px] text-red-500 font-medium hover:underline block cursor-pointer">
                   Supprimer
                 </button>
               </template>
@@ -281,13 +325,23 @@ onMounted(() => {
 
         <div v-if="com.reponses && com.reponses.length > 0" class="ml-9 mt-2 space-y-3 border-l-2 border-gray-100 pl-3">
           <div v-for="rep in com.reponses" :key="rep.id" class="flex items-start gap-2.5 text-xs">
-            <img
-              :src="rep.auteur.photoProfil ? `${apiUrl}${rep.auteur.photoProfil}` : 'https://www.gravatar.com/avatar/?d=mp'"
-              class="w-6 h-6 rounded-full object-cover shrink-0 bg-gray-55"
-            />
+            <component
+              :is="rep.auteur.uuid ? 'router-link' : 'span'"
+              :to="rep.auteur.uuid ? `/profil/${rep.auteur.uuid}` : undefined"
+              class="shrink-0"
+            >
+              <img
+                :src="photoUrl(rep.auteur)"
+                class="w-6 h-6 rounded-full object-cover shrink-0 bg-gray-55 hover:ring-2 hover:ring-blue-200 transition"
+              />
+            </component>
             <div class="flex-1 bg-gray-50/70 rounded-xl p-2.5">
               <div class="flex justify-between items-baseline mb-0.5">
-                <span class="font-semibold text-gray-900 text-[11px]">{{ rep.auteur.prenom }} {{ rep.auteur.nom }}</span>
+                <component
+                  :is="rep.auteur.uuid ? 'router-link' : 'span'"
+                  :to="rep.auteur.uuid ? `/profil/${rep.auteur.uuid}` : undefined"
+                  class="font-semibold text-gray-900 text-[11px] hover:text-blue-600 hover:underline transition"
+                >{{ rep.auteur.prenom }} {{ rep.auteur.nom }}</component>
                 <span class="text-[9px] text-gray-400">Récemment</span>
               </div>
 
@@ -312,7 +366,7 @@ onMounted(() => {
                 <button @click="activerEdition(rep)" class="text-[9px] text-gray-500 font-medium hover:underline block cursor-pointer">
                   Modifier
                 </button>
-                <button @click="supprimerCommentaire(rep.id)" class="text-[9px] text-red-500 font-medium hover:underline block cursor-pointer">
+                <button @click="demanderSuppression(rep.id)" class="text-[9px] text-red-500 font-medium hover:underline block cursor-pointer">
                   Supprimer
                 </button>
               </div>
@@ -354,8 +408,8 @@ onMounted(() => {
         @click="injecterMention(user)"
         class="flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-blue-50 transition duration-100"
       >
-        <img 
-          :src="user.photoProfil ? `${apiUrl}${user.photoProfil}` : 'https://www.gravatar.com/avatar/?d=mp'" 
+        <img
+          :src="photoUrl(user)"
           class="w-6 h-6 rounded-full object-cover shrink-0 bg-gray-100"
         />
         <div class="flex-1 min-w-0">
@@ -365,7 +419,7 @@ onMounted(() => {
       </div>
     </div>
 
-    <form @submit.prevent="ajouterCommentaire" class="flex gap-2 mt-3 relative" @click.stop>
+    <form @submit.prevent="ajouterCommentaire" class="flex gap-2 mt-2 relative" @click.stop>
       <input
         v-model="nouveauCommentaire"
         @input="gererFrappeMention(nouveauCommentaire, 'racine')"
@@ -382,5 +436,33 @@ onMounted(() => {
         {{ isSubmitting ? '...' : 'Envoyer' }}
       </button>
     </form>
+
+    <!-- Confirmation de suppression in-app (même style qu'AnnonceCard) -->
+    <div v-if="commentToDelete" class="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div class="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" @click="commentToDelete = null"></div>
+
+      <div class="bg-white rounded-2xl max-w-sm w-full p-6 shadow-xl border border-slate-100 relative z-10 animate-in fade-in zoom-in-95 duration-150">
+        <h3 class="text-base font-bold text-slate-900 mb-1">Supprimer le commentaire ?</h3>
+        <p class="text-slate-500 text-sm mb-6 leading-relaxed">
+          Cette action est irréversible. Le commentaire sera définitivement retiré.
+        </p>
+
+        <div class="flex gap-3 justify-end">
+          <button
+            @click="commentToDelete = null"
+            class="px-4 py-2 text-sm font-semibold text-slate-500 hover:bg-slate-50 rounded-xl transition cursor-pointer"
+          >
+            Annuler
+          </button>
+          <button
+            @click="confirmerSuppression"
+            :disabled="isDeleting"
+            class="px-4 py-2 text-sm font-semibold text-white bg-red-600 hover:bg-red-700 shadow-sm shadow-red-200 rounded-xl transition cursor-pointer disabled:opacity-50"
+          >
+            {{ isDeleting ? 'Suppression...' : 'Confirmer' }}
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>

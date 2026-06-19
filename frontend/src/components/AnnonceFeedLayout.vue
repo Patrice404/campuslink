@@ -5,9 +5,6 @@ import TopNav from './TopNav.vue'
 import CreatePostModal from './CreatePostModal.vue'
 import AnnonceCard from './AnnonceCard.vue'
 import { useAuthStore } from '../stores/authStore'
-import { useRouter } from 'vue-router'
-
-const router = useRouter()
 
 const authStore = useAuthStore()
 const MAX_ANNONCES_PER_PAGE = 4 // Ta limite de pagination
@@ -156,11 +153,6 @@ const handleModalClose = async () => {
 }
 
 onMounted(async () => {
-  //On vérifie si l'utilisateur est connecté avant de tenter de charger les annonces
-  if (!authStore.token) {
-    router.push('/');
-    return;
-  }
   await fetchAnnonces(true)     
   setupIntersectionObserver()  
 })

@@ -16,6 +16,7 @@ const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:3000";
 // --- ÉTATS LOCAUX (Likes & Commentaires) ---
 const nbJaimeLocal = ref(Number(props.annonce.nbJaime) || 0);
 const isLikedLocal = ref(props.annonce.isLikedByMe || false);
+const nbCommentairesLocal = ref(Number(props.annonce.nbCommentaires ?? props.annonce.commentaires?.length ?? 0));
 const showCommentaires = ref(false);
 const showDropdown = ref(false);
 
@@ -43,6 +44,7 @@ const handleEditClick = () => {
 watch(() => props.annonce, (newAnnonce) => {
   nbJaimeLocal.value = Number(newAnnonce.nbJaime) || 0;
   isLikedLocal.value = newAnnonce.isLikedByMe || false;
+  nbCommentairesLocal.value = Number(newAnnonce.nbCommentaires ?? newAnnonce.commentaires?.length ?? 0);
 }, { deep: true });
 
 // Formater la date proprement
@@ -171,7 +173,7 @@ const executeDelete = async () => {
             'bg-orange-100 text-orange-700': annonce.sousTypeTypeFront === 'TUTORAT',
             'bg-sky-100 text-sky-700': annonce.sousTypeTypeFront === 'EXERCICE'
           }">
-          {{ annonce.sousTypeTypeFront === 'TUTORAT' ? 'Tutorat' : 'Exercice' }}
+          {{ annonce.sousTypeTypeFront === 'TUTORAT' ? '🤝 Tutorat' : '📝 Exercice' }}
         </span>
         <span v-else class="text-[10px] uppercase tracking-wider font-extrabold px-2.5 py-1 rounded-md"
           :class="{
@@ -224,16 +226,16 @@ const executeDelete = async () => {
 
       <div class="flex flex-wrap gap-2 text-xs">
         <span v-if="annonce.matiere" class="inline-flex items-center gap-1 bg-slate-100 text-slate-700 px-2.5 py-1 rounded-lg font-medium">
-           {{ annonce.matiere.titre }}
+          📚 {{ annonce.matiere.titre }}
         </span>
         <span v-if="annonce.annee" class="inline-flex items-center gap-1 bg-slate-100 text-slate-700 px-2.5 py-1 rounded-lg font-medium">
-           {{ annonce.annee }}
+          🎓 {{ annonce.annee }}
         </span>
         <span v-if="annonce.sousType" class="inline-flex items-center gap-1 bg-purple-50 text-purple-700 border border-purple-100 px-2.5 py-1 rounded-lg font-semibold uppercase text-[10px]">
-           {{ annonce.sousType.replace('_', ' ') }}
+          🔥 {{ annonce.sousType.replace('_', ' ') }}
         </span>
         <span v-if="annonce.nbCandidatsVoulus" class="inline-flex items-center gap-1 bg-orange-50 text-orange-700 px-2.5 py-1 rounded-lg font-semibold border border-orange-100">
-           Places disponibles : {{ annonce.nbCandidatsVoulus }} élève(s)
+          👥 Places disponibles : {{ annonce.nbCandidatsVoulus }} élève(s)
         </span>
       </div>
 
@@ -276,12 +278,12 @@ const executeDelete = async () => {
       
       <button @click="showCommentaires = !showCommentaires" class="flex items-center gap-1.5 hover:text-indigo-600 transition cursor-pointer" :class="{ 'text-indigo-600 font-bold': showCommentaires }">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path></svg>
-        <span>Commenter</span>
+        <span>{{ nbCommentairesLocal }}</span>
       </button>
     </div>
 
     <div v-if="showCommentaires">
-      <AnnoncesCommentaires :annonceId="annonce.id" :annonceType="annonce.type" />
+      <AnnoncesCommentaires :annonceId="annonce.id" :annonceType="annonce.type" @comment-added="nbCommentairesLocal++" />
     </div>
 
     <div v-if="showDeleteConfirm" class="fixed inset-0 z-50 flex items-center justify-center p-4">

@@ -59,7 +59,7 @@ const handleLogin = async () => {
     }
     
     // Redirection vers le fil d'actualité
-    router.push('/profil')
+    router.push('/home')
 
   } catch (error) {
     console.error("Erreur réseau :", error)
