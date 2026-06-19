@@ -12,6 +12,10 @@ const successMessage = ref("")
 
 const isMobileMenuOpen = ref(false)
 
+// ✨ ÉTATS POUR LE MODAL DE DÉBLOCAGE SUR MESURE
+const showUnblockConfirm = ref(false)
+const userToUnblock = ref<any | null>(null)
+
 // Charger la liste des personnes bloquées
 const fetchBlockedUsers = async () => {
   loading.value = true
@@ -35,9 +39,23 @@ const fetchBlockedUsers = async () => {
   }
 }
 
-// Action de déblocage
-const handleUnblock = async (userId: string) => {
-  if (!confirm("Voulez-vous vraiment débloquer cet utilisateur ?")) return;
+/**
+ * ✨ Étape 1 : Intercepte le clic sur le bouton "Débloquer"
+ * Enregistre l'utilisateur sélectionné et ouvre la modale
+ */
+const triggerUnblockConfirmation = (user: any) => {
+  userToUnblock.value = user
+  showUnblockConfirm.value = true
+}
+
+/**
+ * ✨ Étape 2 : Exécute l'action de déblocage après confirmation dans le modal
+ */
+const executeUnblock = async () => {
+  if (!userToUnblock.value) return;
+  
+  const userId = userToUnblock.value.id;
+  showUnblockConfirm.value = false; // Ferme le modal immédiatement
   
   error.value = ""
   successMessage.value = ""
@@ -61,6 +79,8 @@ const handleUnblock = async (userId: string) => {
     blockedUsers.value = blockedUsers.value.filter(user => user.id !== userId)
   } catch (err) {
     error.value = "Impossible de débloquer cet utilisateur."
+  } finally {
+    userToUnblock.value = null // Nettoie l'état local
   }
 }
 
@@ -87,7 +107,6 @@ onMounted(fetchBlockedUsers)
               <button class="w-full text-left px-3 py-2 text-sm font-bold bg-white text-indigo-600 rounded-lg shadow-sm border border-gray-100 whitespace-nowrap">
                 Utilisateurs bloqués
               </button>
-             
             </nav>
 
             <div class="md:col-span-3 bg-white rounded-xl shadow-sm border border-gray-100 p-4 sm:p-6 space-y-4">
@@ -107,12 +126,12 @@ onMounted(fetchBlockedUsers)
                 Chargement de la liste...
               </div>
 
-              <div v-else-if="blockedUsers.length === 0" class="text-center py-12 border-2 border-dashed border-gray-100 rounded-xl text-gray-400">
+              <div class="text-center py-12 border-2 border-dashed border-gray-100 rounded-xl text-gray-400" v-else-if="blockedUsers.length === 0">
                 <span class="text-2xl">🕊️</span>
                 <p class="text-sm mt-1 font-medium">Ta liste d'utilisateurs bloqués est vide.</p>
               </div>
 
-              <div v-else class="divide-y divide-gray-100">
+              <div class="divide-y divide-gray-100" v-else>
                 <div 
                   v-for="user in blockedUsers" 
                   :key="user.id" 
@@ -133,7 +152,7 @@ onMounted(fetchBlockedUsers)
                   </div>
 
                   <button 
-                    @click="handleUnblock(user.id)"
+                    @click="triggerUnblockConfirmation(user)"
                     class="px-3 py-1.5 bg-gray-50 hover:bg-red-50 text-gray-600 hover:text-red-600 border border-gray-200 hover:border-red-200 text-xs font-bold rounded-lg transition shadow-sm cursor-pointer"
                   >
                     Débloquer
@@ -147,5 +166,34 @@ onMounted(fetchBlockedUsers)
         </div>
       </div>
     </main>
+
+    <div v-if="showUnblockConfirm" class="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div class="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" @click="showUnblockConfirm = false"></div>
+      
+      <div class="bg-white rounded-2xl max-w-sm w-full p-6 shadow-xl border border-slate-100 relative z-10 animate-in fade-in zoom-in-95 duration-150">
+        <h3 class="text-base font-bold text-slate-900 mb-1">
+          Débloquer l'utilisateur ?
+        </h3>
+        <p class="text-slate-500 text-sm mb-6 leading-relaxed">
+          Voulez-vous vraiment débloquer <span class="font-semibold text-slate-800">{{ userToUnblock?.prenom }} {{ userToUnblock?.nom }}</span> ? Cet utilisateur pourra à nouveau voir tes publications et interagir avec toi.
+        </p>
+        
+        <div class="flex gap-3 justify-end">
+          <button 
+            @click="showUnblockConfirm = false" 
+            class="px-4 py-2 text-sm font-semibold text-slate-500 hover:bg-slate-50 rounded-xl transition cursor-pointer"
+          >
+            Annuler
+          </button>
+          <button 
+            @click="executeUnblock" 
+            class="px-4 py-2 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 shadow-sm shadow-indigo-200 rounded-xl transition cursor-pointer"
+          >
+            Confirmer
+          </button>
+        </div>
+      </div>
+    </div>
+
   </div>
 </template>
