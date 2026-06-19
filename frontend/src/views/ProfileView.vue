@@ -13,7 +13,7 @@ const user = ref<any>(null);
 const loading = ref(true);
 const error = ref("");
 
-// ✨ FIX FLEXIBILITÉ : On accepte l'UUID ou l'ID classique selon la config de ton router
+// FIX FLEXIBILITÉ : On accepte l'UUID ou l'ID classique selon la config de ton router
 const targetIdentifier = computed(() => route.params.uuid || route.params.id || null);
 
 // L'affichage est considéré comme "Mon profil" si aucun identifiant n'est présent dans l'URL
@@ -23,6 +23,9 @@ const isMyProfile = computed(() => !targetIdentifier.value);
 const isEditing = ref(false);
 const editForm = ref({ nom: "", prenom: "", bio: "" });
 const selectedFile = ref<File | null>(null);
+
+// ✨ ÉTAT POUR LE MODAL DE SUPPRESSION DE COMPTE PERSONNALISÉ
+const showDeleteAccountConfirm = ref(false);
 
 const openEditModal = () => {
   if (!isMyProfile.value) return;
@@ -91,7 +94,6 @@ const handleUpdatePreferences = async () => {
 const handleToggleBlock = async () => {
   try {
     const token = authStore.token;
-    // ✨ Modification : Utilisation de l'identifiant flexible
     const response = await fetch(`${apiUrl}/api/utilisateurs/profile/block/${targetIdentifier.value}`, {
       method: 'POST',
       headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) }
@@ -107,9 +109,9 @@ const handleToggleBlock = async () => {
   }
 };
 
-const handleDeleteAccount = async () => {
-  const confirmation = confirm("⚠️ ATTENTION : Êtes-vous absolument sûr de vouloir supprimer définitivement votre compte ? Cette action est irréversible.");
-  if (!confirmation) return;
+// ✨ FONCTION MODIFIÉE : Suppression exécutée après la validation du modal custom
+const executeDeleteAccount = async () => {
+  showDeleteAccountConfirm.value = false; // Ferme le modal immédiatement
 
   try {
     const token = authStore.token;
@@ -135,17 +137,10 @@ const fetchProfile = async () => {
   loading.value = true;
   error.value = "";
   
-  // 📝 Logs de diagnostic visibles dans l'onglet "Console" de ton navigateur
-  console.log("=== [DEBUG] Chargement du profil ===");
-  console.log("Paramètres de la route actuels :", route.params);
-  console.log("Identifiant cible retenu :", targetIdentifier.value);
-
   try {
     const endpoint = targetIdentifier.value
       ? `${apiUrl}/api/utilisateurs/profile/${targetIdentifier.value}`
       : `${apiUrl}/api/utilisateurs/profile`;
-
-    console.log("Appel de l'endpoint :", endpoint);
 
     const token = authStore.token; 
     const response = await fetch(endpoint, {
@@ -177,7 +172,6 @@ const fetchProfile = async () => {
 };
 
 onMounted(fetchProfile);
-// ✨ Surveillance de l'identifiant flexible pour recharger la vue proprement
 watch(() => targetIdentifier.value, fetchProfile);
 
 const initials = computed(() => {
@@ -185,7 +179,6 @@ const initials = computed(() => {
   return `${user.value.prenom?.[0] || ""}${user.value.nom?.[0] || ""}`.toUpperCase();
 });
 </script>
-
 
 <template>
   <div class="min-h-screen bg-slate-50 py-8 px-4 sm:px-6 lg:px-8">
@@ -324,7 +317,7 @@ const initials = computed(() => {
           <h3 class="text-red-800 font-bold text-lg">Avertissement</h3>
           <p class="text-red-600 text-sm mt-1">La suppression de votre compte effacera de manière irréversible toutes vos données de la plateforme.</p>
         </div>
-        <button @click="handleDeleteAccount" class="bg-red-600 hover:bg-red-700 text-white font-semibold text-sm px-5 py-2.5 rounded-xl transition shadow-sm whitespace-nowrap">
+        <button @click="showDeleteAccountConfirm = true" class="bg-red-600 hover:bg-red-700 text-white font-semibold text-sm px-5 py-2.5 rounded-xl transition shadow-sm whitespace-nowrap">
           Supprimer mon compte
         </button>
       </section>
@@ -360,6 +353,35 @@ const initials = computed(() => {
             <button type="submit" class="px-5 py-2 rounded-xl text-sm font-semibold text-white shadow-sm" style="background-color: #6366F1;">Enregistrer</button>
           </div>
         </form>
+      </div>
+    </div>
+
+    <div v-if="showDeleteAccountConfirm" class="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div class="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" @click="showDeleteAccountConfirm = false"></div>
+      
+      <div class="bg-white rounded-2xl max-w-sm w-full p-6 shadow-xl border border-slate-100 relative z-10 animate-in fade-in zoom-in-95 duration-150">
+        
+        <h3 class="text-base font-bold text-slate-900 mb-1">
+          Supprimer le compte ?
+        </h3>
+        <p class="text-slate-500 text-sm mb-6 leading-relaxed">
+          Cette action est irréversible. Votre compte ainsi que l'intégralité de vos publications seront définitivement effacés de la plateforme.
+        </p>
+        
+        <div class="flex gap-3 justify-end">
+          <button 
+            @click="showDeleteAccountConfirm = false" 
+            class="px-4 py-2 text-sm font-semibold text-slate-500 hover:bg-slate-50 rounded-xl transition cursor-pointer"
+          >
+            Annuler
+          </button>
+          <button 
+            @click="executeDeleteAccount" 
+            class="px-4 py-2 text-sm font-semibold text-white bg-red-600 hover:bg-red-700 shadow-sm shadow-red-200 rounded-xl transition cursor-pointer"
+          >
+            Confirmer
+          </button>
+        </div>
       </div>
     </div>
 
