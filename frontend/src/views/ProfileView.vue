@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from "vue";
-// On ajoute useRouter pour pouvoir rediriger l'utilisateur après la suppression de son compte
 import { useRoute, useRouter } from "vue-router";
 import { useAuthStore } from '../stores/authStore';
 
@@ -14,8 +13,11 @@ const user = ref<any>(null);
 const loading = ref(true);
 const error = ref("");
 
-// ✨ Modification : On vérifie la présence de l'UUID pour savoir si c'est notre profil
-const isMyProfile = computed(() => !route.params.uuid);
+// ✨ FIX FLEXIBILITÉ : On accepte l'UUID ou l'ID classique selon la config de ton router
+const targetIdentifier = computed(() => route.params.uuid || route.params.id || null);
+
+// L'affichage est considéré comme "Mon profil" si aucun identifiant n'est présent dans l'URL
+const isMyProfile = computed(() => !targetIdentifier.value);
 
 // --- ÉTATS POUR LA MODIFICATION CLASSIQUE ---
 const isEditing = ref(false);
@@ -67,7 +69,6 @@ const handleUpdateProfile = async () => {
   }
 };
 
-// --- SAUVEGARDE AUTOMATIQUE DES PRÉFÉRENCES (JSON) ---
 const handleUpdatePreferences = async () => {
   try {
     const token = authStore.token;
@@ -87,12 +88,11 @@ const handleUpdatePreferences = async () => {
   }
 };
 
-// --- TOGGLE BLOCAGE DE L'UTILISATEUR EXTERNE ---
 const handleToggleBlock = async () => {
   try {
     const token = authStore.token;
-    // ✨ Modification : Appel de la route avec l'UUID
-    const response = await fetch(`${apiUrl}/api/utilisateurs/profile/block/${route.params.uuid}`, {
+    // ✨ Modification : Utilisation de l'identifiant flexible
+    const response = await fetch(`${apiUrl}/api/utilisateurs/profile/block/${targetIdentifier.value}`, {
       method: 'POST',
       headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) }
     });
@@ -107,9 +107,8 @@ const handleToggleBlock = async () => {
   }
 };
 
-// --- SUPPRESSION DU COMPTE (RGPD) ---
 const handleDeleteAccount = async () => {
-  const confirmation = confirm("⚠️ ATTENTION : Êtes-vous absolument sûr de vouloir supprimer définitivement votre compte ? Cette action est irréversible et supprimera l'intégralité de vos publications.");
+  const confirmation = confirm("⚠️ ATTENTION : Êtes-vous absolument sûr de vouloir supprimer définitivement votre compte ? Cette action est irréversible.");
   if (!confirmation) return;
 
   try {
@@ -135,11 +134,18 @@ const handleDeleteAccount = async () => {
 const fetchProfile = async () => {
   loading.value = true;
   error.value = "";
+  
+  // 📝 Logs de diagnostic visibles dans l'onglet "Console" de ton navigateur
+  console.log("=== [DEBUG] Chargement du profil ===");
+  console.log("Paramètres de la route actuels :", route.params);
+  console.log("Identifiant cible retenu :", targetIdentifier.value);
+
   try {
-    const userUuid = route.params.uuid;
-    const endpoint = userUuid
-      ? `${apiUrl}/api/utilisateurs/profile/${userUuid}`
+    const endpoint = targetIdentifier.value
+      ? `${apiUrl}/api/utilisateurs/profile/${targetIdentifier.value}`
       : `${apiUrl}/api/utilisateurs/profile`;
+
+    console.log("Appel de l'endpoint :", endpoint);
 
     const token = authStore.token; 
     const response = await fetch(endpoint, {
@@ -154,12 +160,16 @@ const fetchProfile = async () => {
     if (!response.ok) throw new Error(`Erreur HTTP : ${response.status}`);
 
     user.value = await response.json();
-    authStore.setUser(user.value)
+
+    if (isMyProfile.value) {
+      authStore.setUser(user.value);
+    }
+    
     if (isMyProfile.value && !user.value.centresInteret) {
       user.value.centresInteret = [];
     }
   } catch (err) {
-    console.error("Détail de l'erreur :", err);
+    console.error("Détail de l'erreur lors du fetch :", err);
     error.value = "Erreur lors du chargement du profil.";
   } finally {
     loading.value = false;
@@ -167,13 +177,15 @@ const fetchProfile = async () => {
 };
 
 onMounted(fetchProfile);
-watch(() => route.params.uuid, fetchProfile);
+// ✨ Surveillance de l'identifiant flexible pour recharger la vue proprement
+watch(() => targetIdentifier.value, fetchProfile);
 
 const initials = computed(() => {
   if (!user.value) return "";
   return `${user.value.prenom?.[0] || ""}${user.value.nom?.[0] || ""}`.toUpperCase();
 });
 </script>
+
 
 <template>
   <div class="min-h-screen bg-slate-50 py-8 px-4 sm:px-6 lg:px-8">

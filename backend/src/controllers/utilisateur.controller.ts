@@ -18,7 +18,7 @@ function serializeUser(user: any) {
     bio: user.bio,
     centresInteret: user.centresInteret,
     dateInscription: user.dateInscription,
-    photoProfil: user.photoProfil, // Sera écrasée par l'URL signée dans les GET
+    photoProfil: user.photoProfil, 
     id_campus: user.id_campus ? user.id_campus.toString() : null,
   };
 }
@@ -47,7 +47,6 @@ export async function getProfil(req: Request, res: Response): Promise<void> {
       return;
     }
 
-    // Récupération et calcul des statistiques + agrégation des 4 types d'annonces
     const [exCount, bpCount, tutCount, projCount, commentCount, totalLikesReceived, exercices, bonsplans, tutorats, projets] = await Promise.all([
       prisma.annonceExercice.count({ where: { id_utilisateur: targetId } }),
       prisma.annonceBonPlan.count({ where: { id_utilisateur: targetId } }),
@@ -79,9 +78,19 @@ export async function getProfil(req: Request, res: Response): Promise<void> {
 
     const campus = utilisateur.formation?.departement?.campus;
 
-    // ✨ Modification : Signature à la volée de l'URL pour le profil connecté
     const serializedUser = serializeUser(utilisateur);
-    serializedUser.photoProfil = await genererUrlSignee(serializedUser.photoProfil);
+    
+    // ✨ FIX SÉCURITÉ : Validation de chaîne + isolation Try/Catch contre le freeze d'infrastructure
+    if (utilisateur.photoProfil && utilisateur.photoProfil.trim() !== '' && utilisateur.photoProfil !== 'null') {
+      try {
+        serializedUser.photoProfil = await genererUrlSignee(serializedUser.photoProfil);
+      } catch (azureError) {
+        console.error(" [Azure SAS] Impossible de signer l'URL (getProfil):", azureError);
+        serializedUser.photoProfil = null; // Fallback sécurisé
+      }
+    } else {
+      serializedUser.photoProfil = null;
+    }
 
     res.json({
       ...serializedUser,
@@ -139,9 +148,19 @@ export async function updateProfil(req: Request, res: Response): Promise<void> {
       data,
     });
 
-    // ✨ Modification : Signature de la nouvelle URL pour la renvoyer instantanément au front après l'upload
     const serializedUser = serializeUser(utilisateur);
-    serializedUser.photoProfil = await genererUrlSignee(serializedUser.photoProfil);
+    
+    // ✨ FIX SÉCURITÉ : Validation de chaîne + isolation Try/Catch contre le freeze d'infrastructure
+    if (utilisateur.photoProfil && utilisateur.photoProfil.trim() !== '' && utilisateur.photoProfil !== 'null') {
+      try {
+        serializedUser.photoProfil = await genererUrlSignee(utilisateur.photoProfil);
+      } catch (azureError) {
+        console.error("[Azure SAS] Impossible de signer l'URL (updateProfil):", azureError);
+        serializedUser.photoProfil = null;
+      }
+    } else {
+      serializedUser.photoProfil = null;
+    }
 
     res.json(serializedUser);
   } catch (err) {
@@ -219,8 +238,16 @@ export async function getProfilPublic(req: Request, res: Response): Promise<void
 
     const campus = utilisateur.formation?.departement?.campus;
 
-    // ✨ Modification : Signature à la volée de l'image du profil public ciblé
-    const photoSignee = await genererUrlSignee(utilisateur.photoProfil);
+    // ✨ FIX SÉCURITÉ : Validation de chaîne + isolation Try/Catch contre le freeze d'infrastructure
+    let photoSignee: string | null = null;
+    if (utilisateur.photoProfil && utilisateur.photoProfil.trim() !== '' && utilisateur.photoProfil !== 'null') {
+      try {
+        photoSignee = await genererUrlSignee(utilisateur.photoProfil);
+      } catch (azureError) {
+        console.error("[Azure SAS] Impossible de signer l'URL (getProfilPublic):", azureError);
+        photoSignee = null;
+      }
+    }
 
     res.json({
       id: utilisateur.id.toString(),
@@ -228,7 +255,7 @@ export async function getProfilPublic(req: Request, res: Response): Promise<void
       nom: utilisateur.nom,
       prenom: utilisateur.prenom,
       role: utilisateur.role,
-      photoProfil: photoSignee, // 👈 URL signée sécurisée transmise
+      photoProfil: photoSignee, 
       dateInscription: utilisateur.dateInscription,
       bio: utilisateur.bio,
       centresInteret: utilisateur.centresInteret,
@@ -338,7 +365,6 @@ export async function supprimerCompte(req: Request, res: Response): Promise<void
   }
 }
 
-// GET /api/utilisateurs/recherche-mentions?q=abc
 export const chercherPourMentions = async (req: Request, res: Response): Promise<void> => {
   try {
     const query = (req.query.q as string || '').trim().toLowerCase();
@@ -365,12 +391,11 @@ export const chercherPourMentions = async (req: Request, res: Response): Promise
     });
 
     const cleanUsers = utilisateurs.map(u => {
-      // Génère un username unique en enlevant les espaces, tirets et accents pour coller à ta Regex
       const username = `${u.prenom}${u.nom}`
         .toLowerCase()
         .normalize("NFD")
-        .replace(/[\u0300-\u036f]/g, "") // Supprime les accents
-        .replace(/[^a-z0-9]/g, "");     // Supprime espaces, tirets, etc.
+        .replace(/[\u0300-\u036f]/g, "") 
+        .replace(/[^a-z0-9]/g, "");     
         
       return {
         id: u.id.toString(),
