@@ -1,45 +1,49 @@
-import { BlobServiceClient } from '@azure/storage-blob';
+import fs from 'fs';
 import path from 'path';
-const connectionString = process.env.AZURE_STORAGE_CONNECTION_STRING || '';
-const containerName = process.env.AZURE_STORAGE_CONTAINER_NAME || 'campuslink-uploads';
 
-const blobServiceClient = BlobServiceClient.fromConnectionString(connectionString);
-const containerClient = blobServiceClient.getContainerClient(containerName);
+const uploadsDir = path.join(__dirname, '../../uploads');
 
 /**
- * Upload un fichier vers Azure Blob Storage
- * Retourne l'URL publique permanente
+ * Upload un fichier vers le dossier local /uploads
+ * Retourne l'URL publique complète pour usage front
  */
 export async function uploadImageToBlob(file: Express.Multer.File): Promise<string> {
-    const rawExtension = path.extname(file.originalname).toLowerCase();
-    const cleanExtension = rawExtension.replace(/[^\w.-]/g, ''); 
+  if (!fs.existsSync(uploadsDir)) {
+    fs.mkdirSync(uploadsDir, { recursive: true });
+  }
 
-    // Générer le nom ultra-propre : profil-[uuid]-[timestamp].[extension]
-    const timestamp = Date.now();
-    const blobName = `profil-${timestamp}${cleanExtension}`;
+  const rawExtension = path.extname(file.originalname).toLowerCase();
+  const cleanExtension = rawExtension.replace(/[^\w.-]/g, '');
 
-    const blockBlobClient = containerClient.getBlockBlobClient(blobName);
+  const timestamp = Date.now();
+  const fileName = `profil-${timestamp}${cleanExtension}`;
+  const filePath = path.join(uploadsDir, fileName);
 
-    await blockBlobClient.uploadData(file.buffer, {
-        blobHTTPHeaders: { blobContentType: file.mimetype }
-    });
+  fs.writeFileSync(filePath, file.buffer);
 
-    console.log(`Image uploadée avec format sécurisé vers Blob : ${blockBlobClient.url}`);
-    return blockBlobClient.url;
+  const baseUrl = process.env.API_BASE_URL || 'http://localhost:3000';
+  const publicUrl = `${baseUrl}/uploads/${fileName}`;
+
+  console.log(`Image enregistrée localement : ${publicUrl}`);
+  return publicUrl;
 }
 
 /**
- * Supprime une image depuis Azure Blob Storage
+ * Supprime une image depuis le dossier local /uploads
  */
 export async function deleteImageFromBlob(imageUrl: string): Promise<void> {
-    try {
-        // Extrait le nom du blob depuis l'URL
-        const url = new URL(imageUrl);
-        const blobName = url.pathname.split('/').slice(2).join('/');
-        const blockBlobClient = containerClient.getBlockBlobClient(blobName);
-        await blockBlobClient.delete();
-        console.log(`🗑️ Image supprimée du Blob : ${blobName}`);
-    } catch (err) {
-        console.error("Erreur suppression Blob:", err);
+  try {
+    const url = new URL(imageUrl);
+    const fileName = path.basename(url.pathname);
+    const filePath = path.join(uploadsDir, fileName);
+
+    if (fs.existsSync(filePath)) {
+      fs.unlinkSync(filePath);
+      console.log(`🗑️ Image supprimée localement : ${fileName}`);
+    } else {
+      console.warn(`⚠️ Fichier introuvable : ${filePath}`);
     }
+  } catch (err) {
+    console.error('Erreur suppression locale:', err);
+  }
 }

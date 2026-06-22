@@ -2,6 +2,7 @@ services:
   backend:
     volumes:
       - ./backend:/app
+      - uploads_data:/app/uploads 
       - /app/node_modules
 
   frontend:

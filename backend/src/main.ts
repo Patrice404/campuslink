@@ -18,11 +18,18 @@ import opportuniteRoutes from './routes/opportunite.routes';
 import settingsRoutes from './routes/settings.routes';
 import adminRoutes from './routes/admin.routes';
 
-
-
 dotenv.config();
 
 const app = express();
+
+
+const uploadsDir = path.join(__dirname, '../uploads');
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true });
+  console.log('📁 Dossier uploads créé.');
+}
+
+
 
 // Origines autorisées (front Vite en dev sur 5173, + variable d'env pour la prod).
 const origines = [
@@ -34,9 +41,8 @@ const origines = [
 app.use(cors({ origin: origines, credentials: true }));
 app.use(express.json());
 
-// Sert les fichiers uploadés (images des annonces) depuis le volume Docker
-// Ex: GET /uploads/1718450000123.jpg → /app/uploads/1718450000123.jpg
-//app.use('/uploads', express.static(uploadsDir));
+app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
+
 
 app.get('/', (_req: Request, res: Response) => {
   res.send('CampusLink API est opérationnelle !');
